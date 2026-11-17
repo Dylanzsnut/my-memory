@@ -1,0 +1,48 @@
+import { BookOpen, MessageCircle, Trash2 } from 'lucide-react';
+import type { Language, Tab } from '../types';
+import { t } from '../lib/i18n';
+
+interface Props {
+  active: Tab;
+  onChange: (tab: Tab) => void;
+  language: Language;
+  reviewCount: number;
+}
+
+const items: { id: Tab; icon: typeof BookOpen; key: 'memories' | 'ask' | 'forget' }[] = [
+  { id: 'memories', icon: BookOpen, key: 'memories' },
+  { id: 'ask', icon: MessageCircle, key: 'ask' },
+  { id: 'forget', icon: Trash2, key: 'forget' },
+];
+
+export default function BottomNav({ active, onChange, language, reviewCount }: Props) {
+  return (
+    <nav className="sticky bottom-0 z-30 border-t border-line bg-canvas/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-4">
+        {items.map(({ id, icon: Icon, key }) => {
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange(id)}
+              className={`relative flex min-w-16 flex-col items-center gap-0.5 py-1 ${
+                isActive ? 'text-accent' : 'text-ink2 hover:text-ink'
+              }`}
+            >
+              <Icon size={22} strokeWidth={isActive ? 2.6 : 2} />
+              <span className={`text-[11px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+                {t(language, key)}
+              </span>
+              {id === 'forget' && reviewCount > 0 && (
+                <span className="absolute -top-1 right-2 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">
+                  {reviewCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

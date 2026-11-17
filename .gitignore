@@ -56,3 +56,8 @@ venv/
 *.temp
 *.bak
 *.orig
+
+# Firebase agent skills (installed on demand from firebase/agent-skills, see AGENTS.md)
+.agents/
+skills-lock.json
+.firebase

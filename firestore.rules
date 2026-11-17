@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Demo rules for the Web companion: the app has no sign-in, so the metadata-only
+// `captures` collection is open for the judging demo. Original blobs, transcripts
+// and embeddings are never written to Firestore — they stay on the device.
+// Replace with per-user rules (request.auth.uid) before any public release.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /captures/{captureId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

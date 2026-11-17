@@ -1,0 +1,120 @@
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+  ReCaptchaV3Provider,
+} from 'firebase/app-check';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  doc,
+  setDoc,
+  type Firestore,
+} from 'firebase/firestore';
+import {
+  getRemoteConfig,
+  fetchAndActivate,
+  getValue,
+  setLogLevel,
+  type RemoteConfig,
+} from 'firebase/remote-config';
+import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
+import type { CaptureRecord } from '../types';
+import { firebaseConfig, isFirebaseConfigured, recaptchaSiteKey, settings } from './config';
+
+interface Services {
+  app: FirebaseApp | null;
+  firestore: Firestore | null;
+  remoteConfig: RemoteConfig | null;
+  ai: AI | null;
+  error: string | null;
+}
+
+const services: Services = {
+  app: null,
+  firestore: null,
+  remoteConfig: null,
+  ai: null,
+  error: isFirebaseConfigured ? null : 'Firebase config missing — running in local demo mode.',
+};
+
+export function getServices(): Services {
+  return services;
+}
+
+export async function initFirebase(): Promise<Services> {
+  if (!isFirebaseConfigured || services.app) return services;
+  try {
+    const app = initializeApp(firebaseConfig);
+    services.app = app;
+
+    // App Check is required by Firebase AI Logic. Local development uses the
+    // debug provider (allow-list the token printed in the browser console);
+    // production uses a reCAPTCHA Enterprise score-based site key.
+    if (import.meta.env.DEV) {
+      (self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN =
+        true;
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('local-debug-placeholder'),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } else if (recaptchaSiteKey) {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } else {
+      services.error = 'Production App Check site key is missing (VITE_RECAPTCHA_SITE_KEY).';
+    }
+
+    services.firestore = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+
+    services.ai = getAI(app, { backend: new GoogleAIBackend() });
+
+    const remoteConfig = getRemoteConfig(app);
+    setLogLevel(remoteConfig, 'error');
+    remoteConfig.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 0 : 3_600_000;
+    remoteConfig.defaultConfig = {
+      cloud_model: settings.cloudModel,
+      duplicate_threshold: settings.duplicateThreshold,
+      retrieval_threshold: settings.retrievalThreshold,
+      trash_retention_days: settings.trashRetentionDays,
+    };
+    await fetchAndActivate(remoteConfig).catch(() => undefined);
+    services.remoteConfig = remoteConfig;
+
+    settings.cloudModel = getValue(remoteConfig, 'cloud_model').asString() || settings.cloudModel;
+    settings.duplicateThreshold =
+      Number(getValue(remoteConfig, 'duplicate_threshold').asString()) || settings.duplicateThreshold;
+    settings.retrievalThreshold =
+      Number(getValue(remoteConfig, 'retrieval_threshold').asString()) || settings.retrievalThreshold;
+    settings.trashRetentionDays =
+      Number(getValue(remoteConfig, 'trash_retention_days').asNumber()) || settings.trashRetentionDays;
+  } catch (error) {
+    services.error = error instanceof Error ? error.message : String(error);
+    console.warn('[firebase] initialization failed', error);
+  }
+  return services;
+}
+
+/** Metadata-only sync. Originals, transcripts and embeddings never leave the device. */
+export async function syncCaptureMetadata(captures: CaptureRecord[]): Promise<void> {
+  const firestore = services.firestore;
+  if (!firestore) return;
+  for (const capture of captures) {
+    await setDoc(doc(firestore, 'captures', capture.id), {
+      id: capture.id,
+      type: capture.type,
+      capturedAt: capture.capturedAt,
+      summary: capture.summary,
+      entities: capture.entities,
+      expiryDate: capture.expiryDate,
+      language: capture.language,
+      inferenceSource: capture.inferenceSource,
+      retentionState: capture.retentionState,
+    });
+  }
+}

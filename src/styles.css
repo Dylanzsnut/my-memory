@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-canvas: #fffdf8;
+  --color-bg: #f6f1e7;
+  --color-surface2: #fbf6ec;
+  --color-ink: #1c1710;
+  --color-ink2: #5c5344;
+  --color-ink3: #8a7d68;
+  --color-line: #e2d7c3;
+  --color-line2: #cdbd9c;
+  --color-accent: #a63500;
+  --color-accent-bright: #e4571e;
+  --color-accent-soft: #fdeadd;
+  --color-teal: #14705c;
+  --color-teal-soft: #e0f0ea;
+  --color-gold: #b8860b;
+  --color-gold-soft: #fbf0cd;
+  --color-danger: #b3372a;
+  --color-danger-soft: #fbe7e2;
+  --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-serif: 'Noto Serif', Georgia, serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  cursor: pointer;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-toast {
+  animation: toast-in 0.2s ease-out;
+}
