@@ -1,0 +1,240 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="detail_sheet" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&amp;family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "on-surface": "#1c1710",
+        "surface": "#fffdf8",
+        "surface-raised": "#fffaf0",
+        "surface-container": "#f8ece0",
+        "surface-container-high": "#f2e6da",
+        "surface-container-low": "#fef2e6",
+        "bg-base": "#f6f1e7",
+        "primary": "#e4571e",
+        "accent-deep": "#c74312",
+        "accent-soft": "#fdeadd",
+        "on-primary": "#ffffff",
+        "secondary": "#14705c",
+        "teal-soft": "#e0f0ea",
+        "ink-secondary": "#5c5344",
+        "ink-tertiary": "#8a7d68",
+        "line": "#e2d7c3",
+        "line-strong": "#cdbd9c",
+        "gold-soft": "#fbf0cd",
+        "tertiary": "#785600"
+      },
+      fontFamily: {
+        "display": ["Be Vietnam Pro", "sans-serif"],
+        "headline-lg": ["Noto Serif", "serif"],
+        "headline-md": ["Noto Serif", "serif"],
+        "headline-sm": ["Noto Serif", "serif"],
+        "body-editorial": ["Noto Serif", "serif"],
+        "body-lg": ["Be Vietnam Pro", "sans-serif"],
+        "body-md": ["Be Vietnam Pro", "sans-serif"],
+        "title-md": ["Be Vietnam Pro", "sans-serif"],
+        "label-lg": ["Be Vietnam Pro", "sans-serif"],
+        "label-md": ["Be Vietnam Pro", "sans-serif"],
+        "label-sm": ["Be Vietnam Pro", "sans-serif"]
+      }
+    }
+  }
+};</script><style>@layer base {
+  html, body {
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    background-color: #2b251e;
+    color: #1c1710;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    overscroll-behavior: none;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 12px);
+  }
+}
+::-webkit-scrollbar { display: none; }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}</style></head><body class="bg-black/45 min-h-screen flex flex-col justify-end items-center font-body-md text-on-surface antialiased selection:bg-accent-soft selection:text-primary">
+<!-- Modal Sheet Container (Mobile 390px viewport width aligned) -->
+<div class="relative w-full max-w-[430px] min-h-[92vh] max-h-[96vh] flex flex-col bg-surface rounded-t-[28px] border-t border-line shadow-2xl overflow-hidden animate-[slideUp_0.3s_ease-out]">
+<!-- Top Action Bar & Drag Handle (Sticky Sheet Header) -->
+<header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-line/60 pt-2 pb-2.5 px-4 flex flex-col gap-1.5 shrink-0">
+<!-- Sheet Grab Pill Indicator -->
+<div class="w-11 h-1.5 rounded-full bg-line-strong/60 mx-auto transition-opacity hover:opacity-80 cursor-grab"></div>
+<!-- Top Action Bar -->
+<div class="flex items-center justify-between gap-2 pt-0.5">
+<!-- Dismiss / Back Pill Button -->
+<button aria-label="Dismiss sheet" class="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-surface-container hover:bg-surface-container-high transition-transform active:scale-95 text-on-surface font-label-md text-[13px] font-semibold border border-line/50">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span>Back</span>
+</button>
+<!-- Center Title with Verified Checkmark -->
+<div class="flex items-center gap-1.5 text-center min-w-0">
+<h1 class="font-headline-sm text-[17px] font-bold text-on-surface tracking-tight truncate">Memory #128</h1>
+<span class="inline-flex items-center text-secondary" title="Cryptographically Verified">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</span>
+</div>
+<!-- Quick Share / Export Icon Button -->
+<div class="flex items-center gap-1">
+<button aria-label="Share memory detail" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-ink-secondary hover:text-on-surface flex items-center justify-center transition-all active:scale-95 border border-line/50">
+<span class="material-symbols-outlined text-[18px]">ios_share</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Scrollable Sheet Content -->
+<main class="flex-1 overflow-y-auto px-4 pt-3 pb-28 space-y-3.5">
+<!-- Capture Metadata Row -->
+<div class="flex items-center justify-between flex-wrap gap-2 px-1 text-[12px] font-medium text-ink-secondary">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-ink-tertiary">schedule</span>
+<span>Captured on 12 Nov, 18:03</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-ink-tertiary">location_on</span>
+<span>Pharmacy on Main St</span>
+</div>
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container text-ink-secondary font-label-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-[13px] text-primary">photo_camera</span>
+<span>Photo Capture</span>
+</div>
+</div>
+<!-- High-Resolution Visual Evidence Container -->
+<div class="relative w-full rounded-2xl overflow-hidden border border-line bg-surface-container-high shadow-sm group">
+<div class="relative w-full h-64 overflow-hidden">
+<img alt="Mum's organized medicine box &amp; pill organizer on wooden table" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A warm, tactile close-up photograph of an organized weekly medicine box and pharmacy blister packs resting on a textured wooden table next to a notebook. Natural afternoon light filters in creating subtle archival shadows, emphasizing clear labels like Paracetamol 500mg. Muted terracotta and sage green undertones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5OOLCMe7ucJVEjV9TZrsqS8hnESvP_3K4ro9pF1ZZiZb-Zoukd9ppi6Cqb9VEs_iYIIbq5-Zm9e8TOKDkj_VHjsXyk01rmA2ZZbrQFsGuzJd3Az4Yki2AYui8asE_nf1Hh4aUq_DBROJYhLERrwbpTVJNktwcMtEK8zjWXVufpOajmtCVsBonKCBXLQlmyBdZHfDn_31oPiW428vccxwlgFVCS4tkEC7r8xQ0iOYf">
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none"></div>
+<!-- Original Photo Proof Status Pill -->
+<div class="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface/90 backdrop-blur-md border border-line/60 shadow-sm text-on-surface">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse-dot"></span>
+<span class="font-label-sm text-[11px] text-secondary font-bold tracking-wide">Original Photo Proof</span>
+</div>
+<!-- Zoom / Fullscreen Preview Indicator -->
+<button aria-label="Expand image" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-ink-secondary hover:text-on-surface shadow-sm">
+<span class="material-symbols-outlined text-[16px]">fullscreen</span>
+</button>
+<!-- Archival Caption Footer Overlay -->
+<div class="absolute bottom-2.5 left-3 right-3 text-surface">
+<p class="font-headline-sm text-[15px] font-bold leading-tight drop-shadow-sm">Mum's weekly pill organizer</p>
+<p class="text-[11px] text-surface-container-low/90 opacity-95">Lens hash: <span class="font-mono">#b7e2·raw</span> · Uncompressed original stored locally</p>
+</div>
+</div>
+</div>
+<!-- On-Device Verification & Hardware Security Badge -->
+
+<!-- Extracted & Verified Knowledge Card -->
+<div class="rounded-2xl bg-surface-raised border border-line p-3.5 shadow-sm space-y-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-accent-soft text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[15px]">document_scanner</span>
+</span>
+<h2 class="font-headline-sm text-[15px] font-bold text-on-surface">Extracted &amp; Verified Knowledge</h2>
+</div>
+<span class="font-label-sm text-[10.5px] font-semibold text-ink-tertiary bg-surface-container px-2 py-0.5 rounded">OCR Confidence 99.4%</span>
+</div>
+<!-- Extracted Text Headline Block -->
+<div class="p-2.5 rounded-xl bg-surface border border-line/70">
+<p class="font-body-editorial text-[14px] text-on-surface font-semibold leading-relaxed">
+            “Mum's medicine box — Daily dosage schedule &amp; expiry date”
+          </p>
+<p class="font-mono text-[11px] text-ink-tertiary mt-1">Found text: Exp: 03/2027 · Batch #VN-992 · Paracetamol 500mg</p>
+</div>
+<!-- Structured Key Facts Extracted Bento -->
+<div class="grid grid-cols-3 gap-2">
+<!-- Fact 1 -->
+<div class="p-2.5 rounded-xl bg-surface border border-line/60 flex flex-col justify-between">
+<span class="font-label-sm text-[10.5px] uppercase tracking-wider text-ink-tertiary font-bold">Expiration</span>
+<div class="mt-1">
+<span class="font-title-md text-[13.5px] font-bold text-on-surface block leading-tight">March 2027</span>
+<span class="text-[10px] text-secondary font-semibold flex items-center gap-0.5 mt-0.5">
+<span class="material-symbols-outlined text-[11px]">check_circle</span> Valid
+              </span>
+</div>
+</div>
+<!-- Fact 2 -->
+<div class="p-2.5 rounded-xl bg-surface border border-line/60 flex flex-col justify-between">
+<span class="font-label-sm text-[10.5px] uppercase tracking-wider text-ink-tertiary font-bold">Instructions</span>
+<div class="mt-1">
+<span class="font-title-md text-[13px] font-bold text-on-surface block leading-tight">1 pill after dinner</span>
+<span class="text-[10px] text-ink-secondary mt-0.5 block">Daily schedule</span>
+</div>
+</div>
+<!-- Fact 3 -->
+<div class="p-2.5 rounded-xl bg-surface border border-line/60 flex flex-col justify-between">
+<span class="font-label-sm text-[10.5px] uppercase tracking-wider text-ink-tertiary font-bold">Stored</span>
+<div class="mt-1">
+<span class="font-title-md text-[13.5px] font-bold text-on-surface block leading-tight">AM / PM</span>
+<span class="text-[10px] text-ink-secondary mt-0.5 block">Tray slot #2</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Contextual Bridge: Ask About This Capture Section -->
+<div class="rounded-2xl bg-gradient-to-br from-accent-soft/40 via-surface to-surface-raised border border-primary/20 p-3.5 shadow-sm">
+<div class="flex items-center gap-2 mb-2.5">
+<div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">auto_awesome</span>
+</div>
+<h3 class="font-headline-sm text-[14.5px] font-bold text-on-surface">Ask AI about this capture</h3>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ml-auto"></span>
+</div>
+<p class="text-[12.5px] text-ink-secondary mb-3 leading-normal">
+          Instant contextual questions powered by your on-device intelligence model:
+        </p>
+<!-- Interactive Chip Actions Bridging back into Conversational Ask Tab -->
+<div class="flex flex-col gap-2">
+<button class="w-full text-left flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-surface-container active:scale-[0.99] border border-line/80 transition-all group">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary group-hover:translate-x-0.5 transition-transform">help_outline</span>
+<span class="font-body-md text-[13px] font-semibold text-on-surface">“What is the exact dosage?”</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-ink-tertiary">chevron_right</span>
+</button>
+<button class="w-full text-left flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-surface-container active:scale-[0.99] border border-line/80 transition-all group">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary group-hover:translate-x-0.5 transition-transform">event_available</span>
+<span class="font-body-md text-[13px] font-semibold text-on-surface">“When does it expire?”</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-ink-tertiary">chevron_right</span>
+</button>
+<button class="w-full text-left flex items-center justify-between p-2.5 rounded-xl bg-surface hover:bg-surface-container active:scale-[0.99] border border-line/80 transition-all group">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary group-hover:translate-x-0.5 transition-transform">storefront</span>
+<span class="font-body-md text-[13px] font-semibold text-on-surface">“Which pharmacy was this taken at?”</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-ink-tertiary">chevron_right</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Action Bar -->
+<footer class="sticky bottom-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-line px-4 pt-3 pb-safe shrink-0 shadow-[0_-4px_16px_rgba(30,20,10,0.06)]">
+<div class="flex items-center gap-2.5">
+<!-- Button 1: Secondary Outline Button (Back to Timeline / Dismiss) -->
+<button aria-label="Back to timeline" class="flex-1 py-3 px-3 rounded-full border border-line-strong text-ink-secondary hover:text-on-surface hover:bg-surface-container font-label-md text-[13.5px] font-bold text-center transition-all active:scale-95 flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[17px]">arrow_back</span>
+<span>Back to Timeline</span>
+</button>
+<!-- Button 2: Primary Terracotta CTA -->
+<button aria-label="Ask a question about this memory" class="flex-[1.4] py-3 px-4 rounded-full bg-primary hover:bg-accent-deep text-on-primary font-label-md text-[13.5px] font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5">
+<span>Ask about #128</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</footer>
+</div>
+
+
+</body></html>
