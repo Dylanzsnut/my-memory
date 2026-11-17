@@ -67,7 +67,11 @@ src/
     store.ts              IndexedDB persistence and demo seed data
     forget.ts             proposal scan and decisions
     i18n.ts               English/Vietnamese strings
-docs/                     design, requirements, UX (see above)
+docs/
+  plan/tasks.md           single source of truth for all tasks — read before any work
+  design/                 build specification
+  req/                    conceptual design
+  uiux/                   UX architecture and screen designs
 firebase.json             Hosting + Firestore rules config
 firestore.rules           metadata-only demo rules
 ```
@@ -132,6 +136,28 @@ Run this from the repository root so the skills install locally in this project,
 do not pass `-g`. To refresh later: `npx skills update`. The installed files and `skills-lock.json`
 are gitignored.
 
+## Task planning (required)
+
+`docs/plan/tasks.md` is the **single source of truth** for all work. Do not keep a
+parallel checklist in chat, comments, or another file.
+
+- **Plan before coding.** Before touching any file, read `docs/plan/tasks.md`,
+  identify the task, and make a short implementation plan in the conversation:
+  files to change, behaviour, and verification. Do not start from memory.
+- If the requested work is not in the plan, add it as a new `- [ ]` task first;
+  do not implement an untracked task.
+- Keep tasks scoped. If a task is too large, split it into smaller `- [ ]`
+  items in the plan before implementing.
+- **Mark done in the plan.** After verification (`npm run typecheck && npm run
+  build` plus the relevant manual check), change the task from `- [ ]` to
+  `- [x]`. Add a short note under the task if the result differs from the plan,
+  needs a follow-up, or cannot be verified here. Never mark a task done only
+  because code was written.
+- Do not mark parent/summary items done while child tasks remain unchecked.
+  Do not edit or delete completed tasks unless correcting the record.
+- If blockers or decisions are needed, write them in the plan (under Design
+  decisions or as a note on the task) instead of leaving them only in chat.
+
 ## Working style
 
 - Keep changes small and scoped; do not reformat untouched files.
@@ -145,6 +171,8 @@ are gitignored.
 
 ## Quick checklist before committing
 
+- [ ] Work was planned in `docs/plan/tasks.md` before coding.
+- [ ] Completed tasks are marked `- [x]` in `docs/plan/tasks.md` after verification.
 - [ ] `npm run typecheck && npm run build` pass.
 - [ ] No secrets, `.env`, or debug tokens staged.
 - [ ] No original/derived content added to Firestore writes.

@@ -65,6 +65,7 @@ export async function buildAnswer(
       latencyMs: generated.latencyMs,
       intent,
       notFound: true,
+      ...(generated.error ? { error: generated.error } : {}),
     };
   }
   return {
@@ -75,5 +76,6 @@ export async function buildAnswer(
     latencyMs: generated.latencyMs,
     intent,
     notFound: false,
+    ...(generated.error ? { error: generated.error } : {}),
   };
 }

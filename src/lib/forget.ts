@@ -73,9 +73,11 @@ export function applyDecision(
     // for the same reason because the proposal is marked decided.
     return { ...capture, retentionState: 'active' };
   }
+  const now = Date.now();
   return {
     ...capture,
     retentionState: 'trashed',
-    trashedAt: new Date(Date.now() + retentionDays * 86_400_000).toISOString(),
+    trashedAt: new Date(now).toISOString(),
+    purgeAt: new Date(now + retentionDays * 86_400_000).toISOString(),
   };
 }

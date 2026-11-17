@@ -21,7 +21,13 @@ import {
 } from 'firebase/remote-config';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 import type { CaptureRecord } from '../types';
-import { firebaseConfig, isFirebaseConfigured, recaptchaSiteKey, settings } from './config';
+import {
+  enableFirestoreSync,
+  firebaseConfig,
+  isFirebaseConfigured,
+  recaptchaSiteKey,
+  settings,
+} from './config';
 
 interface Services {
   app: FirebaseApp | null;
@@ -72,7 +78,12 @@ export async function initFirebase(): Promise<Services> {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
 
-    services.ai = getAI(app, { backend: new GoogleAIBackend() });
+    // Generative models use 5-minute limited-use App Check tokens for replay
+    // protection; without this flag those requests fail with HTTP 403.
+    services.ai = getAI(app, {
+      backend: new GoogleAIBackend(),
+      useLimitedUseAppCheckTokens: true,
+    });
 
     const remoteConfig = getRemoteConfig(app);
     setLogLevel(remoteConfig, 'error');
@@ -100,21 +111,31 @@ export async function initFirebase(): Promise<Services> {
   return services;
 }
 
-/** Metadata-only sync. Originals, transcripts and embeddings never leave the device. */
+/**
+ * Metadata-only sync, gated behind an explicit opt-in. Originals, transcripts
+ * and embeddings never leave the device. Demo/sample records are never synced.
+ */
 export async function syncCaptureMetadata(captures: CaptureRecord[]): Promise<void> {
+  if (!enableFirestoreSync) return;
   const firestore = services.firestore;
   if (!firestore) return;
-  for (const capture of captures) {
-    await setDoc(doc(firestore, 'captures', capture.id), {
-      id: capture.id,
-      type: capture.type,
-      capturedAt: capture.capturedAt,
-      summary: capture.summary,
-      entities: capture.entities,
-      expiryDate: capture.expiryDate,
-      language: capture.language,
-      inferenceSource: capture.inferenceSource,
-      retentionState: capture.retentionState,
-    });
+  try {
+    for (const capture of captures) {
+      if (capture.demo) continue;
+      await setDoc(doc(firestore, 'captures', capture.id), {
+        id: capture.id,
+        type: capture.type,
+        capturedAt: capture.capturedAt,
+        summary: capture.summary,
+        entities: capture.entities,
+        expiryDate: capture.expiryDate,
+        language: capture.language,
+        inferenceSource: capture.inferenceSource,
+        retentionState: capture.retentionState,
+      });
+    }
+  } catch (error) {
+    // Never let a sync failure become an unhandled rejection or block capture.
+    console.warn('[firebase] metadata sync failed', error);
   }
 }

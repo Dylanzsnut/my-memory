@@ -34,5 +34,9 @@ export const settings: AppSettings = {
 export const FALLBACK_CLOUD_MODEL = 'gemini-3.5-flash-lite';
 export const SEED_DEMO = env.VITE_SEED_DEMO !== 'false';
 
+// Firestore metadata sync is opt-in. It stays off unless explicitly enabled
+// AND Firebase Auth + per-user rules are in place (see firestore.rules).
+export const enableFirestoreSync = env.VITE_ENABLE_FIRESTORE_SYNC === 'true';
+
 export const ON_DEVICE_PROMPT_INSTRUCTIONS =
   'You extract concise, factual information from a personal capture. Never invent or infer values that are not explicitly present. Return only facts that appear in the capture.';

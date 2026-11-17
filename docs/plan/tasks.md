@@ -19,14 +19,22 @@ disclosure text, submission copy) are intentionally out of scope.
   that the session is cached and the local index works offline.
 - **Seed demo data:** dev builds only, behind an explicit flag. Real signed-in
   users start with an empty memory.
+- **Firestore sync:** off by default (`VITE_ENABLE_FIRESTORE_SYNC=false`). The
+  shipped rules deny all access; sync stays off until Firebase Auth and the
+  per-user rules template are active. No data leaves the device by default.
 
 ---
 
 ## P0 — blocking
 
-- [ ] Commit the 13 currently modified files (deny-all rules, opt-in Firestore
-      sync, `inferenceSource` mapping, limited-use App Check tokens, fallback
-      cloud model, `purgeAt`).
+- [x] Commit the current uncommitted changes (15 files at last check, including
+      the AGENTS.md and this plan's updates): deny-all `firestore.rules` with a
+      per-user template, opt-in Firestore sync (demo records skipped, failures
+      caught), SDK `inferenceSource` mapping (lowercase values, no hardcoded
+      cloud label), limited-use App Check tokens, cloud fallback model retry,
+      surfaced inference errors in the HUD (`error` on `AnswerResult`), real
+      `trashedAt` plus separate `purgeAt`, no remote font requests, and corrected
+      README / `WEB_SETUP.md` / `.env.example`.
 - [ ] Rebuild and redeploy Hosting from the new commit.
 - [ ] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
       answer never renders with the "Verified from your capture" banner.
@@ -46,7 +54,10 @@ disclosure text, submission copy) are intentionally out of scope.
       explicitly.
 - [ ] Offline: add a service worker and manifest (PWA) so a reload works with
       the network off.
-- [ ] Offline: self-host fonts instead of loading them from Google Fonts.
+- [x] Offline: no third-party font requests. Result differs from plan: removed
+      the Google Fonts `<link>` from `index.html` and switched to system font
+      stacks in `styles.css` instead of self-hosting font files. Self-hosting can
+      still be added later if the exact typeface is required.
 
 ## Mandatory Google sign-in
 
@@ -118,3 +129,6 @@ disclosure text, submission copy) are intentionally out of scope.
 - [ ] Publish a Remote Config template.
 - [ ] Restrict the Firebase API key by HTTP referrer.
 - [ ] Add ESLint and unit tests for `answer.ts`, `forget.ts` and `search.ts`.
+- [ ] Address the Vite build warning: the `firebase` manual chunk is ~649 kB
+      (196 kB gzip). Lazy-load `firebase/ai` or raise `build.chunkSizeWarningLimit`
+      if the size is acceptable.

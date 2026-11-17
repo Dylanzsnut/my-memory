@@ -28,7 +28,10 @@ export interface CaptureRecord {
   embedding: number[];
   sourceMatch?: { score: number; captureId: string };
   protectedReason?: string;
+  /** When the capture was moved to the trash. */
   trashedAt?: string;
+  /** When the recoverable trash window ends and the capture may be purged. */
+  purgeAt?: string;
   /** Demo/sample marker so synthetic data is never mistaken for real captures. */
   demo?: boolean;
 }
@@ -52,6 +55,8 @@ export interface AnswerResult {
   latencyMs: number;
   intent: 'short' | 'long';
   notFound: boolean;
+  /** Populated when a live inference call failed and a local fallback was used. */
+  error?: string;
 }
 
 export type ForgetReason = 'duplicate' | 'expired';

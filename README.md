@@ -37,9 +37,10 @@ The design is built on four principles:
   original photo, date, and match score attached.
 - **Cited answers** — every factual claim links to the source capture; uncited claims are suppressed
   rather than softened.
-- **Hybrid inference** — Gemini Nano 4 runs locally through Firebase AI Logic in `PREFER_ON_DEVICE`
-  mode; long synthesis escalates to the cloud. The response's `inferenceSource` drives an on-device
-  vs cloud-synthesised label in the UI, so a fallback is never mistaken for a local result.
+- **Hybrid inference** — extraction of originals runs with `ONLY_ON_DEVICE` so a photo or transcript
+  is never sent to the cloud; short answers use `PREFER_ON_DEVICE` and long cross-capture synthesis
+  uses `ONLY_IN_CLOUD`. The response's `inferenceSource` drives an on-device vs cloud-synthesised
+  label in the UI, so a fallback is never mistaken for a local result.
 - **Offline-first local search** — a local vector index keeps photos, transcriptions, and notes in
   one searchable space, working in airplane mode.
 - **Forgetting Lab** — duplicate and expiry proposals carry a reason and a link to the original.
@@ -49,7 +50,7 @@ The design is built on four principles:
 
 | Step | What happens |
 | :--- | :--- |
-| **Save** | Firebase AI Logic calls Gemini Nano 4 in `PREFER_ON_DEVICE` mode to return structured JSON (`summary`, `entities`, `expiryDate`). The original blob is stored read-only next to its embedding and is never replaced by the summary. |
+| **Save** | Firebase AI Logic calls Gemini Nano 4 in `ONLY_ON_DEVICE` mode to return structured JSON (`summary`, `entities`, `expiryDate`). The original blob is stored read-only next to its embedding and is never replaced by the summary. |
 | **Ask** | Local search finds candidate captures offline. Nano 4 resolves intent and produces a short, cited answer; only long cross-capture synthesis escalates to the cloud, sending light JSON summaries rather than originals. |
 | **Forget** | Cosine similarity over embeddings plus extracted expiry dates feed a proposal queue. The user approves or keeps each item; approved captures move to a 30-day recoverable trash. Remote Config may tune the scoring threshold, never the forgetting rule. |
 

@@ -14,8 +14,9 @@ npm run build             # type-check + production build
 
 Without Firebase config the app runs in **local demo mode**: the full UI, indexing,
 bilingual search, evidence verification, forget queue and telemetry HUD work against
-synthetic sample data, and every AI call is labelled `LOCAL DEMO` in the HUD. Nothing
-is faked as on-device or cloud inference.
+synthetic sample data, and every inference is labelled `SIMULATED` ("Local demo") in
+the HUD — never falsely shown as on-device or cloud. When a live AI call fails, the
+reason is surfaced in the HUD detail rather than silently swapped for a fake answer.
 
 ## Enable real Firebase AI Logic
 
@@ -26,10 +27,21 @@ is faked as on-device or cloud inference.
 4. For local development, App Check uses the **debug provider**: open the browser
    console, copy the printed debug token, and allow-list it under
    **App Check → Apps → Manage debug tokens**.
-5. Optional: put your reCAPTCHA v3 site key in `VITE_RECAPTCHA_SITE_KEY` for a
-   production attestation provider.
+5. For production, put your **reCAPTCHA Enterprise** site key in
+   `VITE_RECAPTCHA_SITE_KEY` (the app uses `ReCaptchaEnterpriseProvider`). With
+   `useLimitedUseAppCheckTokens: true` set in `getAI`, App Check must be enforced
+   for AI Logic or calls fail with HTTP 403.
 6. Optional: set Remote Config keys `cloud_model`, `duplicate_threshold`,
    `retrieval_threshold`, `trash_retention_days` to tune behaviour without a rebuild.
+
+### Firestore metadata sync (off by default)
+
+Captures stay entirely on-device unless `VITE_ENABLE_FIRESTORE_SYNC=true`. The shipped
+`firestore.rules` **deny all access** because the app has no authentication. Before
+enabling sync you must add Firebase Auth, scope documents to `/users/{uid}/captures/`,
+and activate the per-user rule template documented in `firestore.rules`. Demo captures
+are never synced. Original blobs, transcripts and embeddings are never written to
+Firestore under any configuration.
 
 Models are pinned per the CSD: cloud synthesis uses `gemini-3.8-flash` with
 `gemini-3.5-flash-lite` as the documented default fallback. Both names were
@@ -44,9 +56,9 @@ The first model download can take several minutes; onboarding calls
 the app follows CSD Flow 7: originals and local search stay available, extraction
 falls back to a minimal local derivation, and inference is labelled accordingly.
 
-Web structured output uses `Schema` helpers on-device (`responseConstraint`) and
-`responseSchema` / `responseMimeType: application/json` in the cloud — the Web SDK
-does not use Android's KSP `@Generable`.
+On-device structured output uses `Schema` helpers passed as `responseConstraint` in
+`onDeviceParams`. Cloud synthesis currently returns cited plain text (not JSON), so no
+`responseSchema` is configured there. The Web SDK does not use Android's KSP `@Generable`.
 
 ## Architecture map
 

@@ -1,6 +1,7 @@
 import {
   getGenerativeModel,
   InferenceMode,
+  InferenceSource as SdkInferenceSource,
   Schema,
   type GenerativeModel,
 } from 'firebase/ai';
@@ -12,7 +13,7 @@ import type {
   InferenceSource,
 } from '../types';
 import { getServices } from './firebase';
-import { settings, ON_DEVICE_PROMPT_INSTRUCTIONS } from './config';
+import { FALLBACK_CLOUD_MODEL, settings, ON_DEVICE_PROMPT_INSTRUCTIONS } from './config';
 import { normalize } from './embeddings';
 
 const extractionSchema = Schema.object({
@@ -25,7 +26,11 @@ const extractionSchema = Schema.object({
 });
 
 function toSdkSource(source: unknown): InferenceSource {
-  return source === 'IN_CLOUD' ? 'IN_CLOUD' : 'ON_DEVICE';
+  // The SDK reports lowercase values ('in_cloud' / 'on_device'), not the
+  // uppercase labels used by this app's UI and data model.
+  if (source === SdkInferenceSource.IN_CLOUD || source === 'IN_CLOUD') return 'IN_CLOUD';
+  if (source === SdkInferenceSource.ON_DEVICE || source === 'ON_DEVICE') return 'ON_DEVICE';
+  return 'SIMULATED'; // unknown/missing provenance must never be shown as a real inference
 }
 
 function dataUrlToPart(dataUrl: string) {
@@ -168,16 +173,19 @@ export async function answerQuestion(
 
   try {
     const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.PREFER_ON_DEVICE;
-    const model = getGenerativeModel(ai, {
-      mode,
-      ...(intent === 'long'
-        ? { inCloudParams: { model: settings.cloudModel } }
-        : {
-            onDeviceParams: {
-              createOptions: { expectedInputs: [{ type: 'text', languages: ['en'] }] },
-            },
-          }),
-    });
+    const cloudModelName = intent === 'long' ? settings.cloudModel : null;
+    const buildModel = (cloudModel?: string) =>
+      getGenerativeModel(ai, {
+        mode,
+        ...(cloudModel
+          ? { inCloudParams: { model: cloudModel } }
+          : {
+              onDeviceParams: {
+                createOptions: { expectedInputs: [{ type: 'text', languages: ['en'] }] },
+              },
+            }),
+      });
+    let model: GenerativeModel = buildModel(cloudModelName ?? undefined);
     const prompt = [
       'Answer the question using ONLY the numbered captures below.',
       'Cite every factual claim inline with its capture id in square brackets, e.g. [cap_123].',
@@ -189,9 +197,19 @@ export async function answerQuestion(
       'Captures:',
       contextFrom(captures),
     ].join('\n');
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      result = await model.generateContent(prompt);
+    } catch (primaryError) {
+      // For explicit cloud synthesis, retry once with the documented fallback
+      // model before degrading to the local simulated answer.
+      if (!cloudModelName || cloudModelName === FALLBACK_CLOUD_MODEL) throw primaryError;
+      console.warn('[ai] primary cloud model failed; retrying with fallback', primaryError);
+      model = buildModel(FALLBACK_CLOUD_MODEL);
+      result = await model.generateContent(prompt);
+    }
     const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
-    const source = intent === 'long' ? 'IN_CLOUD' : toSdkSource(sdkSource);
+    const source = toSdkSource(sdkSource);
     return {
       text: result.response.text().trim(),
       inferenceSource: source,
@@ -199,11 +217,16 @@ export async function answerQuestion(
       intent,
     };
   } catch (error) {
+    // A failed live call degrades to the deterministic local fallback, but the
+    // reason is surfaced so the failure is never hidden behind a plausible answer.
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[ai] live answer failed; using local fallback', message);
     return {
       text: simulatedAnswer(question, captures, intent),
       inferenceSource: 'SIMULATED',
       latencyMs: Math.round(performance.now() - started),
       intent,
+      error: message.slice(0, 200),
     };
   }
 }

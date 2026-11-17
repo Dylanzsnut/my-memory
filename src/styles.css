@@ -18,8 +18,9 @@
   --color-gold-soft: #fbf0cd;
   --color-danger: #b3372a;
   --color-danger-soft: #fbe7e2;
-  --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
-  --font-serif: 'Noto Serif', Georgia, serif;
+  /* Self-host via @font-face in /public if desired; no remote font requests. */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
 }
 
 html,

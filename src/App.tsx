@@ -133,7 +133,7 @@ export default function App() {
       };
       await saveCapture(capture);
       setCaptures((prev) => [capture, ...prev]);
-      void syncCaptureMetadata(await getCaptures());
+      void syncCaptureMetadata([capture]);
       log(t(language, 'capturedOnDevice'), result.source, result.latencyMs, extractErrorText(result.error));
     } finally {
       setBusy(false);
@@ -148,7 +148,12 @@ export default function App() {
         for (const source of result.sources) await saveCapture(source);
         setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));
       }
-      log(t(language, 'answered'), result.inferenceSource, result.latencyMs, question.slice(0, 60));
+      log(
+        t(language, 'answered'),
+        result.inferenceSource,
+        result.latencyMs,
+        result.error ? `${question.slice(0, 40)} — ${result.error}` : question.slice(0, 60),
+      );
       return result;
     } finally {
       setBusy(false);
@@ -180,7 +185,12 @@ export default function App() {
   };
 
   const handleRestore = (capture: CaptureRecord) => {
-    const restored: CaptureRecord = { ...capture, retentionState: 'active', trashedAt: undefined };
+    const restored: CaptureRecord = {
+      ...capture,
+      retentionState: 'active',
+      trashedAt: undefined,
+      purgeAt: undefined,
+    };
     void saveCapture(restored);
     setCaptures((prev) => prev.map((c) => (c.id === restored.id ? restored : c)));
     setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
