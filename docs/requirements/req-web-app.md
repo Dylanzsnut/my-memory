@@ -16,17 +16,17 @@
 - Statement: Every factual answer carries a capture id that resolves locally; otherwise the app says "Not found".
 - Type: functional · Priority: must
 - Source: OUT-2, CON-2
-- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims.
-- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`
+- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`).
+- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`, `src/lib/tags.ts`
 - Verified by: UNVERIFIED — no test yet
 
 ## REQ-003 — Local-first offline operation
 
-- Statement: Capture, local search and cached answers work after first load without a network connection.
+- Statement: Capture, local search, user-owned tagging/grouping, and cached answers work after first load without a network connection.
 - Type: non-functional · Priority: must
 - Source: OUT-3, CON-2
-- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection.
-- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `public/sw.js`
+- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags` run locally and never leave the device (`INV-401`, `INV-402`).
+- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `src/lib/tags.ts`, `public/sw.js`
 - Verified by: UNVERIFIED — no automated offline run yet
 
 ## REQ-004 — Human-controlled forgetting

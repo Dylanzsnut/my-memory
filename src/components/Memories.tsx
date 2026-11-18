@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, Image, Images, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
-import type { CaptureRecord, CaptureType, ExtractionRequest, Language } from '../types';
+import {
+  Camera,
+  Check,
+  CheckCircle2,
+  Image,
+  Images,
+  Lock,
+  Mic,
+  NotepadText,
+  Pencil,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  X,
+} from 'lucide-react';
+import type { CaptureRecord, CaptureType, ExtractionRequest, Language, TagGroupProposal } from '../types';
 import { extractPhotoCapturedAt } from '../lib/exif';
 import { t } from '../lib/i18n';
 import { SourceBadge } from './Hud';
@@ -11,6 +26,10 @@ interface Props {
   onCapture: (request: ExtractionRequest) => Promise<void>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy: boolean;
+  tagGroups?: TagGroupProposal[];
+  onAcceptTagGroup?: (group: TagGroupProposal, selectedIds: string[], labelOverride?: string) => Promise<void> | void;
+  onDismissTagGroup?: (group: TagGroupProposal) => Promise<void> | void;
+  onRefreshTagGroups?: () => void;
 }
 
 const TYPE_STYLE: Record<CaptureType, string> = {
@@ -57,7 +76,17 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-export default function Memories({ captures, language, onCapture, onOpenDetail, busy }: Props) {
+export default function Memories({
+  captures,
+  language,
+  onCapture,
+  onOpenDetail,
+  busy,
+  tagGroups = [],
+  onAcceptTagGroup,
+  onDismissTagGroup,
+  onRefreshTagGroups,
+}: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -72,6 +101,10 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
   const [voiceText, setVoiceText] = useState('');
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [groupSelections, setGroupSelections] = useState<Record<string, string[]>>({});
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -211,8 +244,15 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   };
 
   const visibleCaptures = captures.filter((c) => c.retentionState !== 'trashed');
+  const allTags = Array.from(new Set(visibleCaptures.flatMap((c) => c.tags || []))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const selectedTag = activeTag && allTags.includes(activeTag) ? activeTag : null;
+  const filteredCaptures = selectedTag
+    ? visibleCaptures.filter((c) => (c.tags || []).includes(selectedTag))
+    : visibleCaptures;
 
-  const groups = visibleCaptures.reduce<Record<string, CaptureRecord[]>>((acc, capture) => {
+  const groups = filteredCaptures.reduce<Record<string, CaptureRecord[]>>((acc, capture) => {
     const key = dayGroup(capture.capturedAt, language);
     (acc[key] ||= []).push(capture);
     return acc;
@@ -412,6 +452,153 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         </div>
       )}
 
+      {allTags.length > 0 && (
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <button
+            type="button"
+            onClick={() => setActiveTag(null)}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+              !selectedTag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+            }`}
+          >
+            {t(language, 'allTags')}
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setActiveTag(selectedTag === tag ? null : tag)}
+              className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+                selectedTag === tag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+              }`}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tagGroups.length > 0 && (
+        <section className="space-y-2.5 rounded-2xl border border-line bg-surface2 p-3">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 text-[13px] font-bold">
+              <Sparkles size={14} className="text-accent" /> {t(language, 'groupsTitle')}
+            </h2>
+            {onRefreshTagGroups && (
+              <button
+                type="button"
+                onClick={onRefreshTagGroups}
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2.5 py-1 text-[10.5px] font-semibold text-ink2 hover:border-accent"
+              >
+                <RefreshCw size={11} /> {t(language, 'refreshGroups')}
+              </button>
+            )}
+          </div>
+          {tagGroups.map((group) => {
+            const members = group.captureIds
+              .map((id) => visibleCaptures.find((c) => c.id === id))
+              .filter(Boolean) as CaptureRecord[];
+            if (members.length < 2) return null;
+            const selectedIds = groupSelections[group.id] ?? members.map((m) => m.id);
+            const isRenaming = renamingId === group.id;
+            const currentLabel = isRenaming ? renameValue.trim() || group.label : group.label;
+
+            return (
+              <div key={group.id} className="rounded-xl border border-line bg-canvas p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Tag size={13} className="text-teal" />
+                    {isRenaming ? (
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        aria-label={t(language, 'renameGroup')}
+                        className="w-36 rounded-lg border border-teal bg-surface2 px-2 py-0.5 text-[12px] font-bold outline-none"
+                      />
+                    ) : (
+                      <span className="rounded-full bg-teal-soft px-2.5 py-0.5 text-[11px] font-bold text-teal">
+                        #{group.label}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-semibold text-ink3">
+                    {t(language, 'match')} {group.meanSimilarity.toFixed(2)}
+                  </span>
+                </div>
+                <div className="mt-2.5 space-y-1.5">
+                  {members.map((member) => {
+                    const checked = selectedIds.includes(member.id);
+                    return (
+                      <label
+                        key={member.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface2 px-2.5 py-1.5 text-[11.5px]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? selectedIds.filter((id) => id !== member.id)
+                              : [...selectedIds, member.id];
+                            setGroupSelections((prev) => ({ ...prev, [group.id]: next }));
+                          }}
+                          className="accent-teal"
+                        />
+                        {member.originalRef && member.type === 'photo' ? (
+                          <img src={member.originalRef} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+                        ) : null}
+                        <span className="min-w-0 flex-1 truncate font-medium text-ink">{member.summary}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mt-2.5 flex items-center gap-1.5">
+                  {onAcceptTagGroup && (
+                    <button
+                      type="button"
+                      disabled={selectedIds.length === 0}
+                      onClick={() => {
+                        void onAcceptTagGroup(group, selectedIds, isRenaming ? currentLabel : undefined);
+                        setRenamingId(null);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-full bg-teal py-1.5 text-[11px] font-bold text-white disabled:opacity-40"
+                    >
+                      <Check size={13} /> {t(language, 'acceptGroup')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isRenaming) {
+                        setRenamingId(null);
+                      } else {
+                        setRenamingId(group.id);
+                        setRenameValue(group.label);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-line bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
+                  >
+                    <Pencil size={12} /> {t(language, 'renameGroup')}
+                  </button>
+                  {onDismissTagGroup && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenamingId(null);
+                        void onDismissTagGroup(group);
+                      }}
+                      className="inline-flex items-center justify-center gap-1 rounded-full border border-line bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink3 hover:text-ink"
+                    >
+                      {t(language, 'dismissGroup')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
       {Object.entries(groups).map(([label, items]) => (
         <section key={label} className="space-y-2.5">
           <div className="flex items-center justify-between px-0.5">
@@ -459,6 +646,18 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
                   <p className="truncate text-[13.5px] font-bold leading-snug">{capture.summary}</p>
                   {capture.derivedText && (
                     <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink2">{capture.derivedText}</p>
+                  )}
+                  {capture.tags && capture.tags.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {capture.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   )}
                   <div className="mt-2 flex items-center gap-2">
                     <SourceBadge source={capture.inferenceSource} language={language} />

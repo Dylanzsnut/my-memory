@@ -35,8 +35,20 @@ export interface CaptureRecord {
   trashedAt?: string;
   /** When the recoverable trash window ends and the capture may be purged. */
   purgeAt?: string;
+  /** User-authored tags (local only, never synced to Firestore). */
+  tags?: string[];
+  /** Model/grouping-derived tag proposals (local only, never synced). */
+  suggestedTags?: string[];
   /** Demo/sample marker so synthetic data is never mistaken for real captures. */
   demo?: boolean;
+}
+
+export interface TagGroupProposal {
+  id: string;
+  fingerprint: string;
+  label: string;
+  captureIds: string[];
+  meanSimilarity: number;
 }
 
 export interface SearchResult {
@@ -92,6 +104,9 @@ export interface AppSettings {
   retrievalThreshold: number;
   trashRetentionDays: number;
   cloudModel: string;
+  groupThresholdPhoto: number;
+  groupThresholdVoice: number;
+  groupThresholdNote: number;
 }
 
 export interface ExtractionRequest {

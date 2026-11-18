@@ -44,7 +44,7 @@ value may live and whether it may leave the device (`REQ-003`, `ADR-004`).
 | C5 | Configuration and state | `meta` keys, `AppSettings`, Remote Config values | IndexedDB `meta` + remote | No | `src/lib/config.ts` |
 | C6 | Provenance labels | `inferenceSource` (`ON_DEVICE` / `IN_CLOUD` / `SIMULATED`) | with the record | Label syncs with C3 | `ADR-008`, `INV-104` |
 | C7 | Human decisions | `ForgetProposal.decided`, `trashedAt`, `purgeAt` | IndexedDB | `retentionState` syncs, decision detail does not | `REQ-004`, `REQ-005` |
-| C8 | User-authored labels *(planned)* | `tags` | IndexedDB `captures` | **Never** — explicitly excluded from the sync allowlist | plan § Tags & suggested groups |
+| C8 | User-authored labels | `tags` | IndexedDB `captures` | **Never** — explicitly excluded from the sync allowlist (`INV-401`) | `src/lib/tags.ts`, `docs/as-built/specs/auto-tagging.md` |
 
 Boundary summary (`Claimed`, see `docs/ARCHITECTURE.md` §3): originals,
 transcripts and embeddings are device-resident by construction, not by policy
@@ -88,8 +88,8 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 | `trashedAt` | ISO string | C7 | set on trash | human decision | no (state only) | transition timestamp |
 | `purgeAt` | ISO string | C7 | derived from `trashedAt` | `trashRetentionDays` | no (state only) | end of recoverable window (`REQ-005`) |
 | `demo` | boolean | C3 | immutable | seeding | **no** (skipped) | `INV-302`; demo data is never real user data |
-| `tags` | string[] | C8 | mutable, user-authored | the user | **no** | *(planned)* survives re-extraction; joins the search index |
-| `suggestedTags` | string[] | C2 | accept / rename / dismiss | embedding grouping | **no** | *(planned)* proposals only; never written without Accept |
+| `tags` | string[] | C8 | mutable, user-authored | the user | **no** | survives re-extraction; joins the search index (`INV-401`) |
+| `suggestedTags` | string[] | C2 | accept / rename / dismiss | embedding grouping | **no** | proposals only; never written without Accept (`INV-402`) |
 
 ## 2.2 Attribute dictionary — ENT-002 / ENT-003 / ENT-004
 
@@ -271,7 +271,7 @@ Protected captures are still deletable, but only with a stronger confirmation;
 | IDX-001 | captures | `by-date` on `capturedAt` | reverse-chronological feed | one index write per capture |
 
 Retrieval runs over `embedding` cosine similarity plus lexical match on
-`summary` + `entities` + `derivedText` (+ user `tags`, planned), with bilingual
+`summary` + `entities` + `tags` + `derivedText`, with bilingual
 EN/VI synonyms (`ADR-007`). Thresholds are configuration, never rules: `retrievalThreshold`
 gates whether an answer may be shown at all (`G3`: below threshold returns
 "Not found" and the threshold is never silently lowered), and
@@ -280,10 +280,10 @@ gates whether an answer may be shown at all (`G3`: below threshold returns
 Deleted (trashed) captures are excluded from search and answer sources
 (`INV-002`) and are never sent to the cloud.
 
-### 9.1 Tagging, grouping and suggestions (planned)
+### 9.1 Tagging, grouping and suggestions
 
-Flow design and open questions: `docs/rfc/003-auto-tagging-flow.md` (AGREED
-2026-11-18). Three layers with distinct ownership (plan § Tags & suggested groups):
+Implemented in `src/lib/tags.ts` (spec `docs/rfc/003-auto-tagging-flow.md`,
+as-built `docs/as-built/specs/auto-tagging.md`). Three layers with distinct ownership:
 
 | Layer | Owner | Written when | Re-extraction |
 |---|---|---|---|

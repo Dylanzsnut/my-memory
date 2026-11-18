@@ -29,6 +29,9 @@ export const settings: AppSettings = {
   retrievalThreshold: num(env.VITE_RETRIEVAL_THRESHOLD, 0.35),
   trashRetentionDays: num(env.VITE_TRASH_RETENTION_DAYS, 30),
   cloudModel: env.VITE_CLOUD_MODEL || 'gemini-3.8-flash',
+  groupThresholdPhoto: num(env.VITE_GROUP_THRESHOLD_PHOTO, 0.85),
+  groupThresholdVoice: num(env.VITE_GROUP_THRESHOLD_VOICE, 0.85),
+  groupThresholdNote: num(env.VITE_GROUP_THRESHOLD_NOTE, 0.85),
 };
 
 export const FALLBACK_CLOUD_MODEL = 'gemini-3.5-flash-lite';

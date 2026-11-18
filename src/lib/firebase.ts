@@ -93,6 +93,9 @@ export async function initFirebase(): Promise<Services> {
       duplicate_threshold: settings.duplicateThreshold,
       retrieval_threshold: settings.retrievalThreshold,
       trash_retention_days: settings.trashRetentionDays,
+      group_threshold_photo: settings.groupThresholdPhoto,
+      group_threshold_voice: settings.groupThresholdVoice,
+      group_threshold_note: settings.groupThresholdNote,
     };
     const REMOTE_CONFIG_TIMEOUT_MS = 2000;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -120,6 +123,15 @@ export async function initFirebase(): Promise<Services> {
 
     const trashDays = validPositive(Number(getValue(remoteConfig, 'trash_retention_days').asNumber()));
     if (trashDays !== null) settings.trashRetentionDays = trashDays;
+
+    const groupPhoto = validPositive(Number(getValue(remoteConfig, 'group_threshold_photo').asString()), 1);
+    if (groupPhoto !== null) settings.groupThresholdPhoto = groupPhoto;
+
+    const groupVoice = validPositive(Number(getValue(remoteConfig, 'group_threshold_voice').asString()), 1);
+    if (groupVoice !== null) settings.groupThresholdVoice = groupVoice;
+
+    const groupNote = validPositive(Number(getValue(remoteConfig, 'group_threshold_note').asString()), 1);
+    if (groupNote !== null) settings.groupThresholdNote = groupNote;
   } catch (error) {
     services.error = error instanceof Error ? error.message : String(error);
     console.warn('[firebase] initialization failed', error);

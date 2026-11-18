@@ -89,6 +89,18 @@ const EN = {
   flow7Title: 'On-device Gemini Nano unavailable — Flow 7 active',
   flow7Body: 'Originals and local search remain 100% offline on this device. Answers fall back to Firebase Cloud AI (derived summaries only) when configured, or local verification.',
   cloudFallbackNotice: 'Cloud fallback (IN_CLOUD) · Derived summaries only — originals stayed on device',
+  yourTags: 'Your tags',
+  addTagPlaceholder: 'Add a tag…',
+  addTag: 'Add',
+  autoEntities: 'Auto-extracted entities (index)',
+  autoBadge: 'auto',
+  allTags: 'All',
+  groupsTitle: 'Suggested groups',
+  refreshGroups: 'Refresh',
+  acceptGroup: 'Accept',
+  renameGroup: 'Rename',
+  dismissGroup: 'Dismiss',
+  suggestedTagLabel: 'Suggested tag',
 };
 
 const VI: Record<keyof typeof EN, string> = {
@@ -180,6 +192,18 @@ const VI: Record<keyof typeof EN, string> = {
   flow7Title: 'Gemini Nano trên máy chưa khả dụng — đang bật Flow 7',
   flow7Body: 'Bản gốc và tìm kiếm vẫn chạy 100% offline trên máy. Câu trả lời sẽ dùng dự phòng Firebase Cloud AI (chỉ gửi tóm tắt) khi có cấu hình, hoặc kiểm chứng cục bộ.',
   cloudFallbackNotice: 'Dự phòng Cloud (IN_CLOUD) · Chỉ gửi tóm tắt — bản gốc ở lại trên máy',
+  yourTags: 'Nhãn của bạn',
+  addTagPlaceholder: 'Thêm nhãn…',
+  addTag: 'Thêm',
+  autoEntities: 'Thực thể tự trích xuất (chỉ mục)',
+  autoBadge: 'tự động',
+  allTags: 'Tất cả',
+  groupsTitle: 'Nhóm gợi ý',
+  refreshGroups: 'Làm mới',
+  acceptGroup: 'Chấp nhận',
+  renameGroup: 'Đổi tên',
+  dismissGroup: 'Bỏ qua',
+  suggestedTagLabel: 'Nhãn gợi ý',
 };
 
 export type TranslationKey = keyof typeof EN;

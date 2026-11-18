@@ -31,9 +31,10 @@ State rules: `retentionState` is `active | proposed | trashed | protected`.
 `trashedAt` records the transition; `purgeAt` records the recoverable-window end.
 Only a human decision may move `active` to `trashed`.
 
-Derived data: `embedding` is derived from summary + entities + derived text and
-rebuilt locally when a capture is created. `sourceMatch` is derived from the last
-answer. A claim is derived from an answer and checked against its cited capture.
+Derived data: `embedding` is derived from summary + entities + user tags + derived text and
+rebuilt locally when a capture is created or tagged. `sourceMatch` is derived from the last
+answer. A claim is derived from an answer and checked against its cited capture. `suggestedTags`
+are derived locally from cosine similarity grouping and never synced (`docs/as-built/specs/auto-tagging.md`).
 
 ## 2. Physical schema & key-prefix catalog
 
@@ -48,7 +49,7 @@ answer. A claim is derived from an answer and checked against its cited capture.
 Firestore field allowlist in `syncCaptureMetadata`: `id`, `type`, `capturedAt`,
 `summary`, `entities`, `expiryDate`, `language`, `inferenceSource`,
 `retentionState`. No `originalRef`, `audioBlob`, `derivedText`, `embedding`,
-`sourceMatch`, `protectedReason`, timestamps of purge, or demo records.
+`sourceMatch`, `protectedReason`, `tags`, `suggestedTags`, timestamps of purge, or demo records.
 
 ## 3. Query-to-index matrix
 

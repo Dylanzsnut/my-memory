@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Tag, X } from 'lucide-react';
 import type { CaptureRecord, Language } from '../types';
+import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
 import { SourceBadge } from './Hud';
 
@@ -9,10 +10,35 @@ interface Props {
   language: Language;
   onClose: () => void;
   onAskAbout: (capture: CaptureRecord, question?: string) => void;
+  onUpdateTags?: (capture: CaptureRecord, nextTags: string[]) => Promise<void> | void;
 }
 
-export default function DetailSheet({ capture, language, onClose, onAskAbout }: Props) {
+export default function DetailSheet({ capture, language, onClose, onAskAbout, onUpdateTags }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+
+  const userTags = capture.tags || [];
+
+  const addTag = () => {
+    const cleaned = tagInput.trim().replace(/^#+/, '');
+    if (!cleaned || !onUpdateTags) return;
+    const norm = normalize(cleaned);
+    if (!norm || userTags.some((existing) => normalize(existing) === norm)) {
+      setTagInput('');
+      return;
+    }
+    void onUpdateTags(capture, [...userTags, cleaned]);
+    setTagInput('');
+  };
+
+  const removeTag = (target: string) => {
+    if (!onUpdateTags) return;
+    const normTarget = normalize(target);
+    void onUpdateTags(
+      capture,
+      userTags.filter((existing) => normalize(existing) !== normTarget),
+    );
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -101,18 +127,79 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout }: 
               </p>
             )}
             {capture.entities.length > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {capture.entities.slice(0, 6).map((entity, index) => (
-                  <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[10.5px] font-semibold text-ink2">
-                    {entity}
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-ink2">{t(language, 'autoEntities')}</span>
+                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-ink3 border border-line">
+                    {t(language, 'autoBadge')}
                   </span>
-                ))}
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {capture.entities.slice(0, 6).map((entity, index) => (
+                    <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[10.5px] font-semibold text-ink2">
+                      {entity}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             {capture.expiryDate && (
               <p className="mt-3 text-[11px] font-bold text-gold">
                 {language === 'vi' ? 'Hạn dùng' : 'Expiry'}: {capture.expiryDate}
               </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-line bg-canvas p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-1.5 text-[13px] font-bold">
+                <Tag size={14} className="text-teal" /> {t(language, 'yourTags')}
+              </h3>
+            </div>
+            {userTags.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {userTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2.5 py-1 text-[11px] font-bold text-teal"
+                  >
+                    #{tag}
+                    {onUpdateTags && (
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        aria-label={`Remove tag ${tag}`}
+                        className="rounded-full p-0.5 hover:bg-teal/15"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+            {onUpdateTags && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addTag();
+                }}
+                className="mt-3 flex items-center gap-2"
+              >
+                <input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder={t(language, 'addTagPlaceholder')}
+                  className="min-w-0 flex-1 rounded-full border border-line bg-surface2 px-3 py-1.5 text-[12px] outline-none focus:border-teal"
+                />
+                <button
+                  type="submit"
+                  disabled={!tagInput.trim()}
+                  className="inline-flex items-center gap-1 rounded-full bg-teal px-3 py-1.5 text-[11.5px] font-bold text-white disabled:opacity-40"
+                >
+                  <Plus size={13} /> {t(language, 'addTag')}
+                </button>
+              </form>
             )}
           </div>
 

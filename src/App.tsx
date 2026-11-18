@@ -8,11 +8,12 @@ import type {
   HudEvent,
   Language,
   Tab,
+  TagGroupProposal,
 } from './types';
 import { settings } from './lib/config';
 import { initFirebase, getServices, syncCaptureMetadata } from './lib/firebase';
 import { initializeDeviceModel, extractCapture, probeNanoAvailability, type NanoAvailability } from './lib/ai';
-import { embed } from './lib/embeddings';
+import { embed, normalize } from './lib/embeddings';
 import {
   addHudEvent,
   getCaptures,
@@ -26,6 +27,7 @@ import {
 } from './lib/store';
 import { buildAnswer } from './lib/answer';
 import { applyDecision, scanForProposals } from './lib/forget';
+import { computeTagGroups, rebuildSearchText } from './lib/tags';
 import { t } from './lib/i18n';
 import Onboarding from './components/Onboarding';
 import BottomNav from './components/BottomNav';
@@ -56,7 +58,33 @@ export default function App() {
   const [askCaptureId, setAskCaptureId] = useState<string | undefined>(undefined);
   const [askNonce, setAskNonce] = useState(0);
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
+  const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
+  const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
   const booted = useRef(false);
+
+  const syncTagSuggestions = async (currentCaptures: CaptureRecord[], dismissed: string[]) => {
+    const { groups, suggestedByCapture } = computeTagGroups(currentCaptures, settings, dismissed);
+    setTagGroups(groups);
+    const updatedCaptures: CaptureRecord[] = [];
+    for (const capture of currentCaptures) {
+      const nextSuggested = suggestedByCapture.get(capture.id) || [];
+      const prevSuggested = capture.suggestedTags || [];
+      const changed =
+        nextSuggested.length !== prevSuggested.length ||
+        nextSuggested.some((item, idx) => item !== prevSuggested[idx]);
+      if (changed) {
+        const nextRecord: CaptureRecord = {
+          ...capture,
+          suggestedTags: nextSuggested.length ? nextSuggested : undefined,
+        };
+        updatedCaptures.push(nextRecord);
+        await saveCapture(nextRecord).catch((err) => console.warn('[store] save suggestedTags failed', err));
+      }
+    }
+    if (updatedCaptures.length) {
+      setCaptures((prev) => prev.map((c) => updatedCaptures.find((u) => u.id === c.id) || c));
+    }
+  };
 
   const log = (label: string, source: HudEvent['source'], latencyMs: number, detail?: string) => {
     const event: HudEvent = {
@@ -78,13 +106,14 @@ export default function App() {
       try {
         await initFirebase();
         await seedDemoCaptures();
-        const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano] = await Promise.all([
+        const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano, savedDismissed] = await Promise.all([
           getCaptures(),
           getProposals(),
           getHudEvents(),
           getMeta<Language>('language', 'en'),
           getMeta<boolean>('onboardingDone', false),
           probeNanoAvailability(),
+          getMeta<string[]>('dismissedTagGroups', []),
         ]);
         setCaptures(loadedCaptures);
         setProposals(loadedProposals);
@@ -92,10 +121,13 @@ export default function App() {
         setLanguage(savedLang);
         setOnboardingDone(savedOnboarding);
         setNanoStatus(probedNano);
+        setDismissedTagGroups(savedDismissed);
 
         const fresh = scanForProposals(loadedCaptures, settings.duplicateThreshold, loadedProposals);
         for (const proposal of fresh) await saveProposal(proposal);
         if (fresh.length) setProposals((prev) => [...prev, ...fresh]);
+
+        await syncTagSuggestions(loadedCaptures, savedDismissed);
       } catch (error) {
         console.error('[app] boot initialization failed', error);
       } finally {
@@ -156,6 +188,7 @@ export default function App() {
         for (const proposal of fresh) await saveProposal(proposal);
         setProposals([...allProposals, ...fresh]);
       }
+      await syncTagSuggestions(allCaptures, dismissedTagGroups);
       void syncCaptureMetadata([capture]);
       log(t(language, 'capturedOnDevice'), result.source, result.latencyMs, extractErrorText(result.error));
     } finally {
@@ -236,7 +269,64 @@ export default function App() {
       setProposals((prev) => prev.map((p) => updatedProposals.find((u) => u.id === p.id) || p));
     }
 
+    const nextCaptures = captures.map((c) => (c.id === restored.id ? restored : c));
+    await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
+  };
+
+  const handleUpdateTags = async (capture: CaptureRecord, nextTags: string[]) => {
+    const updated: CaptureRecord = {
+      ...capture,
+      tags: nextTags.length ? nextTags : undefined,
+      embedding: await embed(rebuildSearchText({ ...capture, tags: nextTags }) || 'capture'),
+    };
+    await saveCapture(updated).catch((err) => console.warn('[store] saveCapture tags failed', err));
+    const nextCaptures = captures.map((c) => (c.id === updated.id ? updated : c));
+    setCaptures(nextCaptures);
+    setSelected((prev) => (prev?.id === updated.id ? updated : prev));
+    await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+  };
+
+  const handleAcceptTagGroup = async (
+    group: TagGroupProposal,
+    selectedIds: string[],
+    labelOverride?: string,
+  ) => {
+    const label = (labelOverride || group.label).trim().replace(/^#+/, '');
+    if (!label || !selectedIds.length) return;
+    const normLabel = normalize(label);
+    const selectedSet = new Set(selectedIds);
+    const updatedMap = new Map<string, CaptureRecord>();
+
+    for (const capture of captures) {
+      if (!selectedSet.has(capture.id)) continue;
+      const existing = capture.tags || [];
+      const nextTags = existing.some((tag) => normalize(tag) === normLabel)
+        ? existing
+        : [...existing, label];
+      const nextSuggested = (capture.suggestedTags || []).filter((s) => normalize(s) !== normalize(group.label));
+      const updated: CaptureRecord = {
+        ...capture,
+        tags: nextTags,
+        suggestedTags: nextSuggested.length ? nextSuggested : undefined,
+        embedding: await embed(rebuildSearchText({ ...capture, tags: nextTags }) || 'capture'),
+      };
+      await saveCapture(updated).catch((err) => console.warn('[store] accept tag group failed', err));
+      updatedMap.set(updated.id, updated);
+    }
+
+    const nextCaptures = captures.map((c) => updatedMap.get(c.id) || c);
+    setCaptures(nextCaptures);
+    await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+  };
+
+  const handleDismissTagGroup = async (group: TagGroupProposal) => {
+    const nextDismissed = Array.from(new Set([...dismissedTagGroups, group.fingerprint]));
+    setDismissedTagGroups(nextDismissed);
+    await setMeta('dismissedTagGroups', nextDismissed).catch((err) =>
+      console.warn('[store] save dismissedTagGroups failed', err),
+    );
+    await syncTagSuggestions(captures, nextDismissed);
   };
 
   const askAbout = (capture: CaptureRecord, question?: string) => {
@@ -299,6 +389,12 @@ export default function App() {
             onCapture={handleCapture}
             onOpenDetail={setSelected}
             busy={busy}
+            tagGroups={tagGroups}
+            onAcceptTagGroup={handleAcceptTagGroup}
+            onDismissTagGroup={handleDismissTagGroup}
+            onRefreshTagGroups={() => {
+              void syncTagSuggestions(captures, dismissedTagGroups);
+            }}
           />
         )}
         {tab === 'ask' && (
@@ -335,7 +431,13 @@ export default function App() {
       <BottomNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
 
       {selected && (
-        <DetailSheet capture={selected} language={language} onClose={() => setSelected(null)} onAskAbout={askAbout} />
+        <DetailSheet
+          capture={selected}
+          language={language}
+          onClose={() => setSelected(null)}
+          onAskAbout={askAbout}
+          onUpdateTags={handleUpdateTags}
+        />
       )}
       {toast && (
         <Toast message={toast.message} language={language} onUndo={toast.undo} onDismiss={() => setToast(null)} />

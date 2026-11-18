@@ -5,7 +5,7 @@ function lexicalScore(query: string, capture: CaptureRecord): number {
   const qTokens = tokenize(query).filter((t) => !t.includes('_'));
   if (!qTokens.length) return 0;
   const haystack = normalize(
-    [capture.summary, capture.entities.join(' '), capture.derivedText || ''].join(' '),
+    [capture.summary, capture.entities.join(' '), (capture.tags || []).join(' '), capture.derivedText || ''].join(' '),
   );
   const hits = qTokens.filter((token) => haystack.includes(token)).length;
   return hits / qTokens.length;
@@ -18,10 +18,16 @@ export async function searchCaptures(
 ): Promise<SearchResult[]> {
   const active = captures.filter((c) => c.retentionState !== 'trashed');
   const queryVector = await embed(query || 'everything');
+  const qTokens = tokenize(query).filter((t) => !t.includes('_'));
   const results = active.map((capture) => {
     const vector = cosine(queryVector, capture.embedding);
     const lexical = lexicalScore(query, capture);
-    const score = query.trim() ? 0.65 * Math.max(0, vector) + 0.35 * lexical : 0.5;
+    const tagMatch = (capture.tags || []).some((tag) => {
+      const normTag = normalize(tag);
+      return qTokens.some((tok) => normTag.includes(tok) || tok.includes(normTag));
+    });
+    const baseScore = query.trim() ? 0.65 * Math.max(0, vector) + 0.35 * lexical : 0.5;
+    const score = query.trim() ? Math.min(1, baseScore + (tagMatch ? 0.08 : 0)) : baseScore;
     return { capture, score };
   });
   return results

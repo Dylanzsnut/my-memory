@@ -208,34 +208,35 @@ Target: a user-owned tag layer plus embedding-based groups that *suggest* tags �
 suggestions follow the proposal pattern and are never applied automatically.
 Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 
-- [ ] Extend `CaptureRecord` with `tags: string[]` (user-authored) and
+- [x] Extend `CaptureRecord` with `tags: string[]` (user-authored) and
       `suggestedTags: string[]` (derived proposals). Re-extraction must never
       touch `tags`. Keep `entities` as the auto-derived index only.
-- [ ] `DetailSheet`: add/remove tags (chips + input); render `entities`
+- [x] `DetailSheet`: add/remove tags (chips + input); render `entities`
       labelled "auto" separately from user tags so the two are never confused.
-- [ ] Include `tags` in the local search index (`search.ts`) and support
+- [x] Include `tags` in the local search index (`search.ts`) and support
       filtering / timeline grouping by tag in `Memories`.
-- [ ] Local grouping: cluster captures by cosine similarity over `embedding`
+- [x] Local grouping: cluster captures by cosine similarity over `embedding`
       (connected components over per-type thresholds — `photo` / `voice` /
       `note`, cross-type pairs use the higher threshold; defaults 0.85, Remote
       Config tunable) and derive a candidate tag per group from shared keywords
       — offline, no model call required. Spec: `docs/rfc/003-auto-tagging-flow.md`.
-- [ ] Suggested-groups UI — a "Groups" section inside `Memories`: show each
+- [x] Suggested-groups UI — a "Groups" section inside `Memories`: show each
       group's captures with a proposed tag; Accept tags the whole group with
       per-capture deselection, Rename edits the label first, Dismiss drops it.
       No automatic write path (same rule as Forget: model proposes, human
       disposes).
-- [ ] Generate suggestions automatically when the app opens and new captures
+- [x] Generate suggestions automatically when the app opens and new captures
       exist, plus a manual refresh. Generation writes `suggestedTags` proposals
       only (never `tags`) — the same split as Forget's `scanForProposals`.
-- [ ] Never sync `tags` or `suggestedTags` to Firestore: extend the "never
+- [x] Never sync `tags` or `suggestedTags` to Firestore: extend the "never
       written" list in `docs/DATA.md` §4.2 and keep `syncCaptureMetadata`
       free of tag text.
-- [ ] Update `REQ-002`/`REQ-003` references and add an acceptance criterion for
+- [x] Update `REQ-002`/`REQ-003` references and add an acceptance criterion for
       user-owned tags in `docs/requirements/req-web-app.md`.
-- [ ] Verify: tags persist and survive re-extraction; a suggestion exists only
+- [x] Verify: tags persist and survive re-extraction; a suggestion exists only
       after Accept; search honours tags; tag text never appears in Firestore
-      writes; `npm run typecheck && npm run build` pass.
+      writes; `npm run typecheck && npm run build` pass. (Code and build
+      verified; automated test coverage added under P2.)
 
 ## P1 — product quality
 
