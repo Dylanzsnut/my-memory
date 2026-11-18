@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Fingerprint, Languages } from 'lucide-react';
+import { Fingerprint, Languages, LogOut, Trash2, User } from 'lucide-react';
 import type {
+  AuthSession,
   CaptureRecord,
   Decision,
   ExtractionRequest,
@@ -11,27 +12,39 @@ import type {
   TagGroupProposal,
 } from './types';
 import { settings } from './lib/config';
-import { initFirebase, getServices, syncCaptureMetadata, deleteCaptureMetadata } from './lib/firebase';
+import {
+  initFirebase,
+  getServices,
+  syncCaptureMetadata,
+  deleteCaptureMetadata,
+  deleteAllUserMetadata,
+  signOutFirebase,
+} from './lib/firebase';
 import { initializeDeviceModel, extractCapture, probeNanoAvailability, type NanoAvailability } from './lib/ai';
 import { embed, normalize } from './lib/embeddings';
 import {
   addHudEvent,
+  cleanupDemoRecordsForUser,
   deleteCapture,
   deleteProposal,
+  deleteUserAccountData,
   getCaptures,
   getHudEvents,
   getMeta,
   getProposals,
+  getUserMeta,
   saveCapture,
   saveProposal,
   seedDemoCaptures,
   setMeta,
+  setUserMeta,
 } from './lib/store';
 import { buildAnswer } from './lib/answer';
 import { applyDecision, moveToTrash, purgeExpiredTrash, scanForProposals } from './lib/forget';
 import { computeTagGroups, rebuildSearchText } from './lib/tags';
 import { t } from './lib/i18n';
 import Onboarding from './components/Onboarding';
+import SignInGate from './components/SignInGate';
 import BottomNav from './components/BottomNav';
 import Memories from './components/Memories';
 import Ask from './components/Ask';
@@ -48,6 +61,9 @@ interface ToastState {
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [tab, setTab] = useState<Tab>('memories');
@@ -90,7 +106,14 @@ export default function App() {
     }
   };
 
-  const log = (label: string, source: HudEvent['source'], latencyMs: number, detail?: string) => {
+  const log = (
+    label: string,
+    source: HudEvent['source'],
+    latencyMs: number,
+    detail?: string,
+    ownerUidOverride?: string,
+  ) => {
+    const ownerUid = ownerUidOverride ?? session?.uid;
     const event: HudEvent = {
       id: crypto.randomUUID(),
       at: new Date().toISOString(),
@@ -98,9 +121,71 @@ export default function App() {
       source,
       latencyMs,
       detail,
+      ...(ownerUid ? { ownerUid } : {}),
     };
     setHudEvents((prev) => [event, ...prev].slice(0, 30));
     void addHudEvent(event).catch((err) => console.warn('[store] addHudEvent failed', err));
+  };
+
+  const loadWorkspaceForSession = async (activeSession: AuthSession) => {
+    const uid = activeSession.uid;
+    if (activeSession.mode === 'google') {
+      await cleanupDemoRecordsForUser(uid);
+    } else {
+      await seedDemoCaptures(true);
+    }
+    const [
+      loadedCaptures,
+      loadedProposals,
+      loadedHud,
+      savedLang,
+      savedOnboarding,
+      probedNano,
+      savedDismissed,
+    ] = await Promise.all([
+      getCaptures(uid),
+      getProposals(uid),
+      getHudEvents(uid),
+      getUserMeta<Language>(uid, 'language', language),
+      getUserMeta<boolean>(uid, 'onboardingDone', false),
+      probeNanoAvailability(),
+      getUserMeta<string[]>(uid, 'dismissedTagGroups', []),
+    ]);
+
+    const syncUid = activeSession.mode === 'google' ? uid : undefined;
+    const { active: activeCaptures, purged } = purgeExpiredTrash(loadedCaptures);
+    let currentProposals = loadedProposals;
+    if (purged.length) {
+      const purgedIds = new Set(purged.map((c) => c.id));
+      const staleProposals = loadedProposals.filter((p) => purgedIds.has(p.captureId));
+      await Promise.all([
+        ...purged.map((c) => deleteCapture(c.id).catch((err) => console.warn('[store] purge deleteCapture failed', err))),
+        ...staleProposals.map((p) => deleteProposal(p.id).catch((err) => console.warn('[store] purge deleteProposal failed', err))),
+        ...purged.map((c) => deleteCaptureMetadata(c.id, syncUid)),
+      ]);
+      currentProposals = loadedProposals.filter((p) => !purgedIds.has(p.captureId));
+    }
+
+    setSession(activeSession);
+    setCaptures(activeCaptures);
+    setProposals(currentProposals);
+    setHudEvents(loadedHud);
+    setLanguage(savedLang);
+    setOnboardingDone(savedOnboarding);
+    setNanoStatus(probedNano);
+    setDismissedTagGroups(savedDismissed);
+
+    const fresh = scanForProposals(activeCaptures, settings.duplicateThreshold, currentProposals).map((p) => ({
+      ...p,
+      ownerUid: uid,
+    }));
+    for (const proposal of fresh) await saveProposal(proposal);
+    if (fresh.length) setProposals([...currentProposals, ...fresh]);
+
+    await syncTagSuggestions(activeCaptures, savedDismissed);
+    if (purged.length) {
+      setToast({ message: t(savedLang, 'purgedExpiredCount', { n: purged.length }) });
+    }
   };
 
   useEffect(() => {
@@ -109,44 +194,15 @@ export default function App() {
     (async () => {
       try {
         await initFirebase();
-        await seedDemoCaptures();
-        const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano, savedDismissed] = await Promise.all([
-          getCaptures(),
-          getProposals(),
-          getHudEvents(),
+        const [savedGlobalLang, cachedSession] = await Promise.all([
           getMeta<Language>('language', 'en'),
-          getMeta<boolean>('onboardingDone', false),
-          probeNanoAvailability(),
-          getMeta<string[]>('dismissedTagGroups', []),
+          getMeta<AuthSession | null>('activeAuthSession', null),
         ]);
-        const { active: activeCaptures, purged } = purgeExpiredTrash(loadedCaptures);
-        let currentProposals = loadedProposals;
-        if (purged.length) {
-          const purgedIds = new Set(purged.map((c) => c.id));
-          const staleProposals = loadedProposals.filter((p) => purgedIds.has(p.captureId));
-          await Promise.all([
-            ...purged.map((c) => deleteCapture(c.id).catch((err) => console.warn('[store] purge deleteCapture failed', err))),
-            ...staleProposals.map((p) => deleteProposal(p.id).catch((err) => console.warn('[store] purge deleteProposal failed', err))),
-            ...purged.map((c) => deleteCaptureMetadata(c.id)),
-          ]);
-          currentProposals = loadedProposals.filter((p) => !purgedIds.has(p.captureId));
-        }
-
-        setCaptures(activeCaptures);
-        setProposals(currentProposals);
-        setHudEvents(loadedHud);
-        setLanguage(savedLang);
-        setOnboardingDone(savedOnboarding);
-        setNanoStatus(probedNano);
-        setDismissedTagGroups(savedDismissed);
-
-        const fresh = scanForProposals(activeCaptures, settings.duplicateThreshold, currentProposals);
-        for (const proposal of fresh) await saveProposal(proposal);
-        if (fresh.length) setProposals((prev) => [...prev, ...fresh]);
-
-        await syncTagSuggestions(activeCaptures, savedDismissed);
-        if (purged.length) {
-          setToast({ message: t(savedLang, 'purgedExpiredCount', { n: purged.length }) });
+        setLanguage(savedGlobalLang);
+        if (cachedSession?.uid) {
+          await loadWorkspaceForSession(cachedSession);
+        } else {
+          setNanoStatus(await probeNanoAvailability());
         }
       } catch (error) {
         console.error('[app] boot initialization failed', error);
@@ -154,16 +210,63 @@ export default function App() {
         setReady(true);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const changeLanguage = (next: Language) => {
     setLanguage(next);
     void setMeta('language', next).catch((err) => console.warn('[store] setMeta(language) failed', err));
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'language', next).catch((err) =>
+        console.warn('[store] setUserMeta(language) failed', err),
+      );
+    }
   };
 
   const completeOnboarding = () => {
     setOnboardingDone(true);
-    void setMeta('onboardingDone', true).catch((err) => console.warn('[store] setMeta(onboardingDone) failed', err));
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'onboardingDone', true).catch((err) =>
+        console.warn('[store] setUserMeta(onboardingDone) failed', err),
+      );
+    }
+  };
+
+  const handleAuthenticated = async (nextSession: AuthSession) => {
+    await setMeta('activeAuthSession', nextSession).catch((err) =>
+      console.warn('[store] save activeAuthSession failed', err),
+    );
+    setTab('memories');
+    setSelected(null);
+    setToast(null);
+    setAccountMenuOpen(false);
+    setDeleteAccountConfirm(false);
+    await loadWorkspaceForSession(nextSession);
+  };
+
+  const handleSignOut = async () => {
+    setAccountMenuOpen(false);
+    setDeleteAccountConfirm(false);
+    await setMeta('activeAuthSession', null).catch(() => undefined);
+    await signOutFirebase();
+    setSession(null);
+    setCaptures([]);
+    setProposals([]);
+    setHudEvents([]);
+    setTagGroups([]);
+    setSelected(null);
+    setToast(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!session) return;
+    const uid = session.uid;
+    const isGoogle = session.mode === 'google';
+    const deletedIds = await deleteUserAccountData(uid);
+    if (isGoogle) {
+      await deleteAllUserMetadata(uid, deletedIds);
+    }
+    await handleSignOut();
   };
 
   const handleCapture = async (request: ExtractionRequest) => {
@@ -184,6 +287,8 @@ export default function App() {
         ...(extraction?.entities || []),
         request.text || '',
       ].join(' ');
+      const uid = session?.uid;
+      const syncUid = session?.mode === 'google' ? uid : undefined;
       const capture: CaptureRecord = {
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: request.type,
@@ -199,17 +304,22 @@ export default function App() {
         audioMimeType: request.audioMimeType,
         derivedText: trimmedText || undefined,
         embedding: await embed(searchable || 'capture'),
+        ...(session?.mode === 'demo' ? { demo: true } : {}),
+        ...(uid ? { ownerUid: uid } : {}),
       };
       await saveCapture(capture);
-      const [allCaptures, allProposals] = await Promise.all([getCaptures(), getProposals()]);
+      const [allCaptures, allProposals] = await Promise.all([getCaptures(uid), getProposals(uid)]);
       setCaptures(allCaptures);
-      const fresh = scanForProposals(allCaptures, settings.duplicateThreshold, allProposals);
+      const fresh = scanForProposals(allCaptures, settings.duplicateThreshold, allProposals).map((p) => ({
+        ...p,
+        ...(uid ? { ownerUid: uid } : {}),
+      }));
       if (fresh.length) {
         for (const proposal of fresh) await saveProposal(proposal);
         setProposals([...allProposals, ...fresh]);
       }
       await syncTagSuggestions(allCaptures, dismissedTagGroups);
-      void syncCaptureMetadata([capture]);
+      void syncCaptureMetadata([capture], syncUid);
       log(t(language, 'capturedOnDevice'), result.source, result.latencyMs, extractErrorText(result.error));
     } finally {
       setBusy(false);
@@ -241,6 +351,8 @@ export default function App() {
     }
   };
 
+  const syncUid = session?.mode === 'google' ? session.uid : undefined;
+
   const handleDecide = async (proposal: ForgetProposal, decision: Decision) => {
     const previousCapture = captures.find((c) => c.id === proposal.captureId);
     if (!previousCapture) return;
@@ -254,7 +366,7 @@ export default function App() {
     setCaptures(nextCaptures);
     setProposals((prev) => prev.map((p) => (p.id === updatedProposal.id ? updatedProposal : p)));
     if (decision === 'approve') {
-      void syncCaptureMetadata([updatedCapture]);
+      void syncCaptureMetadata([updatedCapture], syncUid);
       await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     }
     setToast({
@@ -271,7 +383,7 @@ export default function App() {
         setCaptures(restoredCaptures);
         setProposals((prev) => prev.map((p) => (p.id === proposal.id ? proposal : p)));
         if (decision === 'approve') {
-          void syncCaptureMetadata([previousCapture]);
+          void syncCaptureMetadata([previousCapture], syncUid);
           await syncTagSuggestions(restoredCaptures, dismissedTagGroups);
         }
         setToast(null);
@@ -296,7 +408,7 @@ export default function App() {
     setCaptures(nextCaptures);
     setProposals(nextProposals);
     setSelected((prev) => (prev?.id === trashedCapture.id ? null : prev));
-    void syncCaptureMetadata([trashedCapture]);
+    void syncCaptureMetadata([trashedCapture], syncUid);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     log(t(language, 'sourceManual'), capture.inferenceSource, 0, capture.summary.slice(0, 60));
 
@@ -312,7 +424,7 @@ export default function App() {
         const restoredCaptures = nextCaptures.map((c) => (c.id === capture.id ? capture : c));
         setCaptures(restoredCaptures);
         setProposals((prev) => prev.map((p) => pendingForCapture.find((u) => u.id === p.id) || p));
-        void syncCaptureMetadata([capture]);
+        void syncCaptureMetadata([capture], syncUid);
         await syncTagSuggestions(restoredCaptures, dismissedTagGroups);
         setToast(null);
       },
@@ -326,7 +438,7 @@ export default function App() {
       ...relatedProposals.map((p) =>
         deleteProposal(p.id).catch((err) => console.warn('[store] deleteProposal failed', err)),
       ),
-      deleteCaptureMetadata(capture.id),
+      deleteCaptureMetadata(capture.id, syncUid),
     ]);
     const nextCaptures = captures.filter((c) => c.id !== capture.id);
     setCaptures(nextCaptures);
@@ -359,7 +471,7 @@ export default function App() {
     if (updatedProposals.length) {
       setProposals((prev) => prev.map((p) => updatedProposals.find((u) => u.id === p.id) || p));
     }
-    void syncCaptureMetadata([restored]);
+    void syncCaptureMetadata([restored], syncUid);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
   };
@@ -413,9 +525,11 @@ export default function App() {
   const handleDismissTagGroup = async (group: TagGroupProposal) => {
     const nextDismissed = Array.from(new Set([...dismissedTagGroups, group.fingerprint]));
     setDismissedTagGroups(nextDismissed);
-    await setMeta('dismissedTagGroups', nextDismissed).catch((err) =>
-      console.warn('[store] save dismissedTagGroups failed', err),
-    );
+    if (session?.uid) {
+      await setUserMeta(session.uid, 'dismissedTagGroups', nextDismissed).catch((err) =>
+        console.warn('[store] save dismissedTagGroups failed', err),
+      );
+    }
     await syncTagSuggestions(captures, nextDismissed);
   };
 
@@ -451,24 +565,98 @@ export default function App() {
     );
   }
 
+  if (!session) {
+    return (
+      <SignInGate
+        language={language}
+        onLanguageChange={changeLanguage}
+        onAuthenticated={handleAuthenticated}
+      />
+    );
+  }
+
   const pendingCount = proposals.filter((p) => !p.decided).length;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-bg">
-      <header className="flex items-center justify-between px-5 pt-4">
+      <header className="relative flex items-center justify-between px-5 pt-4">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-white">
             <Fingerprint size={18} />
           </span>
           <span className="text-[13px] font-black tracking-tight">{t(language, 'appName')}</span>
         </div>
-        <button
-          type="button"
-          onClick={() => changeLanguage(language === 'en' ? 'vi' : 'en')}
-          className="inline-flex items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
-        >
-          <Languages size={14} /> {language}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => changeLanguage(language === 'en' ? 'vi' : 'en')}
+            aria-label="Toggle language"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
+          >
+            <Languages size={14} /> {language}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAccountMenuOpen((open) => !open);
+              setDeleteAccountConfirm(false);
+            }}
+            aria-label="Account menu"
+            className="inline-flex max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
+          >
+            <User size={13} className="shrink-0" />
+            <span className="truncate">
+              {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid.slice(0, 8)}
+            </span>
+          </button>
+        </div>
+
+        {accountMenuOpen && (
+          <div className="absolute right-5 top-14 z-50 w-64 rounded-2xl border border-line bg-canvas p-3 shadow-xl">
+            <p className="truncate text-[11.5px] font-bold text-ink">
+              {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid}
+            </p>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-ink3">uid: {session.uid}</p>
+            <div className="mt-2.5 space-y-1.5 border-t border-line pt-2.5">
+              <button
+                type="button"
+                onClick={() => void handleSignOut()}
+                className="flex w-full items-center gap-2 rounded-xl bg-surface2 px-3 py-2 text-left text-[12px] font-semibold text-ink hover:bg-line/40"
+              >
+                <LogOut size={14} /> {t(language, 'signOut')}
+              </button>
+              {deleteAccountConfirm ? (
+                <div className="rounded-xl border border-danger/30 bg-danger-soft p-2">
+                  <p className="text-[11px] font-semibold text-danger">{t(language, 'deleteAccountConfirm')}</p>
+                  <div className="mt-2 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteAccountConfirm(false)}
+                      className="flex-1 rounded-full border border-line bg-canvas py-1 text-[11px] font-bold text-ink2"
+                    >
+                      {t(language, 'cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteAccount()}
+                      className="flex-1 rounded-full bg-danger py-1 text-[11px] font-bold text-white"
+                    >
+                      {t(language, 'deletePerm')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDeleteAccountConfirm(true)}
+                  className="flex w-full items-center gap-2 rounded-xl bg-danger-soft/50 px-3 py-2 text-left text-[12px] font-semibold text-danger hover:bg-danger-soft"
+                >
+                  <Trash2 size={14} /> {t(language, 'deleteAccount')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5">

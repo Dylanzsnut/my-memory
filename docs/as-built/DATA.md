@@ -43,8 +43,8 @@ are derived locally from cosine similarity grouping and never synced (`docs/as-b
 | captures | IndexedDB | `id` | `CaptureRecord` incl. Blob/DataURL original | index `by-date` on `capturedAt` |
 | proposals | IndexedDB | `id` | `ForgetProposal` | no index |
 | hud | IndexedDB | `id` | `HudEvent` | trimmed above 60 entries |
-| meta | IndexedDB | `key` | `{key, value}` | language, onboardingDone |
-| captures | Firestore | `/captures/{id}` | metadata fields only | opt-in, demo records skipped |
+| meta | IndexedDB | `key` | `{key, value}` | `activeAuthSession` plus `${uid}::*` per-user settings (`language`, `onboardingDone`, `dismissedTagGroups`) |
+| captures | Firestore | `/users/{uid}/captures/{id}` | metadata fields only | opt-in, Google accounts only; demo records skipped (`INV-302`) |
 
 Firestore field allowlist in `syncCaptureMetadata`: `id`, `type`, `capturedAt`,
 `summary`, `entities`, `expiryDate`, `language`, `inferenceSource`,
@@ -74,5 +74,4 @@ personal-corpus size and has no vector index at HEAD.
 - Trash retention target belongs to REQ-005; see `docs/as-built/specs/forgetting.md`.
 - HUD events are trimmed above 60 entries in IndexedDB.
 - No schema migration exists; IndexedDB version is `1`.
-- PII: demo seed values are synthetic and marked `demo: true`. Real capture
-  content stays local at HEAD.
+- PII: demo seed values are synthetic, tagged `demo: true`, and partitioned in `ownerUid: 'demo'`. Google sign-in runs a one-time cleanup (`cleanupDemoRecordsForUser`) removing any unowned or stray `demo: true` records, proposals, and HUD events before loading memory, and never calls `seedDemoCaptures()`. Real capture content stays local at HEAD.

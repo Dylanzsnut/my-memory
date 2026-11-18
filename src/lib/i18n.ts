@@ -118,6 +118,18 @@ const EN = {
   sourceProposal: 'Proposal approved',
   purgedExpiredCount: 'Purged {n} expired item(s) from Trash.',
   restore: 'Restore',
+  signInTitle: 'Sign in to My Memory',
+  signInBody: 'Your originals stay in local IndexedDB partitioned by account. Google sign-in enables private personal space; Demo mode loads synthetic judging samples locally.',
+  signInGoogle: 'Continue with Google',
+  signingIn: 'Signing in…',
+  enterDemoMode: 'Demo mode (local sample data)',
+  authOffline: 'First Google sign-in requires an internet connection. Subsequent visits work offline.',
+  authPopupBlocked: 'Sign-in popup was blocked by your browser. Allow popups and try again.',
+  authFailed: 'Google sign-in failed: {msg}',
+  signOut: 'Sign out',
+  deleteAccount: 'Delete account & local data',
+  deleteAccountConfirm: 'Permanently remove all captures, proposals, and synced metadata for this account?',
+  demoBadge: 'Demo mode',
 };
 
 const VI: Record<keyof typeof EN, string> = {
@@ -238,6 +250,18 @@ const VI: Record<keyof typeof EN, string> = {
   sourceProposal: 'Đề xuất đã duyệt',
   purgedExpiredCount: 'Đã dọn {n} mục quá hạn khỏi Thùng rác.',
   restore: 'Khôi phục',
+  signInTitle: 'Đăng nhập vào My Memory',
+  signInBody: 'Bản gốc được lưu cục bộ trên máy và tách riêng theo tài khoản. Đăng nhập Google tạo không gian riêng; Chế độ Demo tải dữ liệu mẫu tại chỗ.',
+  signInGoogle: 'Tiếp tục với Google',
+  signingIn: 'Đang đăng nhập…',
+  enterDemoMode: 'Chế độ Demo (dữ liệu mẫu tại chỗ)',
+  authOffline: 'Lần đăng nhập Google đầu tiên cần kết nối mạng. Các lần sau vẫn chạy offline.',
+  authPopupBlocked: 'Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép popup và thử lại.',
+  authFailed: 'Đăng nhập Google thất bại: {msg}',
+  signOut: 'Đăng xuất',
+  deleteAccount: 'Xóa tài khoản & dữ liệu máy',
+  deleteAccountConfirm: 'Xóa vĩnh viễn toàn bộ ký ức, đề xuất và metadata đã đồng bộ của tài khoản này?',
+  demoBadge: 'Chế độ Demo',
 };
 
 export type TranslationKey = keyof typeof EN;

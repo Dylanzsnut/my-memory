@@ -47,14 +47,14 @@
 - Implemented by: `src/components/Trash.tsx`, `src/components/DetailSheet.tsx`, `src/components/Memories.tsx`, `src/lib/forget.ts`, `src/App.tsx`
 - Verified by: UNVERIFIED — code + build checked; automated tests added in P2
 
-## REQ-006 — Mandatory Google sign-in
+## REQ-006 — Mandatory Google sign-in & partitioned Demo mode
 
-- Statement: Access to the app requires Google sign-in; local data is partitioned by the authenticated `uid`.
+- Statement: Access passes through the sign-in gate (`SignInGate`); Google sign-in partitions local data by authenticated `uid` with an empty initial memory, while an explicit Demo mode option loads synthetic judging data in an isolated `'demo'` namespace.
 - Type: functional · Priority: must
 - Source: product decision in `plan/tasks.md`
-- Acceptance: no guest mode; user A cannot read user B's captures; sign-out preserves local data.
-- Implemented by: planned — see `plan/tasks.md`
-- Verified by: UNVERIFIED — not implemented at HEAD
+- Acceptance: no silent guest fallback; Google login cleans stray demo records and starts empty; user A cannot read user B's captures; sign-out preserves local data; Demo records never sync to Firestore (`INV-302`).
+- Implemented by: `src/components/SignInGate.tsx`, `src/lib/firebase.ts`, `src/lib/store.ts`, `firestore.rules`, `src/App.tsx`
+- Verified by: UNVERIFIED — code + build verified; live Google OAuth + cross-user rules check requires Firebase Console setup
 
 ## REQ-007 — Runtime hybrid inference
 

@@ -35,7 +35,7 @@ export const settings: AppSettings = {
 };
 
 export const FALLBACK_CLOUD_MODEL = 'gemini-3.5-flash-lite';
-export const SEED_DEMO = env.VITE_SEED_DEMO !== 'false';
+export const SEED_DEMO = env.VITE_SEED_DEMO === 'true';
 
 // Firestore metadata sync is opt-in. It stays off unless explicitly enabled
 // AND Firebase Auth + per-user rules are in place (see firestore.rules).

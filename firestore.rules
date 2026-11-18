@@ -3,7 +3,7 @@ rules_version = '2';
 // ===============================================================
 // Assumed Data Model
 // ===============================================================
-// Collection: captures (document ID = capture id)
+// Collection: /users/{uid}/captures/{captureId}
 //   - id: string (required, immutable) - capture id
 //   - type: string (required) - 'photo' | 'voice' | 'note'
 //   - capturedAt: string (required, immutable) - ISO 8601 timestamp
@@ -14,58 +14,58 @@ rules_version = '2';
 //   - inferenceSource: string (required) - 'ON_DEVICE' | 'IN_CLOUD' | 'SIMULATED'
 //   - retentionState: string (required) - 'active' | 'proposed' | 'trashed' | 'protected'
 //
-// Privacy boundary: original blobs, transcripts, embeddings and sourceMatch
-// scores are NEVER written to Firestore. Only the derived fields above are.
-//
-// Current state: this app has NO authentication and metadata sync is OFF by
-// default (VITE_ENABLE_FIRESTORE_SYNC=false). Therefore ALL access is denied.
-// The per-user template below is the intended shape once Firebase Auth is added.
+// Privacy boundary: original blobs, audio, transcripts, embeddings, user tags,
+// suggested tags, and sourceMatch scores are NEVER written to Firestore.
 // ===============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ---- Default deny: nothing is readable or writable without auth. ----
+    match /users/{uid}/captures/{captureId} {
+      allow read: if isAuthenticated() && isOwner(uid);
+      allow create: if isAuthenticated() && isOwner(uid)
+                      && isValidCapture() && docIdMatches(captureId);
+      allow update: if isAuthenticated() && isOwner(uid)
+                      && isValidCapture() && immutableFieldsUnchanged();
+      allow delete: if isAuthenticated() && isOwner(uid);
+    }
+
+    // Default deny for everything outside /users/{uid}/captures/{captureId}.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // ---- Per-user metadata sync (ENABLE ONLY AFTER ADDING FIREBASE AUTH) ----
-    // To activate: (1) add Firebase Auth to the app, (2) write captures under
-    // /users/{uid}/captures/{captureId} with a `uid` field equal to the auth
-    // UID, (3) point syncCaptureMetadata() at that path, (4) replace the
-    // default-deny block above with the rules in this section.
-    //
-    // match /users/{uid}/captures/{captureId} {
-    //   allow read: if isAuthenticated() && isOwner(uid);
-    //   allow create: if isAuthenticated() && isOwner(uid)
-    //                   && isValidCapture() && docIdMatches(captureId);
-    //   allow update: if isAuthenticated() && isOwner(uid)
-    //                   && isValidCapture() && immutableFieldsUnchanged();
-    // }
-    //
-    // Helper functions for that template:
-    // function isAuthenticated() { return request.auth != null; }
-    // function isOwner(uid) { return isAuthenticated() && request.auth.uid == uid; }
-    // function isValidCapture() {
-    //   let d = request.resource.data;
-    //   return d.keys().hasAll(['id','type','capturedAt','summary','entities','language','inferenceSource','retentionState'])
-    //     && d.keys().hasOnly(['id','type','capturedAt','summary','entities','expiryDate','language','inferenceSource','retentionState'])
-    //     && d.id is string && d.id.size() > 0 && d.id.size() <= 200
-    //     && d.type in ['photo','voice','note']
-    //     && d.capturedAt is string && d.capturedAt.matches('^\\d{4}-\\d{2}-\\d{2}T.*')
-    //     && d.summary is string && d.summary.size() <= 500
-    //     && d.entities is list && d.entities.size() <= 50
-    //     && d.entities.all(e => e is string && e.size() <= 200)
-    //     && (!('expiryDate' in d) || d.expiryDate == null
-    //         || (d.expiryDate is string && d.expiryDate.matches('^\\d{4}-\\d{2}$')))
-    //     && d.language in ['en','vi']
-    //     && d.inferenceSource in ['ON_DEVICE','IN_CLOUD','SIMULATED']
-    //     && d.retentionState in ['active','proposed','trashed','protected'];
-    // }
-    // function docIdMatches(captureId) { return request.resource.data.id == captureId; }
-    // function immutableFieldsUnchanged() {
-    //   return request.resource.data.id == resource.data.id
-    //       && request.resource.data.capturedAt == resource.data.capturedAt;
-    // }
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isValidCapture() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['id','type','capturedAt','summary','entities','language','inferenceSource','retentionState'])
+        && d.keys().hasOnly(['id','type','capturedAt','summary','entities','expiryDate','language','inferenceSource','retentionState'])
+        && d.id is string && d.id.size() > 0 && d.id.size() <= 200
+        && d.type in ['photo','voice','note']
+        && d.capturedAt is string && d.capturedAt.matches('^\\d{4}-\\d{2}-\\d{2}T.*')
+        && d.summary is string && d.summary.size() <= 500
+        && d.entities is list && d.entities.size() <= 50
+        && d.entities.all(e => e is string && e.size() <= 200)
+        && (!('expiryDate' in d) || d.expiryDate == null
+            || (d.expiryDate is string && d.expiryDate.matches('^\\d{4}-\\d{2}(-\\d{2})?$')))
+        && d.language in ['en','vi']
+        && d.inferenceSource in ['ON_DEVICE','IN_CLOUD','SIMULATED']
+        && d.retentionState in ['active','proposed','trashed','protected'];
+    }
+
+    function docIdMatches(captureId) {
+      return request.resource.data.id == captureId;
+    }
+
+    function immutableFieldsUnchanged() {
+      return request.resource.data.id == resource.data.id
+          && request.resource.data.capturedAt == resource.data.capturedAt;
+    }
   }
 }

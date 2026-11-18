@@ -5,11 +5,20 @@ import {
   ReCaptchaV3Provider,
 } from 'firebase/app-check';
 import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  type Auth,
+} from 'firebase/auth';
+import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  collection,
   deleteDoc,
   doc,
+  getDocs,
   setDoc,
   type Firestore,
 } from 'firebase/firestore';
@@ -21,7 +30,7 @@ import {
   type RemoteConfig,
 } from 'firebase/remote-config';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
-import type { CaptureRecord } from '../types';
+import type { AuthSession, CaptureRecord } from '../types';
 import {
   enableFirestoreSync,
   firebaseConfig,
@@ -32,6 +41,7 @@ import {
 
 interface Services {
   app: FirebaseApp | null;
+  auth: Auth | null;
   firestore: Firestore | null;
   remoteConfig: RemoteConfig | null;
   ai: AI | null;
@@ -40,6 +50,7 @@ interface Services {
 
 const services: Services = {
   app: null,
+  auth: null,
   firestore: null,
   remoteConfig: null,
   ai: null,
@@ -75,6 +86,7 @@ export async function initFirebase(): Promise<Services> {
       services.error = 'Production App Check site key is missing (VITE_RECAPTCHA_SITE_KEY).';
     }
 
+    services.auth = getAuth(app);
     services.firestore = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
@@ -140,18 +152,45 @@ export async function initFirebase(): Promise<Services> {
   return services;
 }
 
+export async function signInWithGoogle(): Promise<AuthSession> {
+  if (!services.auth) {
+    await initFirebase();
+  }
+  if (!services.auth) {
+    throw new Error('Firebase Auth is not configured in this build.');
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('offline');
+  }
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const cred = await signInWithPopup(services.auth, provider);
+  return {
+    mode: 'google',
+    uid: cred.user.uid,
+    email: cred.user.email,
+    displayName: cred.user.displayName,
+  };
+}
+
+export async function signOutFirebase(): Promise<void> {
+  if (!services.auth) return;
+  await firebaseSignOut(services.auth).catch(() => undefined);
+}
+
 /**
- * Metadata-only sync, gated behind an explicit opt-in. Originals, transcripts
- * and embeddings never leave the device. Demo/sample records are never synced.
+ * Metadata-only sync, gated behind an explicit opt-in and a real Google UID.
+ * Originals, transcripts, embeddings, and user tags never leave the device.
+ * Demo/sample records are never synced.
  */
-export async function syncCaptureMetadata(captures: CaptureRecord[]): Promise<void> {
-  if (!enableFirestoreSync) return;
+export async function syncCaptureMetadata(captures: CaptureRecord[], uid?: string): Promise<void> {
+  if (!enableFirestoreSync || !uid || uid === 'demo') return;
   const firestore = services.firestore;
   if (!firestore) return;
   try {
     for (const capture of captures) {
       if (capture.demo) continue;
-      await setDoc(doc(firestore, 'captures', capture.id), {
+      await setDoc(doc(firestore, 'users', uid, 'captures', capture.id), {
         id: capture.id,
         type: capture.type,
         capturedAt: capture.capturedAt,
@@ -169,13 +208,32 @@ export async function syncCaptureMetadata(captures: CaptureRecord[]): Promise<vo
   }
 }
 
-export async function deleteCaptureMetadata(captureId: string): Promise<void> {
-  if (!enableFirestoreSync) return;
+export async function deleteCaptureMetadata(captureId: string, uid?: string): Promise<void> {
+  if (!enableFirestoreSync || !uid || uid === 'demo') return;
   const firestore = services.firestore;
   if (!firestore) return;
   try {
-    await deleteDoc(doc(firestore, 'captures', captureId));
+    await deleteDoc(doc(firestore, 'users', uid, 'captures', captureId));
   } catch (error) {
     console.warn('[firebase] metadata delete failed', error);
+  }
+}
+
+export async function deleteAllUserMetadata(uid: string, knownCaptureIds: string[]): Promise<void> {
+  if (!enableFirestoreSync || !uid || uid === 'demo') return;
+  const firestore = services.firestore;
+  if (!firestore) return;
+  try {
+    const colRef = collection(firestore, 'users', uid, 'captures');
+    const snap = await getDocs(colRef).catch(() => null);
+    const ids = new Set(knownCaptureIds);
+    snap?.forEach((d) => ids.add(d.id));
+    await Promise.all(
+      Array.from(ids).map((id) =>
+        deleteDoc(doc(firestore, 'users', uid, 'captures', id)).catch(() => undefined),
+      ),
+    );
+  } catch (error) {
+    console.warn('[firebase] deleteAllUserMetadata failed', error);
   }
 }

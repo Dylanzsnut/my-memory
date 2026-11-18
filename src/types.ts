@@ -3,6 +3,14 @@ export type InferenceSource = 'ON_DEVICE' | 'IN_CLOUD' | 'SIMULATED';
 export type RetentionState = 'active' | 'proposed' | 'trashed' | 'protected';
 export type Language = 'en' | 'vi';
 export type Tab = 'memories' | 'ask' | 'forget' | 'trash';
+export type AuthMode = 'google' | 'demo';
+
+export interface AuthSession {
+  mode: AuthMode;
+  uid: string;
+  email: string | null;
+  displayName?: string | null;
+}
 
 export interface Extraction {
   summary: string;
@@ -43,6 +51,8 @@ export interface CaptureRecord {
   suggestedTags?: string[];
   /** Demo/sample marker so synthetic data is never mistaken for real captures. */
   demo?: boolean;
+  /** Owning user UID (or 'demo' for local demo sandbox) to partition IndexedDB. */
+  ownerUid?: string;
 }
 
 export interface TagGroupProposal {
@@ -88,6 +98,7 @@ export interface ForgetProposal {
   relatedCaptureId?: string;
   createdAt: string;
   decided?: Decision;
+  ownerUid?: string;
 }
 
 export interface HudEvent {
@@ -97,6 +108,7 @@ export interface HudEvent {
   source: InferenceSource;
   latencyMs: number;
   detail?: string;
+  ownerUid?: string;
 }
 
 export interface AppSettings {

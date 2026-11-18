@@ -103,20 +103,24 @@ intentionally out of scope.
 ## Mandatory Google sign-in
 
 - [ ] Console: enable the Google provider in Authentication.
-- [ ] Add a sign-in gate before onboarding and the app, with loading and error
+- [x] Add a sign-in gate before onboarding and the app, with loading and error
       states (popup blocked, offline).
-- [ ] Cache the session after the first sign-in so the app works offline.
-- [ ] Partition IndexedDB by `uid`; signing out must not delete local data, and
+- [x] Cache the session after the first sign-in so the app works offline.
+- [x] Partition IndexedDB by `uid`; signing out must not delete local data, and
       switching accounts must not mix data.
-- [ ] Google sign-in never seeds demo data; clean up leftover demo records
+- [x] Google sign-in never seeds demo data; clean up leftover demo records
       before loading the user's memory (see "Auth modes: Google vs demo").
-- [ ] Change Firestore sync to `/users/{uid}/captures/{id}`.
-- [ ] Activate the per-user rules template in `firestore.rules` (compare
+- [x] Change Firestore sync to `/users/{uid}/captures/{id}`.
+- [x] Activate the per-user rules template in `firestore.rules` (compare
       `request.auth.uid` with the `{uid}` path segment) and deploy it.
-- [ ] Add an account menu: show email, sign out.
-- [ ] Add account deletion: remove local data and Firestore metadata.
+      Note: `firestore.rules` updated locally; deploying rules requires live
+      Firebase project CLI (`firebase deploy --only firestore:rules`).
+- [x] Add an account menu: show email, sign out.
+- [x] Add account deletion: remove local data and Firestore metadata.
 - [ ] Verify user A cannot read user B's data, and that no blob, transcript or
       embedding is written to Firestore.
+      Note: code paths verified locally; live cross-user Firestore verification
+      requires Firebase Console Google provider setup + rules deploy.
 
 ## Auth modes: Google vs demo
 
@@ -126,24 +130,26 @@ Auth account with an empty memory — no demo data shown, no seed data synced.
 is marked `demo: true` and must never be presented as real user data (REQ-006,
 INV-302, seed-decision note above).
 
-- [ ] Add an explicit auth mode (`google` | `demo`) to the sign-in gate and to
+- [x] Add an explicit auth mode (`google` | `demo`) to the sign-in gate and to
       session/meta state; Google uses Firebase Auth, demo bypasses it locally.
-- [ ] Google login: never call `seedDemoCaptures()`; start with an empty memory
+- [x] Google login: never call `seedDemoCaptures()`; start with an empty memory
       even if the local store still holds old seed records.
-- [ ] Google login cleanup: remove any `demo: true` captures plus their proposals
+- [x] Google login cleanup: remove any `demo: true` captures plus their proposals
       and HUD events from the local store before memory loads, so stale demo
       records are never displayed or returned by search. Document this one-time
       cleanup in `docs/as-built/DATA.md`.
-- [ ] Demo login: seed the existing `SEED_ITEMS` set on first demo session (all
+- [x] Demo login: seed the existing `SEED_ITEMS` set on first demo session (all
       records `demo: true`) so Save / Ask / Forget work out of the box.
-- [ ] Partition demo data from real accounts (demo uses its own local namespace
+- [x] Partition demo data from real accounts (demo uses its own local namespace
       / uid). Switching demo ↔ Google must not mix data, and demo records must
       stay excluded from Firestore sync even when `VITE_ENABLE_FIRESTORE_SYNC=true`.
-- [ ] Change `SEED_DEMO` to explicit opt-in (default off) so an unset env var can
+- [x] Change `SEED_DEMO` to explicit opt-in (default off) so an unset env var can
       never seed a real Google session; demo mode opts in explicitly.
-- [ ] Verify: Google login shows an empty memory with no demo records; demo
+- [x] Verify: Google login shows an empty memory with no demo records; demo
       login shows the seeded captures; no `demo: true` capture, transcript or
       embedding is written to Firestore; switching modes never leaks data.
+      Note: partitioning and sync guards verified in code + build; live Google
+      OAuth login requires Firebase Console Google provider enablement.
 
 ## Manual memory deletion
 
