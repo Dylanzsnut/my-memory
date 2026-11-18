@@ -50,7 +50,9 @@ function simulatedExtraction(req: ExtractionRequest): ExtractionResult {
   const summary =
     req.type === 'photo'
       ? 'Photo capture (not extracted on this device)'
-      : text.split(/[.!?]/)[0].slice(0, 80) || 'Untitled capture';
+      : req.type === 'voice' && !text.trim()
+        ? 'Voice memo (audio stored on device)'
+        : text.split(/[.!?]/)[0].slice(0, 80) || 'Untitled capture';
   return {
     extraction: { summary, entities, expiryDate: expiryMatch ? `${expiryMatch[2]}-${expiryMatch[1]}` : null },
     source: 'SIMULATED',
@@ -61,6 +63,10 @@ function simulatedExtraction(req: ExtractionRequest): ExtractionResult {
 /** ONE_ON_DEVICE extraction with schema-constrained JSON, per CSD §4.4. */
 export async function extractCapture(req: ExtractionRequest): Promise<ExtractionResult> {
   const started = performance.now();
+  // Per CSD ADR-03, Gemini Nano on-device accepts text and image only, not raw audio.
+  if (req.type === 'voice' && !req.text?.trim()) {
+    return simulatedExtraction(req);
+  }
   const { ai } = getServices();
   if (!ai) return simulatedExtraction(req);
 
@@ -107,6 +113,51 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
       ...fallback,
       error: error instanceof Error ? error.message : String(error),
     };
+  }
+}
+
+export type NanoAvailability = 'readily' | 'after-download' | 'downloading' | 'no' | 'unsupported';
+
+function mapNanoAvailability(raw: unknown): NanoAvailability {
+  if (raw === 'available' || raw === 'readily') return 'readily';
+  if (raw === 'downloadable' || raw === 'after-download') return 'after-download';
+  if (raw === 'downloading') return 'downloading';
+  if (raw === 'unavailable' || raw === 'no') return 'no';
+  return 'unsupported';
+}
+
+export async function probeNanoAvailability(): Promise<NanoAvailability> {
+  const root = globalThis as unknown as {
+    LanguageModel?: { availability?: (opts?: unknown) => Promise<string> };
+    ai?: {
+      languageModel?: {
+        availability?: (opts?: unknown) => Promise<string>;
+        capabilities?: () => Promise<{ available?: string }>;
+      };
+    };
+  };
+  try {
+    if (typeof root.LanguageModel?.availability === 'function') {
+      try {
+        const status = await root.LanguageModel.availability({
+          expectedInputs: [{ type: 'text', languages: ['en'] }],
+        });
+        return mapNanoAvailability(status);
+      } catch {
+        const status = await root.LanguageModel.availability();
+        return mapNanoAvailability(status);
+      }
+    }
+    if (typeof root.ai?.languageModel?.availability === 'function') {
+      return mapNanoAvailability(await root.ai.languageModel.availability());
+    }
+    if (typeof root.ai?.languageModel?.capabilities === 'function') {
+      const caps = await root.ai.languageModel.capabilities();
+      return mapNanoAvailability(caps?.available);
+    }
+    return 'unsupported';
+  } catch {
+    return 'no';
   }
 }
 
@@ -173,19 +224,20 @@ export async function answerQuestion(
 
   try {
     const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.PREFER_ON_DEVICE;
-    const cloudModelName = intent === 'long' ? settings.cloudModel : null;
-    const buildModel = (cloudModel?: string) =>
+    const cloudModelName = settings.cloudModel;
+    const buildModel = (cloudModel: string) =>
       getGenerativeModel(ai, {
         mode,
-        ...(cloudModel
-          ? { inCloudParams: { model: cloudModel } }
-          : {
+        inCloudParams: { model: cloudModel },
+        ...(mode === InferenceMode.PREFER_ON_DEVICE
+          ? {
               onDeviceParams: {
                 createOptions: { expectedInputs: [{ type: 'text', languages: ['en'] }] },
               },
-            }),
+            }
+          : {}),
       });
-    let model: GenerativeModel = buildModel(cloudModelName ?? undefined);
+    let model: GenerativeModel = buildModel(cloudModelName);
     const prompt = [
       'Answer the question using ONLY the numbered captures below.',
       'Cite every factual claim inline with its capture id in square brackets, e.g. [cap_123].',
@@ -201,9 +253,9 @@ export async function answerQuestion(
     try {
       result = await model.generateContent(prompt);
     } catch (primaryError) {
-      // For explicit cloud synthesis, retry once with the documented fallback
-      // model before degrading to the local simulated answer.
-      if (!cloudModelName || cloudModelName === FALLBACK_CLOUD_MODEL) throw primaryError;
+      // Retry once with the documented fallback cloud model before degrading
+      // to the local simulated answer.
+      if (cloudModelName === FALLBACK_CLOUD_MODEL) throw primaryError;
       console.warn('[ai] primary cloud model failed; retrying with fallback', primaryError);
       model = buildModel(FALLBACK_CLOUD_MODEL);
       result = await model.generateContent(prompt);

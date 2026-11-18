@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, BookOpen, CheckCircle2, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, Cloud, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import type { AnswerResult, CaptureRecord, Language } from '../types';
+import type { NanoAvailability } from '../lib/ai';
 import { t } from '../lib/i18n';
 import { SourceBadge } from './Hud';
 
 interface Props {
   language: Language;
+  nanoStatus: NanoAvailability;
   onAsk: (question: string) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy: boolean;
@@ -20,7 +22,7 @@ const CHIPS: { en: string; vi: string }[] = [
   { en: 'total my lunch spending', vi: 'tổng chi phí ăn trưa' },
 ];
 
-export default function Ask({ language, onAsk, onOpenDetail, busy, seedQuestion }: Props) {
+export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion }: Props) {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [asked, setAsked] = useState('');
@@ -97,6 +99,16 @@ export default function Ask({ language, onAsk, onOpenDetail, busy, seedQuestion 
         </span>
       </div>
 
+      {nanoStatus !== 'readily' && (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-gold/30 bg-gold-soft p-3 text-ink">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-gold" />
+          <div className="text-[11.5px] leading-snug">
+            <p className="font-bold text-gold">{t(language, 'flow7Title')}</p>
+            <p className="mt-0.5 text-ink2">{t(language, 'flow7Body')}</p>
+          </div>
+        </div>
+      )}
+
       {answer ? (
         <article className="animate-sheet overflow-hidden rounded-2xl border border-line bg-canvas shadow-sm">
           <div className="flex items-center justify-between bg-teal px-4 py-2.5 text-white">
@@ -113,6 +125,12 @@ export default function Ask({ language, onAsk, onOpenDetail, busy, seedQuestion 
               <p className="ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-[12.5px] text-canvas">
                 {asked}
               </p>
+            )}
+            {answer.inferenceSource === 'IN_CLOUD' && (
+              <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold-soft px-3 py-2 text-[11px] font-semibold text-gold">
+                <Cloud size={14} className="shrink-0" />
+                <span>{t(language, 'cloudFallbackNotice')}</span>
+              </div>
             )}
             <p className="font-serif text-[19px] font-bold leading-snug">{answer.text}</p>
 

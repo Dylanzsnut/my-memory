@@ -22,6 +22,9 @@ export interface CaptureRecord {
   retentionState: RetentionState;
   /** Local blob URL / data URL for the original. Never leaves the device. */
   originalRef?: string;
+  /** Recorded audio blob stored locally in IndexedDB. Never leaves the device. */
+  audioBlob?: Blob;
+  audioMimeType?: string;
   /** OCR / ASR derived text. Correctable; never mutates the original. */
   derivedText?: string;
   /** Vector embedding (shared space, lexical fallback in this build). */
@@ -95,6 +98,8 @@ export interface ExtractionRequest {
   type: CaptureType;
   text?: string;
   imageDataUrl?: string;
+  audioBlob?: Blob;
+  audioMimeType?: string;
 }
 
 export interface ExtractionResult {

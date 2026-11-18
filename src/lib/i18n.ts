@@ -9,7 +9,10 @@ const EN = {
   ob1Card1: 'Airplane mode ready',
   ob1Card2: 'Private on your device',
   ob1Card3: 'No ads, no tracking',
-  ob1Ready: 'Ready on this phone',
+  ob1Ready: 'Gemini Nano ready on this device ✓',
+  ob1Preparing: 'Preparing on-device model…',
+  ob1AfterDownload: 'Gemini Nano available after download',
+  ob1Unavailable: 'Gemini Nano unavailable — Flow 7 fallback active (local search stays offline)',
   continue: 'Continue',
   ob2Title: 'One shared memory across photos, voice, and notes.',
   ob2Body: 'A question in your own words finds a photo you took weeks ago — without uploading anything.',
@@ -75,6 +78,14 @@ const EN = {
   voice: 'Voice',
   noteType: 'Note',
   startOver: 'Reset demo',
+  newVoiceMemo: 'New voice memo',
+  voiceMemoPlaceholder: 'Optional transcript or note (leave blank if audio only)…',
+  voiceRecordHint: 'Audio stays on this device. Add an optional note below to index text.',
+  voiceUnavailable: 'Microphone recording is unavailable or permission was denied. You can still type a note below.',
+  originalAudioProof: 'Original audio · on-device',
+  flow7Title: 'On-device Gemini Nano unavailable — Flow 7 active',
+  flow7Body: 'Originals and local search remain 100% offline on this device. Answers fall back to Firebase Cloud AI (derived summaries only) when configured, or local verification.',
+  cloudFallbackNotice: 'Cloud fallback (IN_CLOUD) · Derived summaries only — originals stayed on device',
 };
 
 const VI: Record<keyof typeof EN, string> = {
@@ -86,7 +97,10 @@ const VI: Record<keyof typeof EN, string> = {
   ob1Card1: 'Sẵn sàng chế độ máy bay',
   ob1Card2: 'Riêng tư trên thiết bị',
   ob1Card3: 'Không quảng cáo, không theo dõi',
-  ob1Ready: 'Sẵn sàng trên máy này',
+  ob1Ready: 'Gemini Nano đã sẵn sàng trên thiết bị ✓',
+  ob1Preparing: 'Đang chuẩn bị mô hình trên máy…',
+  ob1AfterDownload: 'Gemini Nano cần tải xuống lần đầu',
+  ob1Unavailable: 'Gemini Nano không khả dụng — bật dự phòng Flow 7 (tìm local vẫn offline)',
   continue: 'Tiếp tục',
   ob2Title: 'Một trí nhớ chung cho ảnh, giọng nói và ghi chú.',
   ob2Body: 'Một câu hỏi bằng ngôn ngữ của bạn tìm lại tấm ảnh chụp cách đây vài tuần — không cần tải lên gì.',
@@ -152,6 +166,14 @@ const VI: Record<keyof typeof EN, string> = {
   voice: 'Giọng nói',
   noteType: 'Ghi chú',
   startOver: 'Đặt lại demo',
+  newVoiceMemo: 'Ghi âm mới',
+  voiceMemoPlaceholder: 'Lời thoại hoặc ghi chú tùy chọn (có thể để trống)…',
+  voiceRecordHint: 'Âm thanh được lưu trên máy. Thêm ghi chú tùy chọn để lập chỉ mục chữ.',
+  voiceUnavailable: 'Không thể ghi âm từ micro hoặc chưa có quyền. Bạn vẫn có thể nhập ghi chú bên dưới.',
+  originalAudioProof: 'Âm thanh gốc · trên máy',
+  flow7Title: 'Gemini Nano trên máy chưa khả dụng — đang bật Flow 7',
+  flow7Body: 'Bản gốc và tìm kiếm vẫn chạy 100% offline trên máy. Câu trả lời sẽ dùng dự phòng Firebase Cloud AI (chỉ gửi tóm tắt) khi có cấu hình, hoặc kiểm chứng cục bộ.',
+  cloudFallbackNotice: 'Dự phòng Cloud (IN_CLOUD) · Chỉ gửi tóm tắt — bản gốc ở lại trên máy',
 };
 
 export type TranslationKey = keyof typeof EN;

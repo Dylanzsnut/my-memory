@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, ShieldCheck } from 'lucide-react';
 import type { CaptureRecord, Language } from '../types';
 import { t } from '../lib/i18n';
@@ -11,6 +12,23 @@ interface Props {
 }
 
 export default function DetailSheet({ capture, language, onClose, onAskAbout }: Props) {
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (capture.type !== 'voice') {
+      setAudioUrl(null);
+      return;
+    }
+    if (capture.audioBlob) {
+      const objectUrl = URL.createObjectURL(capture.audioBlob);
+      setAudioUrl(objectUrl);
+      return () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+    }
+    setAudioUrl(capture.originalRef || null);
+  }, [capture.audioBlob, capture.originalRef, capture.type]);
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50" onClick={onClose}>
       <div
@@ -47,9 +65,19 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout }: 
                 <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> Original proof · on-device
               </span>
             </div>
+          ) : capture.type === 'voice' ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-teal-soft p-4 text-teal">
+              <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-canvas/90 px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm">
+                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> {t(language, 'originalAudioProof')}
+              </span>
+              <Mic size={36} className="mt-3" />
+              {audioUrl && (
+                <audio controls src={audioUrl} preload="metadata" className="mt-3 w-full" />
+              )}
+            </div>
           ) : (
             <div className="grid h-40 place-items-center rounded-2xl bg-teal-soft text-teal">
-              {capture.type === 'voice' ? <Mic size={44} /> : capture.type === 'note' ? <NotepadText size={44} /> : <Image size={44} />}
+              {capture.type === 'note' ? <NotepadText size={44} /> : <Image size={44} />}
             </div>
           )}
 

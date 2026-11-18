@@ -56,7 +56,8 @@ export async function buildAnswer(
   const generated = await answerQuestion(question, sources, intent);
   const claims = generated.text === 'NOT_FOUND' ? [] : parseClaims(generated.text, sources);
   const verified = claims.filter((c) => c.verified);
-  if (generated.text === 'NOT_FOUND' || (!verified.length && claims.length)) {
+  const notFound = generated.text === 'NOT_FOUND' || verified.length === 0;
+  if (notFound) {
     return {
       text: 'Not found in memory. No capture supports an answer to that question.',
       claims: [],

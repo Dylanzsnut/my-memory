@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   AudioLines,
   CheckCircle2,
+  Download,
   Fingerprint,
   Image,
   Lock,
@@ -12,6 +14,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import type { Language } from '../types';
+import type { NanoAvailability } from '../lib/ai';
 import { t, type TranslationKey } from '../lib/i18n';
 
 const TONE: Record<string, string> = {
@@ -22,14 +25,29 @@ const TONE: Record<string, string> = {
 
 interface Props {
   language: Language;
+  nanoStatus: NanoAvailability;
   onLanguageChange: (language: Language) => void;
   onComplete: () => void;
   onPrepareDevice: () => Promise<void>;
 }
 
-export default function Onboarding({ language, onLanguageChange, onComplete, onPrepareDevice }: Props) {
+export default function Onboarding({ language, nanoStatus, onLanguageChange, onComplete, onPrepareDevice }: Props) {
   const [step, setStep] = useState(0);
   const [preparing, setPreparing] = useState(false);
+
+  const statusTone = preparing || nanoStatus === 'readily'
+    ? 'teal'
+    : nanoStatus === 'after-download' || nanoStatus === 'downloading'
+      ? 'gold'
+      : 'accent';
+
+  const statusText = preparing
+    ? t(language, 'ob1Preparing')
+    : nanoStatus === 'readily'
+      ? t(language, 'ob1Ready')
+      : nanoStatus === 'after-download' || nanoStatus === 'downloading'
+        ? t(language, 'ob1AfterDownload')
+        : t(language, 'ob1Unavailable');
 
   const next = async () => {
     if (step === 0) {
@@ -110,17 +128,27 @@ export default function Onboarding({ language, onLanguageChange, onComplete, onP
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between rounded-2xl bg-surface2 p-3.5">
+            <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface2 p-3.5">
               <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-70" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal" />
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  {(preparing || nanoStatus === 'readily') && (
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-70" />
+                  )}
+                  <span
+                    className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                      statusTone === 'teal' ? 'bg-teal' : statusTone === 'gold' ? 'bg-gold' : 'bg-accent'
+                    }`}
+                  />
                 </span>
-                <span className="text-[12px] font-semibold text-ink2">
-                  {preparing ? 'Preparing on-device model…' : t(language, 'ob1Ready')}
-                </span>
+                <span className="text-[12px] font-semibold text-ink2">{statusText}</span>
               </div>
-              <CheckCircle2 size={18} className="text-teal" />
+              {statusTone === 'teal' ? (
+                <CheckCircle2 size={18} className="shrink-0 text-teal" />
+              ) : statusTone === 'gold' ? (
+                <Download size={18} className="shrink-0 text-gold" />
+              ) : (
+                <AlertTriangle size={18} className="shrink-0 text-accent" />
+              )}
             </div>
           </div>
         )}

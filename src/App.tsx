@@ -11,7 +11,7 @@ import type {
 } from './types';
 import { settings } from './lib/config';
 import { initFirebase, getServices, syncCaptureMetadata } from './lib/firebase';
-import { initializeDeviceModel, extractCapture } from './lib/ai';
+import { initializeDeviceModel, extractCapture, probeNanoAvailability, type NanoAvailability } from './lib/ai';
 import { embed } from './lib/embeddings';
 import {
   addHudEvent,
@@ -54,6 +54,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [askSeed, setAskSeed] = useState<string | undefined>(undefined);
   const [askNonce, setAskNonce] = useState(0);
+  const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const booted = useRef(false);
 
   const log = (label: string, source: HudEvent['source'], latencyMs: number, detail?: string) => {
@@ -75,18 +76,20 @@ export default function App() {
     (async () => {
       await initFirebase();
       await seedDemoCaptures();
-      const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding] = await Promise.all([
+      const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano] = await Promise.all([
         getCaptures(),
         getProposals(),
         getHudEvents(),
         getMeta<Language>('language', 'en'),
         getMeta<boolean>('onboardingDone', false),
+        probeNanoAvailability(),
       ]);
       setCaptures(loadedCaptures);
       setProposals(loadedProposals);
       setHudEvents(loadedHud);
       setLanguage(savedLang);
       setOnboardingDone(savedOnboarding);
+      setNanoStatus(probedNano);
 
       const fresh = scanForProposals(loadedCaptures, settings.duplicateThreshold, loadedProposals);
       for (const proposal of fresh) await saveProposal(proposal);
@@ -128,7 +131,9 @@ export default function App() {
         inferenceSource: result.source,
         retentionState: 'active',
         originalRef: request.imageDataUrl,
-        derivedText: request.text,
+        audioBlob: request.audioBlob,
+        audioMimeType: request.audioMimeType,
+        derivedText: request.text?.trim() || undefined,
         embedding: await embed(searchable || 'capture'),
       };
       await saveCapture(capture);
@@ -252,6 +257,7 @@ export default function App() {
           <Ask
             key={askNonce}
             language={language}
+            nanoStatus={nanoStatus}
             onAsk={handleAsk}
             onOpenDetail={setSelected}
             busy={busy}
@@ -285,10 +291,12 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-bg">
           <Onboarding
             language={language}
+            nanoStatus={nanoStatus}
             onLanguageChange={changeLanguage}
             onComplete={completeOnboarding}
             onPrepareDevice={async () => {
               await initializeDeviceModel();
+              setNanoStatus(await probeNanoAvailability());
             }}
           />
         </div>

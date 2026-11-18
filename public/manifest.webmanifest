@@ -1,0 +1,17 @@
+{
+  "name": "My Memory",
+  "short_name": "My Memory",
+  "description": "A privacy-first second memory in your pocket — local capture, cited answers, and human-approved forgetting.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f1e7",
+  "theme_color": "#fffdf8",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

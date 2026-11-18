@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Camera, CheckCircle2, Image, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
 import type { CaptureRecord, CaptureType, ExtractionRequest, Language } from '../types';
 import { t } from '../lib/i18n';
@@ -30,11 +30,55 @@ function dayGroup(date: string, language: Language): string {
   return t(language, 'older');
 }
 
+interface VoiceDraft {
+  blob?: Blob;
+  mimeType?: string;
+  url?: string;
+  error?: string;
+}
+
 export default function Memories({ captures, language, onCapture, onOpenDetail, busy }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const draftUrlRef = useRef<string | undefined>(undefined);
+  const mountedRef = useRef(true);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [recording, setRecording] = useState(false);
+  const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
+  const [voiceText, setVoiceText] = useState('');
+
+  const stopTracks = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  };
+
+  const clearDraft = () => {
+    if (draftUrlRef.current) {
+      URL.revokeObjectURL(draftUrlRef.current);
+      draftUrlRef.current = undefined;
+    }
+    setVoiceDraft(null);
+    setVoiceText('');
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+        recorderRef.current.onstop = null;
+        recorderRef.current.stop();
+      }
+      stopTracks();
+      if (draftUrlRef.current) {
+        URL.revokeObjectURL(draftUrlRef.current);
+        draftUrlRef.current = undefined;
+      }
+    };
+  }, []);
 
   const handleFile = (file?: File) => {
     if (!file) return;
@@ -43,31 +87,64 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
     reader.readAsDataURL(file);
   };
 
-  const startRecording = async () => {
-    if (recording) return;
-    setRecording(true);
-    let transcript = '';
-    const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: new () => any }).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.lang = language === 'vi' ? 'vi-VN' : 'en-US';
-        recognition.interimResults = false;
-        recognition.onresult = (event: any) => {
-          transcript = event.results[0][0].transcript;
-        };
-        recognition.start();
-        setTimeout(() => recognition.stop(), 6000);
-      } catch {
-        /* ASR unavailable — fall through to typed transcript */
+  const toggleRecording = async () => {
+    if (recording) {
+      if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+        recorderRef.current.stop();
+      } else {
+        stopTracks();
+        setRecording(false);
+      }
+      return;
+    }
+
+    clearDraft();
+    setNoteOpen(false);
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setVoiceDraft({ error: t(language, 'voiceUnavailable') });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const preferredMime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((mime) =>
+        MediaRecorder.isTypeSupported(mime),
+      );
+      const recorder = preferredMime ? new MediaRecorder(stream, { mimeType: preferredMime }) : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stopTracks();
+        recorderRef.current = null;
+        if (!mountedRef.current) return;
+        const mimeType = recorder.mimeType || preferredMime || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        chunksRef.current = [];
+        const url = URL.createObjectURL(blob);
+        draftUrlRef.current = url;
+        setRecording(false);
+        setVoiceDraft({ blob, mimeType, url });
+      };
+
+      recorder.start();
+      setRecording(true);
+    } catch {
+      stopTracks();
+      if (mountedRef.current) {
+        setRecording(false);
+        setVoiceDraft({ error: t(language, 'voiceUnavailable') });
       }
     }
-    setTimeout(async () => {
-      setRecording(false);
-      const finalText = transcript || (language === 'vi' ? 'Ghi âm thoại mẫu' : 'Sample voice memo transcript');
-      await onCapture({ type: 'voice', text: finalText });
-    }, 6500);
   };
 
   const groups = captures.reduce<Record<string, CaptureRecord[]>>((acc, capture) => {
@@ -107,8 +184,8 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         </button>
         <button
           type="button"
-          onClick={startRecording}
-          disabled={busy}
+          onClick={toggleRecording}
+          disabled={busy && !recording}
           className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold active:scale-95 disabled:opacity-50 ${
             recording ? 'bg-danger-soft text-danger' : 'bg-teal-soft text-teal'
           }`}
@@ -134,6 +211,59 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
           }}
         />
       </div>
+
+      {voiceDraft && (
+        <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-bold">{t(language, 'newVoiceMemo')}</span>
+            <button type="button" onClick={clearDraft} className="text-ink3 hover:text-ink">
+              <X size={16} />
+            </button>
+          </div>
+          {voiceDraft.error ? (
+            <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-[11.5px] leading-snug text-accent">
+              {voiceDraft.error}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-ink2">{t(language, 'voiceRecordHint')}</p>
+          )}
+          {voiceDraft.url && (
+            <audio controls src={voiceDraft.url} preload="metadata" className="mt-2 w-full" />
+          )}
+          <textarea
+            value={voiceText}
+            onChange={(e) => setVoiceText(e.target.value)}
+            placeholder={t(language, 'voiceMemoPlaceholder')}
+            rows={2}
+            className="mt-2 w-full resize-none rounded-xl border border-line bg-surface2 p-3 text-[13px] outline-none focus:border-accent"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="flex-1 rounded-full border border-line2 bg-canvas py-2.5 text-[12.5px] font-bold text-ink2"
+            >
+              {t(language, 'cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={(!voiceDraft.blob && !voiceText.trim()) || busy}
+              onClick={async () => {
+                await onCapture({
+                  type: 'voice',
+                  text: voiceText.trim() || undefined,
+                  audioBlob: voiceDraft.blob,
+                  audioMimeType: voiceDraft.mimeType,
+                });
+                clearDraft();
+              }}
+              className="flex-1 rounded-full bg-accent py-2.5 text-[12.5px] font-bold text-white disabled:opacity-40"
+            >
+              {t(language, 'save')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {noteOpen && (
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">

@@ -36,24 +36,32 @@ disclosure text, submission copy) are intentionally out of scope.
       `trashedAt` plus separate `purgeAt`, no remote font requests, and corrected
       README / `WEB_SETUP.md` / `.env.example`.
 - [ ] Rebuild and redeploy Hosting from the new commit.
-- [ ] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
+- [x] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
       answer never renders with the "Verified from your capture" banner.
 - [ ] Console: enable AI Logic → Get started with the Gemini Developer API.
 - [ ] Console: register the reCAPTCHA Enterprise key for the Web app under App
       Check, then enable enforcement.
 - [ ] Smoke test live in Chrome Desktop 139+ with the Prompt API flag enabled:
       on-device extraction, on-device answer, cloud synthesis.
-- [ ] Voice: stop using the Web Speech API (Chrome sends audio to Google
+- [x] Voice: stop using the Web Speech API (Chrome sends audio to Google
       servers). Record with `MediaRecorder` and store the blob locally.
-- [ ] Voice: remove the fabricated `"Sample voice memo transcript"` string;
+      Note: verified via `npm run typecheck && npm run build`; live microphone
+      capture needs manual check in browser.
+- [x] Voice: remove the fabricated `"Sample voice memo transcript"` string;
       leave the transcript empty or let the user type it.
-- [ ] Voice: add audio playback in `DetailSheet`.
-- [ ] Onboarding: probe `LanguageModel.availability()` and show the real model
-      state instead of a hard-coded "Ready ✓".
-- [ ] Flow 7: show a banner when Nano is unavailable and label cloud answers
-      explicitly.
-- [ ] Offline: add a service worker and manifest (PWA) so a reload works with
-      the network off.
+- [x] Voice: add audio playback in `DetailSheet`. Note: object URL is created
+      from `audioBlob` and revoked on unmount; needs manual playback check in
+      browser.
+- [x] Onboarding: probe `LanguageModel.availability()` and show the real model
+      state instead of a hard-coded "Ready ✓". Note: needs manual check in
+      Chrome 139+ to observe `'readily'`/`'after-download'` transitions.
+- [x] Flow 7: show a banner when Nano is unavailable and label cloud answers
+      explicitly. Note: also wired `inCloudParams` on `PREFER_ON_DEVICE` so
+      cloud fallback works when Firebase AI Logic is configured.
+- [x] Offline: add a service worker and manifest (PWA) so a reload works with
+      the network off. Note: `public/sw.js`, `public/manifest.webmanifest`,
+      and `public/icon.svg` bundled into `dist/`; offline reload needs manual
+      browser verification under `npm run preview` or Hosting.
 - [x] Offline: no third-party font requests. Result differs from plan: removed
       the Google Fonts `<link>` from `index.html` and switched to system font
       stacks in `styles.css` instead of self-hosting font files. Self-hosting can
