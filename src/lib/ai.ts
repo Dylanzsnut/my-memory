@@ -20,10 +20,39 @@ const extractionSchema = Schema.object({
   properties: {
     summary: Schema.string(),
     entities: Schema.array({ items: Schema.string() }),
-    expiryDate: Schema.string(),
+    expiryDate: Schema.string({ nullable: true }),
   },
   optionalProperties: ['expiryDate'],
 });
+
+const extractionJsonSchema = JSON.parse(JSON.stringify(extractionSchema)) as object;
+
+function isValidYearMonthDay(year: number, month: number, day?: number): boolean {
+  if (month < 1 || month > 12) return false;
+  if (day === undefined) return true;
+  const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day >= 1 && day <= maxDay;
+}
+
+function normalizeExpiryDate(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null') return null;
+  const iso = trimmed.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = iso[3] !== undefined ? Number(iso[3]) : undefined;
+    return isValidYearMonthDay(year, month, day) ? trimmed : null;
+  }
+  const slash = trimmed.match(/^(\d{2})\/(\d{4})$/);
+  if (slash) {
+    const month = Number(slash[1]);
+    const year = Number(slash[2]);
+    return isValidYearMonthDay(year, month) ? `${slash[2]}-${slash[1]}` : null;
+  }
+  return null;
+}
 
 function toSdkSource(source: unknown): InferenceSource {
   // The SDK reports lowercase values ('in_cloud' / 'on_device'), not the
@@ -47,14 +76,20 @@ function simulatedExtraction(req: ExtractionRequest): ExtractionResult {
   const plates = text.match(/\b\d{2}[A-Z]-?\d+\.\d+\b/gi) || [];
   const entities = [...new Set([...amounts, ...dates, ...plates])];
   const expiryMatch = text.match(/\b(\d{2})\/(\d{4})\b/);
+  const trimmed = text.trim();
+  const firstSentence = trimmed.replace(/^[.!?\s]+/, '').split(/[.!?]/)[0]?.trim();
   const summary =
     req.type === 'photo'
       ? 'Photo capture (not extracted on this device)'
-      : req.type === 'voice' && !text.trim()
+      : req.type === 'voice' && !trimmed
         ? 'Voice memo (audio stored on device)'
-        : text.split(/[.!?]/)[0].slice(0, 80) || 'Untitled capture';
+        : (firstSentence || trimmed.slice(0, 80)).slice(0, 80) || 'Untitled capture';
   return {
-    extraction: { summary, entities, expiryDate: expiryMatch ? `${expiryMatch[2]}-${expiryMatch[1]}` : null },
+    extraction: {
+      summary,
+      entities,
+      expiryDate: expiryMatch ? normalizeExpiryDate(`${expiryMatch[2]}-${expiryMatch[1]}`) : null,
+    },
     source: 'SIMULATED',
     latencyMs: Math.round(performance.now() - started),
   };
@@ -71,19 +106,20 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
   if (!ai) return simulatedExtraction(req);
 
   try {
+    const expectedInputs: { type: 'text' | 'image'; languages?: string[] }[] = [
+      { type: 'text', languages: ['en'] },
+      ...(req.imageDataUrl ? [{ type: 'image' as const }] : []),
+    ];
     const model: GenerativeModel = getGenerativeModel(ai, {
       mode: InferenceMode.ONLY_ON_DEVICE,
       onDeviceParams: {
         createOptions: {
-          expectedInputs: [
-            { type: 'text', languages: ['en'] },
-            { type: 'image' },
-          ],
+          expectedInputs,
           initialPrompts: [
             { role: 'system', content: [{ type: 'text', value: ON_DEVICE_PROMPT_INSTRUCTIONS }] },
           ],
         },
-        promptOptions: { responseConstraint: extractionSchema },
+        promptOptions: { responseConstraint: extractionJsonSchema },
       },
     });
 
@@ -96,13 +132,14 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
     const raw = result.response.text().trim();
     const parsed = JSON.parse(raw) as { summary?: string; entities?: string[]; expiryDate?: string | null };
     if (!parsed.summary || !Array.isArray(parsed.entities)) throw new Error('Invalid extraction schema');
+    const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
     return {
       extraction: {
         summary: parsed.summary,
         entities: parsed.entities.filter((e) => typeof e === 'string'),
-        expiryDate: typeof parsed.expiryDate === 'string' ? parsed.expiryDate : null,
+        expiryDate: normalizeExpiryDate(parsed.expiryDate),
       },
-      source: 'ON_DEVICE',
+      source: toSdkSource(sdkSource),
       latencyMs: Math.round(performance.now() - started),
     };
   } catch (error) {
@@ -183,27 +220,53 @@ function contextFrom(captures: CaptureRecord[]): string {
     .join('\n');
 }
 
+function citeSummary(capture: CaptureRecord): string {
+  const trimmed = capture.summary.trim();
+  if (!trimmed) return '';
+  return trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => {
+      const clean = sentence.trim();
+      if (!clean) return '';
+      const punct = clean.match(/([.!?]+)$/)?.[1]?.[0] || '.';
+      const body = clean.replace(/[.!?]+$/, '').trim();
+      return body ? `${body} [${capture.id}]${punct}` : '';
+    })
+    .filter(Boolean)
+    .join(' ');
+}
+
 function simulatedAnswer(question: string, captures: CaptureRecord[], intent: 'short' | 'long'): string {
   if (!captures.length) return 'NOT_FOUND';
   const q = normalize(question);
   const top = captures[0];
-  if (/\bexpire|expiry|han dung|het han/.test(q) && top.expiryDate) {
-    const [year, month] = top.expiryDate.split('-');
-    return `In ${month}/${year}. This comes from the capture [${top.id}]${top.entities.includes('medicine') ? ' — the medicine box photographed earlier' : ''}.`;
+  if (/expir|han dung|het han/i.test(q)) {
+    const withExpiry = captures.find((c) => Boolean(c.expiryDate)) ?? top;
+    if (withExpiry.expiryDate) {
+      const parts = withExpiry.expiryDate.split('-');
+      const expiryLabel =
+        parts.length >= 3
+          ? `${parts[2]}/${parts[1]}/${parts[0]}`
+          : parts.length === 2
+            ? `${parts[1]}/${parts[0]}`
+            : withExpiry.expiryDate;
+      const prefix = parts.length >= 3 ? `On ${expiryLabel}` : `In ${expiryLabel}`;
+      const detail = withExpiry.entities.includes('medicine') ? ' — from the medicine box photographed earlier' : '';
+      return `${prefix} [${withExpiry.id}]${detail}.`;
+    }
   }
   if (/\bplate|bien so/.test(q)) {
-    const plate = top.entities.find((e) => /\d{2}[A-Z]-?\d+\.\d+/i.test(e)) || top.summary;
-    return `The plate is ${plate}. Source: [${top.id}].`;
+    const plate = top.entities.find((e) => /\d{2}[A-Z]-?\d+\.\d+/i.test(e));
+    if (plate) return `The plate is ${plate} [${top.id}].`;
+    return citeSummary(top) || 'NOT_FOUND';
   }
   if (/\bpassword|wifi|mat khau/.test(q)) {
-    return `${top.summary}. Source: [${top.id}].`;
+    return citeSummary(top) || 'NOT_FOUND';
   }
   if (intent === 'long') {
-    return captures
-      .map((c) => `${c.summary.replace(/[.!?]$/, '')} [${c.id}]`)
-      .join('; ') + '.';
+    return captures.map(citeSummary).filter(Boolean).join(' ') || 'NOT_FOUND';
   }
-  return `${top.summary}. Source: [${top.id}].`;
+  return citeSummary(top) || 'NOT_FOUND';
 }
 
 export async function answerQuestion(

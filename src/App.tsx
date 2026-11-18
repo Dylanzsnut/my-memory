@@ -53,6 +53,7 @@ export default function App() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [busy, setBusy] = useState(false);
   const [askSeed, setAskSeed] = useState<string | undefined>(undefined);
+  const [askCaptureId, setAskCaptureId] = useState<string | undefined>(undefined);
   const [askNonce, setAskNonce] = useState(0);
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const booted = useRef(false);
@@ -67,46 +68,50 @@ export default function App() {
       detail,
     };
     setHudEvents((prev) => [event, ...prev].slice(0, 30));
-    void addHudEvent(event);
+    void addHudEvent(event).catch((err) => console.warn('[store] addHudEvent failed', err));
   };
 
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
     (async () => {
-      await initFirebase();
-      await seedDemoCaptures();
-      const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano] = await Promise.all([
-        getCaptures(),
-        getProposals(),
-        getHudEvents(),
-        getMeta<Language>('language', 'en'),
-        getMeta<boolean>('onboardingDone', false),
-        probeNanoAvailability(),
-      ]);
-      setCaptures(loadedCaptures);
-      setProposals(loadedProposals);
-      setHudEvents(loadedHud);
-      setLanguage(savedLang);
-      setOnboardingDone(savedOnboarding);
-      setNanoStatus(probedNano);
+      try {
+        await initFirebase();
+        await seedDemoCaptures();
+        const [loadedCaptures, loadedProposals, loadedHud, savedLang, savedOnboarding, probedNano] = await Promise.all([
+          getCaptures(),
+          getProposals(),
+          getHudEvents(),
+          getMeta<Language>('language', 'en'),
+          getMeta<boolean>('onboardingDone', false),
+          probeNanoAvailability(),
+        ]);
+        setCaptures(loadedCaptures);
+        setProposals(loadedProposals);
+        setHudEvents(loadedHud);
+        setLanguage(savedLang);
+        setOnboardingDone(savedOnboarding);
+        setNanoStatus(probedNano);
 
-      const fresh = scanForProposals(loadedCaptures, settings.duplicateThreshold, loadedProposals);
-      for (const proposal of fresh) await saveProposal(proposal);
-      if (fresh.length) setProposals((prev) => [...prev, ...fresh]);
-
-      setReady(true);
+        const fresh = scanForProposals(loadedCaptures, settings.duplicateThreshold, loadedProposals);
+        for (const proposal of fresh) await saveProposal(proposal);
+        if (fresh.length) setProposals((prev) => [...prev, ...fresh]);
+      } catch (error) {
+        console.error('[app] boot initialization failed', error);
+      } finally {
+        setReady(true);
+      }
     })();
   }, []);
 
   const changeLanguage = (next: Language) => {
     setLanguage(next);
-    void setMeta('language', next);
+    void setMeta('language', next).catch((err) => console.warn('[store] setMeta(language) failed', err));
   };
 
   const completeOnboarding = () => {
     setOnboardingDone(true);
-    void setMeta('onboardingDone', true);
+    void setMeta('onboardingDone', true).catch((err) => console.warn('[store] setMeta(onboardingDone) failed', err));
   };
 
   const handleCapture = async (request: ExtractionRequest) => {
@@ -115,6 +120,13 @@ export default function App() {
       const result = await extractCapture(request);
       const extraction = result.extraction;
       const unextracted = Boolean(result.error);
+      const trimmedText = request.text?.trim() || '';
+      const fallbackNoteSummary =
+        request.type === 'note' && trimmedText
+          ? extraction?.summary ||
+            trimmedText.replace(/^[.!?\s]+/, '').split(/[.!?]/)[0]?.trim().slice(0, 80) ||
+            trimmedText.slice(0, 80)
+          : 'Unextracted capture — original kept on device';
       const searchable = [
         extraction?.summary || '',
         ...(extraction?.entities || []),
@@ -124,7 +136,7 @@ export default function App() {
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: request.type,
         capturedAt: new Date().toISOString(),
-        summary: unextracted ? 'Unextracted capture — original kept on device' : extraction?.summary || 'Capture',
+        summary: unextracted ? fallbackNoteSummary : extraction?.summary || 'Capture',
         entities: extraction?.entities || [],
         expiryDate: extraction?.expiryDate || null,
         language,
@@ -133,11 +145,17 @@ export default function App() {
         originalRef: request.imageDataUrl,
         audioBlob: request.audioBlob,
         audioMimeType: request.audioMimeType,
-        derivedText: request.text?.trim() || undefined,
+        derivedText: trimmedText || undefined,
         embedding: await embed(searchable || 'capture'),
       };
       await saveCapture(capture);
-      setCaptures((prev) => [capture, ...prev]);
+      const [allCaptures, allProposals] = await Promise.all([getCaptures(), getProposals()]);
+      setCaptures(allCaptures);
+      const fresh = scanForProposals(allCaptures, settings.duplicateThreshold, allProposals);
+      if (fresh.length) {
+        for (const proposal of fresh) await saveProposal(proposal);
+        setProposals([...allProposals, ...fresh]);
+      }
       void syncCaptureMetadata([capture]);
       log(t(language, 'capturedOnDevice'), result.source, result.latencyMs, extractErrorText(result.error));
     } finally {
@@ -145,10 +163,15 @@ export default function App() {
     }
   };
 
-  const handleAsk = async (question: string) => {
+  const handleAsk = async (question: string, captureId?: string) => {
     setBusy(true);
     try {
-      const result = await buildAnswer(question, captures, settings.retrievalThreshold);
+      const targetCapture = captureId
+        ? captures.find((c) => c.id === captureId && c.retentionState !== 'trashed')
+        : undefined;
+      const result = captureId
+        ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0)
+        : await buildAnswer(question, captures, settings.retrievalThreshold);
       if (result.sources.length) {
         for (const source of result.sources) await saveCapture(source);
         setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));
@@ -165,13 +188,15 @@ export default function App() {
     }
   };
 
-  const handleDecide = (proposal: ForgetProposal, decision: Decision) => {
+  const handleDecide = async (proposal: ForgetProposal, decision: Decision) => {
     const previousCapture = captures.find((c) => c.id === proposal.captureId);
     if (!previousCapture) return;
     const updatedCapture = applyDecision(previousCapture, decision, settings.trashRetentionDays);
     const updatedProposal: ForgetProposal = { ...proposal, decided: decision };
-    void saveCapture(updatedCapture);
-    void saveProposal(updatedProposal);
+    await Promise.all([
+      saveCapture(updatedCapture).catch((err) => console.warn('[store] saveCapture failed', err)),
+      saveProposal(updatedProposal).catch((err) => console.warn('[store] saveProposal failed', err)),
+    ]);
     setCaptures((prev) => prev.map((c) => (c.id === updatedCapture.id ? updatedCapture : c)));
     setProposals((prev) => prev.map((p) => (p.id === updatedProposal.id ? updatedProposal : p)));
     setToast({
@@ -179,9 +204,11 @@ export default function App() {
         decision === 'approve'
           ? t(language, 'movedToTrash', { n: settings.trashRetentionDays })
           : t(language, 'keptPreference'),
-      undo: () => {
-        void saveCapture(previousCapture);
-        void saveProposal(proposal);
+      undo: async () => {
+        await Promise.all([
+          saveCapture(previousCapture).catch((err) => console.warn('[store] saveCapture undo failed', err)),
+          saveProposal(proposal).catch((err) => console.warn('[store] saveProposal undo failed', err)),
+        ]);
         setCaptures((prev) => prev.map((c) => (c.id === previousCapture.id ? previousCapture : c)));
         setProposals((prev) => prev.map((p) => (p.id === proposal.id ? proposal : p)));
         setToast(null);
@@ -189,27 +216,48 @@ export default function App() {
     });
   };
 
-  const handleRestore = (capture: CaptureRecord) => {
+  const handleRestore = async (capture: CaptureRecord) => {
     const restored: CaptureRecord = {
       ...capture,
       retentionState: 'active',
       trashedAt: undefined,
       purgeAt: undefined,
     };
-    void saveCapture(restored);
+    const affected = proposals.filter((p) => p.captureId === capture.id && p.decided === 'approve');
+    const updatedProposals = affected.map((p) => ({ ...p, decided: 'keep' as const }));
+    await Promise.all([
+      saveCapture(restored).catch((err) => console.warn('[store] saveCapture restore failed', err)),
+      ...updatedProposals.map((proposal) =>
+        saveProposal(proposal).catch((err) => console.warn('[store] saveProposal restore failed', err)),
+      ),
+    ]);
     setCaptures((prev) => prev.map((c) => (c.id === restored.id ? restored : c)));
+    if (updatedProposals.length) {
+      setProposals((prev) => prev.map((p) => updatedProposals.find((u) => u.id === p.id) || p));
+    }
+
     setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
   };
 
-  const askAbout = (capture: CaptureRecord) => {
+  const askAbout = (capture: CaptureRecord, question?: string) => {
     setSelected(null);
-    const question =
-      language === 'vi'
+    const resolved =
+      question?.trim() ||
+      (language === 'vi'
         ? `Chi tiết trong capture này: ${capture.summary}`
-        : `What details are in this capture: ${capture.summary}`;
-    setAskSeed(question);
+        : `What details are in this capture: ${capture.summary}`);
+    setAskSeed(resolved);
+    setAskCaptureId(capture.id);
     setAskNonce((n) => n + 1);
     setTab('ask');
+  };
+
+  const handleTabChange = (nextTab: Tab) => {
+    if (nextTab !== 'ask') {
+      setAskSeed(undefined);
+      setAskCaptureId(undefined);
+    }
+    setTab(nextTab);
   };
 
   if (!ready) {
@@ -262,6 +310,11 @@ export default function App() {
             onOpenDetail={setSelected}
             busy={busy}
             seedQuestion={askSeed}
+            seedCaptureId={askCaptureId}
+            onSeedConsumed={() => {
+              setAskSeed(undefined);
+              setAskCaptureId(undefined);
+            }}
           />
         )}
         {tab === 'forget' && (
@@ -279,16 +332,16 @@ export default function App() {
         </div>
       </main>
 
-      <BottomNav active={tab} onChange={setTab} language={language} reviewCount={pendingCount} />
+      <BottomNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
 
       {selected && (
         <DetailSheet capture={selected} language={language} onClose={() => setSelected(null)} onAskAbout={askAbout} />
       )}
       {toast && (
-        <Toast message={toast.message} onUndo={toast.undo} onDismiss={() => setToast(null)} />
+        <Toast message={toast.message} language={language} onUndo={toast.undo} onDismiss={() => setToast(null)} />
       )}
       {!onboardingDone && (
-        <div className="fixed inset-0 z-50 bg-bg">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-bg">
           <Onboarding
             language={language}
             nanoStatus={nanoStatus}

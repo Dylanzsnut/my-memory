@@ -57,12 +57,19 @@ export default function Hud({ events, language, demoMode }: Props) {
         <div className="no-scrollbar mt-3 max-h-52 space-y-1.5 overflow-y-auto border-t border-line pt-2">
           {events.length === 0 && <p className="text-[11px] text-ink3">—</p>}
           {events.map((event) => (
-            <div key={event.id} className="flex items-center justify-between gap-2 rounded-lg bg-surface2 px-2 py-1.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <SourceIcon source={event.source} />
-                <span className="truncate text-[11px] font-semibold text-ink2">{event.label}</span>
+            <div key={event.id} className="rounded-lg bg-surface2 px-2 py-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SourceIcon source={event.source} />
+                  <span className="truncate text-[11px] font-semibold text-ink2">{event.label}</span>
+                </div>
+                <span className="shrink-0 font-mono text-[10px] text-ink3">{event.latencyMs} ms</span>
               </div>
-              <span className="shrink-0 font-mono text-[10px] text-ink3">{event.latencyMs} ms</span>
+              {event.detail && (
+                <p className="mt-0.5 truncate pl-5 text-[10px] text-ink3" title={event.detail}>
+                  {event.detail}
+                </p>
+              )}
             </div>
           ))}
         </div>

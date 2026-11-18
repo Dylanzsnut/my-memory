@@ -14,7 +14,6 @@ interface Props {
 export default function Forget({ proposals, captures, language, onDecide, onRestore, trashDays }: Props) {
   const pending = proposals.filter((p) => !p.decided);
   const kept = proposals.filter((p) => p.decided === 'keep').length;
-  const trashed = proposals.filter((p) => p.decided === 'approve').length;
   const trashedCaptures = captures.filter((c) => c.retentionState === 'trashed');
   const protectedCaptures = captures.filter((c) => c.retentionState === 'protected');
 
@@ -34,7 +33,7 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
         {[
           { value: pending.length, label: t(language, 'toReview'), cls: 'bg-accent-soft text-accent' },
           { value: kept, label: t(language, 'keptSafe'), cls: 'bg-teal-soft text-teal' },
-          { value: trashed, label: t(language, 'inTrash'), cls: 'bg-surface2 text-ink2' },
+          { value: trashedCaptures.length, label: t(language, 'inTrash'), cls: 'bg-surface2 text-ink2' },
         ].map((stat) => (
           <div key={stat.label} className={`rounded-xl p-3 shadow-sm ${stat.cls}`}>
             <span className="block text-[22px] font-black leading-none">{stat.value}</span>
@@ -67,9 +66,17 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
                 <div className="min-w-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink3">
                     {proposal.reason === 'duplicate'
-                      ? language === 'vi'
-                        ? 'Ảnh trùng lặp'
-                        : 'Duplicate photo'
+                      ? capture?.type === 'note'
+                        ? language === 'vi'
+                          ? 'Ghi chú trùng lặp'
+                          : 'Duplicate note'
+                        : capture?.type === 'voice'
+                          ? language === 'vi'
+                            ? 'Ghi âm trùng lặp'
+                            : 'Duplicate voice memo'
+                          : language === 'vi'
+                            ? 'Ảnh trùng lặp'
+                            : 'Duplicate photo'
                       : language === 'vi'
                         ? 'Đã hết hạn'
                         : 'Expired'}

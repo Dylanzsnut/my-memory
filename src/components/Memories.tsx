@@ -44,6 +44,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   const chunksRef = useRef<BlobPart[]>([]);
   const draftUrlRef = useRef<string | undefined>(undefined);
   const mountedRef = useRef(true);
+  const recordingPendingRef = useRef(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [recording, setRecording] = useState(false);
@@ -81,9 +82,17 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   }, []);
 
   const handleFile = (file?: File) => {
-    if (!file) return;
+    if (!file || busy) return;
     const reader = new FileReader();
-    reader.onload = () => onCapture({ type: 'photo', imageDataUrl: String(reader.result) });
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      void onCapture({ type: 'photo', imageDataUrl: reader.result }).catch((err) => {
+        console.warn('[memories] photo capture failed', err);
+      });
+    };
+    reader.onerror = () => {
+      console.warn('[memories] failed to read image file', reader.error);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -98,10 +107,14 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
       return;
     }
 
+    if (recordingPendingRef.current || busy) return;
+    recordingPendingRef.current = true;
+
     clearDraft();
     setNoteOpen(false);
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      recordingPendingRef.current = false;
       setVoiceDraft({ error: t(language, 'voiceUnavailable') });
       return;
     }
@@ -144,10 +157,14 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         setRecording(false);
         setVoiceDraft({ error: t(language, 'voiceUnavailable') });
       }
+    } finally {
+      recordingPendingRef.current = false;
     }
   };
 
-  const groups = captures.reduce<Record<string, CaptureRecord[]>>((acc, capture) => {
+  const visibleCaptures = captures.filter((c) => c.retentionState !== 'trashed');
+
+  const groups = visibleCaptures.reduce<Record<string, CaptureRecord[]>>((acc, capture) => {
     const key = dayGroup(capture.capturedAt, language);
     (acc[key] ||= []).push(capture);
     return acc;
@@ -162,7 +179,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
             {language === 'vi' ? 'Trí nhớ của bạn' : 'Your memory'}
           </h1>
           <p className="mt-1 text-[12px] text-ink2">
-            {t(language, 'momentsRemembered', { n: captures.length })} · {t(language, 'offline')}
+            {t(language, 'momentsRemembered', { n: visibleCaptures.length })} · {t(language, 'offline')}
           </p>
         </div>
         <div className="grid h-10 w-10 place-items-center rounded-full bg-accent text-sm font-black text-white">M</div>
@@ -170,7 +187,9 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
 
       <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
         <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
-        <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">100% on-device · offline ready</span>
+        <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
+          {language === 'vi' ? '100% trên máy · sẵn sàng offline' : '100% on-device · offline ready'}
+        </span>
       </div>
 
       <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
@@ -194,7 +213,10 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         </button>
         <button
           type="button"
-          onClick={() => setNoteOpen(!noteOpen)}
+          onClick={() => {
+            if (!noteOpen) clearDraft();
+            setNoteOpen(!noteOpen);
+          }}
           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-soft py-2.5 text-[12px] font-bold text-gold active:scale-95"
         >
           <NotepadText size={16} /> {t(language, 'note')}
@@ -216,7 +238,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold">{t(language, 'newVoiceMemo')}</span>
-            <button type="button" onClick={clearDraft} className="text-ink3 hover:text-ink">
+            <button type="button" onClick={clearDraft} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
               <X size={16} />
             </button>
           </div>
@@ -249,13 +271,17 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
               type="button"
               disabled={(!voiceDraft.blob && !voiceText.trim()) || busy}
               onClick={async () => {
-                await onCapture({
-                  type: 'voice',
-                  text: voiceText.trim() || undefined,
-                  audioBlob: voiceDraft.blob,
-                  audioMimeType: voiceDraft.mimeType,
-                });
-                clearDraft();
+                try {
+                  await onCapture({
+                    type: 'voice',
+                    text: voiceText.trim() || undefined,
+                    audioBlob: voiceDraft.blob,
+                    audioMimeType: voiceDraft.mimeType,
+                  });
+                  clearDraft();
+                } catch (err) {
+                  console.warn('[memories] voice capture failed', err);
+                }
               }}
               className="flex-1 rounded-full bg-accent py-2.5 text-[12.5px] font-bold text-white disabled:opacity-40"
             >
@@ -269,7 +295,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold">{t(language, 'newNote')}</span>
-            <button type="button" onClick={() => setNoteOpen(false)} className="text-ink3 hover:text-ink">
+            <button type="button" onClick={() => setNoteOpen(false)} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
               <X size={16} />
             </button>
           </div>
@@ -284,9 +310,13 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
             type="button"
             disabled={!noteText.trim() || busy}
             onClick={async () => {
-              await onCapture({ type: 'note', text: noteText.trim() });
-              setNoteText('');
-              setNoteOpen(false);
+              try {
+                await onCapture({ type: 'note', text: noteText.trim() });
+                setNoteText('');
+                setNoteOpen(false);
+              } catch (err) {
+                console.warn('[memories] note capture failed', err);
+              }
             }}
             className="mt-2 w-full rounded-full bg-accent py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >

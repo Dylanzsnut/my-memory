@@ -81,9 +81,10 @@ On-device structured output uses `Schema` helpers passed as `responseConstraint`
   with another neural model; image/audio are represented by their derived text, so
   native multimodal retrieval is not yet demonstrated. `src/lib/embeddings.ts` is the
   boundary where that provider would be plugged in.
-- On-device ASR uses the browser SpeechRecognition API where available; a typed
-  transcript fallback keeps the flow usable elsewhere. Original audio capture is not
-  yet persisted as a blob.
+- Voice memos record locally with `MediaRecorder` and persist `audioBlob` in IndexedDB
+  alongside an optional user-typed transcript (`derivedText`), never calling browser
+  `SpeechRecognition` or streaming audio externally. On-device neural ASR is not yet
+  bundled in the Web companion.
 - Latency and match numbers shown in the UI are measured locally where possible; the
   design targets (0.4 s answer, <1 s search, 0.97 similarity) are not claimed as
   measured benchmarks.

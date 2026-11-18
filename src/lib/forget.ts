@@ -2,9 +2,15 @@ import type { CaptureRecord, Decision, ForgetProposal } from '../types';
 import { cosine } from './embeddings';
 
 function expiryPassed(expiryDate: string): boolean {
-  const match = expiryDate.match(/^(\d{4})-(\d{2})/);
+  const match = expiryDate.trim().match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
   if (!match) return false;
-  const expiry = new Date(Number(match[1]), Number(match[2]) - 1, 1).getTime();
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return false;
+  const maxDay = new Date(year, month, 0).getDate();
+  const day = match[3] ? Number(match[3]) : maxDay;
+  if (day < 1 || day > maxDay) return false;
+  const expiry = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
   return expiry < Date.now();
 }
 

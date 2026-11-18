@@ -94,16 +94,32 @@ export async function initFirebase(): Promise<Services> {
       retrieval_threshold: settings.retrievalThreshold,
       trash_retention_days: settings.trashRetentionDays,
     };
-    await fetchAndActivate(remoteConfig).catch(() => undefined);
+    const REMOTE_CONFIG_TIMEOUT_MS = 2000;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      fetchAndActivate(remoteConfig).catch(() => undefined),
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, REMOTE_CONFIG_TIMEOUT_MS);
+      }),
+    ]).finally(() => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    });
     services.remoteConfig = remoteConfig;
 
-    settings.cloudModel = getValue(remoteConfig, 'cloud_model').asString() || settings.cloudModel;
-    settings.duplicateThreshold =
-      Number(getValue(remoteConfig, 'duplicate_threshold').asString()) || settings.duplicateThreshold;
-    settings.retrievalThreshold =
-      Number(getValue(remoteConfig, 'retrieval_threshold').asString()) || settings.retrievalThreshold;
-    settings.trashRetentionDays =
-      Number(getValue(remoteConfig, 'trash_retention_days').asNumber()) || settings.trashRetentionDays;
+    const validPositive = (value: number, max?: number): number | null =>
+      Number.isFinite(value) && value > 0 && (max === undefined || value <= max) ? value : null;
+
+    const cloudModel = getValue(remoteConfig, 'cloud_model').asString().trim();
+    if (cloudModel) settings.cloudModel = cloudModel;
+
+    const dupThreshold = validPositive(Number(getValue(remoteConfig, 'duplicate_threshold').asString()), 1);
+    if (dupThreshold !== null) settings.duplicateThreshold = dupThreshold;
+
+    const retThreshold = validPositive(Number(getValue(remoteConfig, 'retrieval_threshold').asString()), 1);
+    if (retThreshold !== null) settings.retrievalThreshold = retThreshold;
+
+    const trashDays = validPositive(Number(getValue(remoteConfig, 'trash_retention_days').asNumber()));
+    if (trashDays !== null) settings.trashRetentionDays = trashDays;
   } catch (error) {
     services.error = error instanceof Error ? error.message : String(error);
     console.warn('[firebase] initialization failed', error);

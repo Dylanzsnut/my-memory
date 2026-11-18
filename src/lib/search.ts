@@ -31,5 +31,5 @@ export async function searchCaptures(
 
 export function isLongSynthesisQuestion(query: string): boolean {
   const q = normalize(query);
-  return /total|sum |summar|interact|compare|all (my|the)|this month|across|combine|tong hop|tong cong/.test(q);
+  return /total|sum |summar|interact|compare|all (my|the)|this month|across|combine|tong hop|tong cong|tong chi/.test(q);
 }

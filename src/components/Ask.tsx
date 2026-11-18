@@ -8,10 +8,12 @@ import { SourceBadge } from './Hud';
 interface Props {
   language: Language;
   nanoStatus: NanoAvailability;
-  onAsk: (question: string) => Promise<AnswerResult>;
+  onAsk: (question: string, captureId?: string) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy: boolean;
   seedQuestion?: string;
+  seedCaptureId?: string;
+  onSeedConsumed?: () => void;
 }
 
 const CHIPS: { en: string; vi: string }[] = [
@@ -22,23 +24,33 @@ const CHIPS: { en: string; vi: string }[] = [
   { en: 'total my lunch spending', vi: 'tổng chi phí ăn trưa' },
 ];
 
-export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion }: Props) {
+export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion, seedCaptureId, onSeedConsumed }: Props) {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [asked, setAsked] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (seedQuestion) {
       setQuery(seedQuestion);
-      submit(seedQuestion);
+      void submit(seedQuestion, seedCaptureId);
+      onSeedConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedQuestion]);
+  }, [seedQuestion, seedCaptureId]);
 
-  const submit = async (question: string) => {
+  const submit = async (question: string, captureId?: string) => {
     if (!question.trim() || busy) return;
-    setAsked(question);
-    setAnswer(await onAsk(question));
+    setError(null);
+    try {
+      const result = await onAsk(question, captureId);
+      setAsked(question);
+      setAnswer(result);
+    } catch (err) {
+      setAsked(question);
+      setAnswer(null);
+      setError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   return (
@@ -67,6 +79,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
         <button
           type="submit"
           disabled={busy || !query.trim()}
+          aria-label={t(language, 'search')}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
         >
           <Sparkles size={16} />
@@ -106,6 +119,13 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             <p className="font-bold text-gold">{t(language, 'flow7Title')}</p>
             <p className="mt-0.5 text-ink2">{t(language, 'flow7Body')}</p>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft p-3 text-[12px] text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
@@ -154,7 +174,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
                     <span className="block truncate text-[12.5px] font-bold">{capture.summary}</span>
                     <span className="mt-0.5 block text-[10.5px] text-ink3">
                       {new Date(capture.capturedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')} ·{' '}
-                      {t(language, 'match')} {match ? match.toFixed(2) : '—'}
+                      {t(language, 'match')} {match !== undefined ? match.toFixed(2) : '—'}
                     </span>
                   </span>
                   <ArrowUpRight size={16} className="shrink-0 text-accent" />
@@ -163,7 +183,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             })}
 
             <div className="flex items-center justify-between border-t border-line pt-3 text-[10.5px] text-ink3">
-              <span>{answer.latencyMs} ms · {answer.intent === 'long' ? 'cross-capture synthesis' : 'local lookup'}</span>
+              <span>{answer.latencyMs} ms · {!answer.notFound && answer.intent === 'long' ? 'cross-capture synthesis' : 'local lookup'}</span>
               <span className="inline-flex items-center gap-1">
                 <ShieldCheck size={12} className="text-teal" /> {t(language, 'zeroDeletions')}
               </span>

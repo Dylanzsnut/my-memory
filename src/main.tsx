@@ -20,8 +20,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         )
           .map((el) => (el instanceof HTMLScriptElement ? el.src : (el as HTMLLinkElement).href))
           .filter(Boolean);
-        registration.active?.postMessage({ type: 'CACHE_URLS', urls });
-        navigator.serviceWorker.controller?.postMessage({ type: 'CACHE_URLS', urls });
+        const target = navigator.serviceWorker.controller ?? registration.active;
+        target?.postMessage({ type: 'CACHE_URLS', urls });
       } catch (error) {
         console.warn('[pwa] service worker registration failed', error);
       }

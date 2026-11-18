@@ -61,13 +61,13 @@ intentionally out of scope.
       surfaced inference errors in the HUD (`error` on `AnswerResult`), real
       `trashedAt` plus separate `purgeAt`, no remote font requests, and corrected
       README / `WEB_SETUP.md` / `.env.example`.
-- [ ] Commit the current uncommitted changes (7 files at last check): new
+- [x] Commit the current uncommitted changes (7 files at last check): new
       `docs/DATA.md` (data design), new `docs/rfc/003-auto-tagging-flow.md`
       (agreed tagging design), the `docs/specs/` zone retired the same day it
       was created, plan updates (auth modes / import / tags / immediate delete
       task groups and design decisions), `docs/README.md` zone map,
       `docs/ARCHITECTURE.md` related docs, `docs/as-built/DATA.md` design-layer
-      pointer, and the two `AGENTS.md` zone rewordings.
+      pointer, and the two `AGENTS.md` zone rewordings. (Landed in `d3473d0`.)
 - [ ] Rebuild and redeploy Hosting from the new commit.
 - [x] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
       answer never renders with the "Verified from your capture" banner.
@@ -249,8 +249,9 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
       returning a stitched list labelled `SIMULATED`.
 - [ ] Strengthen the verifier: check tokens/entities against the cited capture,
       drop substring number matching, require at least one sourced claim.
-- [ ] Make each "Ask about this capture" chip use its own question and pin the
-      capture as context.
+- [x] Make each "Ask about this capture" chip use its own question and pin the
+      capture as context. (Added `askCaptureId`/`seedCaptureId` scoping across
+      `DetailSheet.tsx`, `App.tsx`, and `Ask.tsx`.)
 - [ ] Add a 5-second countdown and auto-dismiss to the undo toast.
 - [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
       auth and deletion behaviour.

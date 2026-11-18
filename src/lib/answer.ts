@@ -10,7 +10,9 @@ function normalizeNumber(text: string): string[] {
 
 /** Fail-closed: a claim is shown only if every number in it appears in the cited capture. */
 function verifyClaim(sentence: string, capture: CaptureRecord): boolean {
-  const numbers = normalizeNumber(sentence);
+  const clean = sentence.replace(/\[cap_[^\]]+\]/g, '').trim();
+  if (!clean.replace(/[\s.,!?;:]+/g, '')) return false;
+  const numbers = normalizeNumber(clean);
   if (!numbers.length) return true;
   const source = [capture.summary, capture.entities.join(' '), capture.expiryDate || '', capture.derivedText || '']
     .join(' ')
@@ -36,6 +38,7 @@ export async function buildAnswer(
   captures: CaptureRecord[],
   threshold: number,
 ): Promise<AnswerResult> {
+  const intent = isLongSynthesisQuestion(question) ? 'long' : 'short';
   const results = await searchCaptures(question, captures, threshold);
   if (!results.length || !question.trim()) {
     return {
@@ -44,7 +47,7 @@ export async function buildAnswer(
       sources: [],
       inferenceSource: 'SIMULATED',
       latencyMs: 0,
-      intent: 'short',
+      intent,
       notFound: true,
     };
   }
@@ -52,7 +55,6 @@ export async function buildAnswer(
     ...r.capture,
     sourceMatch: { score: r.score, captureId: r.capture.id },
   }));
-  const intent = isLongSynthesisQuestion(question) ? 'long' : 'short';
   const generated = await answerQuestion(question, sources, intent);
   const claims = generated.text === 'NOT_FOUND' ? [] : parseClaims(generated.text, sources);
   const verified = claims.filter((c) => c.verified);
@@ -69,8 +71,19 @@ export async function buildAnswer(
       ...(generated.error ? { error: generated.error } : {}),
     };
   }
+  const text =
+    verified
+      .map((c) =>
+        c.text
+          .replace(/\[cap_[^\]]+\]/g, '')
+          .replace(/\s+([.,!?;:])/g, '$1')
+          .replace(/\s{2,}/g, ' ')
+          .trim(),
+      )
+      .filter(Boolean)
+      .join(' ') || 'Not found in memory.';
   return {
-    text: verified.map((c) => c.text.replace(/\[cap_[^\]]+\]/g, '').trim()).join(' ') || 'Not found in memory.',
+    text,
     claims: verified,
     sources: Array.from(new Map(verified.map((c) => [c.captureId, sources.find((s) => s.id === c.captureId)!])).values()),
     inferenceSource: generated.inferenceSource,

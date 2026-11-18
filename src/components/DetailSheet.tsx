@@ -8,11 +8,19 @@ interface Props {
   capture: CaptureRecord;
   language: Language;
   onClose: () => void;
-  onAskAbout: (capture: CaptureRecord) => void;
+  onAskAbout: (capture: CaptureRecord, question?: string) => void;
 }
 
 export default function DetailSheet({ capture, language, onClose, onAskAbout }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     if (capture.type !== 'voice') {
@@ -32,6 +40,9 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout }: 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t(language, 'detail')}
         className="animate-sheet flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-canvas shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -91,8 +102,8 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout }: 
             )}
             {capture.entities.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
-                {capture.entities.slice(0, 6).map((entity) => (
-                  <span key={entity} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[10.5px] font-semibold text-ink2">
+                {capture.entities.slice(0, 6).map((entity, index) => (
+                  <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[10.5px] font-semibold text-ink2">
                     {entity}
                   </span>
                 ))}
@@ -118,7 +129,7 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout }: 
                 <button
                   key={question}
                   type="button"
-                  onClick={() => onAskAbout(capture)}
+                  onClick={() => onAskAbout(capture, question)}
                   className="flex w-full items-center justify-between rounded-xl border border-line bg-canvas px-3 py-2 text-left text-[12px] font-semibold transition-colors hover:border-accent"
                 >
                   {question} <ArrowUpRight size={14} className="text-accent" />
