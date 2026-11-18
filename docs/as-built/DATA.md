@@ -2,6 +2,9 @@
 
 - Owner: Duy · Last verified: 2026-11-18 · Against HEAD: `d7aa8d2`
 - Executable schemas: `src/types.ts`, `src/lib/store.ts`, `firestore.rules`
+- Design layer: `docs/DATA.md` (data classes, lifecycles, sync protocol). This
+  file is the implementation snapshot; if the two disagree, the code wins and
+  this file is corrected.
 
 ## 1. Logical model (technology-free)
 

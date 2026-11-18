@@ -15,7 +15,7 @@ Before changing behaviour, read:
 - `docs/requirements/req-web-app.md` for acceptance criteria.
 - `docs/plan/tasks.md` — single source of truth for tasks and documentation rules.
 
-`docs/rfc/`, `docs/adr/` and `docs/prototypes/` are history, not build sources.
+`docs/rfc/`, `docs/adr/` and `docs/prototypes/` are frozen design, not build sources.
 
 ## Non-negotiable invariants
 
@@ -178,7 +178,7 @@ parallel checklist in chat, comments, or another file.
 - Write facts once in `docs/plan/tasks.md`, `docs/requirements/`, `docs/as-built/`
   and `contracts/`; reference stable IDs (`REQ-`, `INV-`, `UI-`, `ADR-`), not
   section numbers.
-- `docs/rfc/`, `docs/adr/` and `docs/prototypes/` are immutable history; never
+- `docs/rfc/`, `docs/adr/` and `docs/prototypes/` are frozen once agreed; never
   edit them silently. Corrections are explicit dated amendments.
 - Mark claims `Verified`, `Claimed` or `UNVERIFIED`. A doc without evidence is
   honest about that; it does not soften the claim.
