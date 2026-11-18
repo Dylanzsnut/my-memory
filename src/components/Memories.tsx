@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, Image, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, Image, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
 import type { CaptureRecord, CaptureType, ExtractionRequest, Language } from '../types';
+import { readDateTimeOriginal } from '../lib/exif';
 import { t } from '../lib/i18n';
 import { SourceBadge } from './Hud';
 
@@ -30,6 +31,15 @@ function dayGroup(date: string, language: Language): string {
   return t(language, 'older');
 }
 
+function readAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 interface VoiceDraft {
   blob?: Blob;
   mimeType?: string;
@@ -38,7 +48,7 @@ interface VoiceDraft {
 }
 
 export default function Memories({ captures, language, onCapture, onOpenDetail, busy }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -47,6 +57,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [recording, setRecording] = useState(false);
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null);
   const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
   const [voiceText, setVoiceText] = useState('');
 
@@ -80,11 +91,23 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
     };
   }, []);
 
-  const handleFile = (file?: File) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onCapture({ type: 'photo', imageDataUrl: String(reader.result) });
-    reader.readAsDataURL(file);
+  const handleFiles = async (files: FileList | null) => {
+    const selected = Array.from(files ?? []).filter((file) => file.type.startsWith('image/'));
+    if (selected.length === 0 || importing) return;
+    setImporting({ done: 0, total: selected.length });
+    for (const [index, file] of selected.entries()) {
+      try {
+        const exifDate = await readDateTimeOriginal(file);
+        const capturedAt =
+          exifDate ?? (file.lastModified > 0 ? new Date(file.lastModified).toISOString() : new Date().toISOString());
+        const imageDataUrl = await readAsDataUrl(file);
+        await onCapture({ type: 'photo', imageDataUrl, capturedAt });
+      } catch {
+        // handleCapture records the failure on the capture; never drop the original.
+      }
+      if (mountedRef.current) setImporting({ done: index + 1, total: selected.length });
+    }
+    if (mountedRef.current) setImporting(null);
   };
 
   const toggleRecording = async () => {
@@ -176,16 +199,16 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
       <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
+          onClick={() => photoRef.current?.click()}
+          disabled={busy || importing !== null}
           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent-soft py-2.5 text-[12px] font-bold text-accent active:scale-95 disabled:opacity-50"
         >
-          <Camera size={16} /> {t(language, 'snap')}
+          <Image size={16} /> {t(language, 'photo')}
         </button>
         <button
           type="button"
           onClick={toggleRecording}
-          disabled={busy && !recording}
+          disabled={(busy && !recording) || importing !== null}
           className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold active:scale-95 disabled:opacity-50 ${
             recording ? 'bg-danger-soft text-danger' : 'bg-teal-soft text-teal'
           }`}
@@ -195,22 +218,29 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         <button
           type="button"
           onClick={() => setNoteOpen(!noteOpen)}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-soft py-2.5 text-[12px] font-bold text-gold active:scale-95"
+          disabled={importing !== null}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-soft py-2.5 text-[12px] font-bold text-gold active:scale-95 disabled:opacity-50"
         >
           <NotepadText size={16} /> {t(language, 'note')}
         </button>
         <input
-          ref={fileRef}
+          ref={photoRef}
           type="file"
           accept="image/*"
-          capture="environment"
+          multiple
           className="hidden"
           onChange={(e) => {
-            handleFile(e.target.files?.[0]);
+            void handleFiles(e.target.files);
             e.target.value = '';
           }}
         />
       </div>
+
+      {importing && (
+        <p className="px-1 text-[11.5px] font-semibold text-accent" aria-live="polite">
+          {t(language, 'importing', { done: importing.done, n: importing.total })}
+        </p>
+      )}
 
       {voiceDraft && (
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">

@@ -7,9 +7,9 @@
 - Statement: A signed-in user can create a photo, voice or note capture without naming or filing it.
 - Type: functional · Priority: must
 - Source: OUT-1
-- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears.
-- Implemented by: `src/components/Memories.tsx`, `src/lib/ai.ts`
-- Verified by: UNVERIFIED — no test yet
+- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears. A single **Photo** action opens the platform picker (camera or gallery/file) and accepts multiple images; it sets `capturedAt` from EXIF `DateTimeOriginal` (fallback `file.lastModified` → import time) and reads no other EXIF field (no GPS or device-identifying data).
+- Implemented by: `src/components/Memories.tsx`, `src/lib/exif.ts`, `src/lib/ai.ts`
+- Verified by: UNVERIFIED — typecheck/build pass; gallery import and EXIF dates need manual check in mobile Chrome
 
 ## REQ-002 — Cited answer or refusal
 

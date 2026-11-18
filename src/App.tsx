@@ -4,6 +4,7 @@ import type {
   CaptureRecord,
   Decision,
   ExtractionRequest,
+  ExtractionResult,
   ForgetProposal,
   HudEvent,
   Language,
@@ -112,7 +113,18 @@ export default function App() {
   const handleCapture = async (request: ExtractionRequest) => {
     setBusy(true);
     try {
-      const result = await extractCapture(request);
+      let result: ExtractionResult;
+      try {
+        result = await extractCapture(request);
+      } catch (error) {
+        // An unexpected extraction failure must not drop the original.
+        result = {
+          extraction: null,
+          source: 'SIMULATED',
+          latencyMs: 0,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
       const extraction = result.extraction;
       const unextracted = Boolean(result.error);
       const searchable = [
@@ -123,7 +135,7 @@ export default function App() {
       const capture: CaptureRecord = {
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: request.type,
-        capturedAt: new Date().toISOString(),
+        capturedAt: request.capturedAt ?? new Date().toISOString(),
         summary: unextracted ? 'Unextracted capture — original kept on device' : extraction?.summary || 'Capture',
         entities: extraction?.entities || [],
         expiryDate: extraction?.expiryDate || null,

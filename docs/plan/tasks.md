@@ -11,9 +11,16 @@ is not logged here as tasks.
 
 ## Design decisions (defaults — change before implementation if needed)
 
-- **Implementation order (default):** Import & capture sources → Tags &
-  suggested groups → Manual memory deletion; auth and console items run when
-  the console or Firebase Auth is available. Change here if priorities shift.
+- **Implementation order (default):** Import & capture sources *(done)* → Tags
+  & suggested groups → Groups: editable embedding groups → Manual memory
+  deletion; auth and console items run when the console or Firebase Auth is
+  available. Change here if priorities shift.
+- **Groups:** embedding groups replace the fixed Today/Yesterday/Older buckets
+  as the primary axis of `Memories`; date becomes a filter/sort, not a group key.
+  Groups are local-only (never synced) and user-editable: **Split** means select
+  captures → new named group. Auto-generated membership must survive recompute
+  once the user has edited it. This extends the Groups section in
+  `docs/rfc/003-auto-tagging-flow.md` (dated amendment there, not a silent edit).
 - **Manual delete:** deleting a memory from Memories or the detail sheet moves it
   to the 30-day trash. From the trash the user can restore it or permanently
   delete it with a confirmation. A manual delete is recorded separately from a
@@ -28,8 +35,9 @@ is not logged here as tasks.
   type (not "proposal approved", not "trashed"), and is the explicit documented
   exception to the 30-day recoverable window owned by `REQ-005`. It never
   bypasses a confirmation and is never offered for bulk use.
-- **Import photos:** capture supports both camera and gallery/file import
-  (multi-select). `capturedAt` comes from EXIF `DateTimeOriginal` when present,
+- **Photo capture:** a single **Photo** action opens the platform picker
+  (camera or gallery/file) with multi-select. `capturedAt` comes from EXIF
+  `DateTimeOriginal` when present,
   falling back to `file.lastModified` then import time. Only `DateTimeOriginal`
   is read from EXIF; GPS and device-identifying EXIF fields are never stored or
   synced.
@@ -49,6 +57,14 @@ is not logged here as tasks.
 - **Firestore sync:** off by default (`VITE_ENABLE_FIRESTORE_SYNC=false`). The
   shipped rules deny all access; sync stays off until Firebase Auth and the
   per-user rules template are active. No data leaves the device by default.
+- **Ask-about-this-capture suggestions (owner decision 2026-11-18):** the three
+  fixed questions in `DetailSheet` are a template; suggestions are instead
+  derived from the capture's own fields (`type`, `expiryDate`, `entities`,
+  `summary`) by **local heuristics only** — no Nano call, no network, no new
+  privacy surface. Answers are **pinned to the tapped capture** (grounded in it
+  alone, threshold bypassed for that capture, `verifyClaim` still fail-closed).
+  Suggestions appear in the detail sheet only; the Ask tab's example chips stay
+  unchanged.
 
 ---
 
@@ -173,24 +189,35 @@ capture="environment">` — `capture="environment"` forces the camera on mobile,
 single file only, and `capturedAt` is the import time. Target: gallery import
 with correct dates, without weakening the privacy boundary.
 
-- [ ] Split the capture control into "Take photo" (`capture="environment"`) and
-      "Import photos" (no `capture` attribute) so mobile opens the gallery and
-      desktop opens the file picker.
-- [ ] Multi-select import: accept multiple files, queue one on-device extraction
+- [x] Use a single **Photo** action backed by one file input (`accept="image/*"`,
+      `multiple`, **no** `capture` attribute) so mobile offers camera or gallery
+      and desktop opens the file picker.
+      Correction (2026-11-18): initially split into two buttons ("Take photo" /
+      "Import photos"); owner merged them into one labelled "Photo".
+- [x] Multi-select import: accept multiple files, queue one on-device extraction
       per image with visible progress; a failed item keeps its original and
       shows an error state instead of dropping it.
-- [ ] Set `capturedAt` from EXIF `DateTimeOriginal` when present, falling back
+- [x] Set `capturedAt` from EXIF `DateTimeOriginal` when present, falling back
       to `file.lastModified` then import time; document the derivation in
       `docs/DATA.md` §2.1 and keep the `by-date` index consistent.
-- [ ] Privacy: read only `DateTimeOriginal` from EXIF; never store or sync GPS,
+- [x] Privacy: read only `DateTimeOriginal` from EXIF; never store or sync GPS,
       device serial or other EXIF fields. Add this as a storage invariant
       (`INV-3xx` in `docs/as-built/specs/storage-layout.md`).
-- [ ] Duplicates from batch import stay handled by `F1` proposals (earlier
+- [x] Duplicates from batch import stay handled by `F1` proposals (earlier
       capture is never the proposed one).
-- [ ] Update `REQ-001` acceptance criteria in `docs/requirements/req-web-app.md`
+- [x] Update `REQ-001` acceptance criteria in `docs/requirements/req-web-app.md`
       for camera + gallery import and multi-select.
+      Note: EXIF reader is `src/lib/exif.ts` (JPEG APP1 → TIFF ExifIFD tag 0x9003
+      only); `ExtractionRequest.capturedAt?` added in `src/types.ts` and honoured
+      in `App.tsx`, which now keeps the original with a labelled `SIMULATED`
+      error if extraction throws. Verified with `npm run typecheck && npm run
+      build` plus a synthetic-JPEG check of the parser (valid date, malformed
+      and non-JPEG inputs). `INV-304` added as UNVERIFIED. The Photo action reuses
+      the existing `photo` i18n key (EN "Photo", VI "Ảnh"); `snap` and
+      `importPhotos` keys were removed.
 - [ ] Verify in mobile Chrome: gallery import, multi-select order and dates,
       EXIF fallback chain, no GPS/device fields in IndexedDB or Firestore.
+      Note: not runnable here — needs a manual check on a real device/emulator.
 
 ## Tags & suggested groups
 
@@ -229,6 +256,47 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
       after Accept; search honours tags; tag text never appears in Firestore
       writes; `npm run typecheck && npm run build` pass.
 
+## Groups: editable embedding groups
+
+Scope: `Memories.tsx` currently builds three fixed buckets from `capturedAt`
+(`dayGroup()` → Today / Yesterday / Older) on every render; nothing is persisted
+or editable (owner report 2026-11-18). Target: embedding groups are the primary
+axis of Memories, date is only a filter/sort, and groups are local-only and
+user-editable. Extends the Groups section of `docs/rfc/003-auto-tagging-flow.md`.
+
+- [ ] Define a persisted group model: new `groups` store (id, name, createdAt)
+      plus membership (group holds capture ids, or captures hold `groupIds`).
+      Add ENT-005 to `docs/DATA.md`. Groups are local-only and never enter the
+      Firestore allowlist.
+- [ ] Bump IndexedDB to v2 with an additive upgrade (new store + optional
+      membership field). No migration may delete or rewrite an original; follow
+      `docs/DATA.md` §11 and record the bump in `docs/as-built/DATA.md` §5.
+- [ ] Replace `dayGroup()` bucketing in `Memories.tsx` with embedding groups as
+      the primary view. Keep Today/Yesterday/Older only as filter/sort chips,
+      never as the group key.
+- [ ] Auto-create groups locally from captures using the RFC 003 grouping rules
+      (per-type thresholds, higher threshold for cross-type pairs, min group
+      size 2). Grouping organises captures; it is **not** a tag claim — tag
+      suggestions still require Accept as in RFC 003.
+- [ ] **Split:** select captures inside a group → "Split into new group" → name
+      it → move the selection into the new group. The original group stays.
+- [ ] Edit a group: rename, add/remove members (move between groups), delete a
+      group. Deleting a group never deletes its captures — they return to
+      ungrouped / the date-filtered view.
+- [ ] Manual overrides outlive recompute: store explicit membership; auto-group
+      only captures the user has not manually assigned. Re-running generation
+      must not undo a split or an edit.
+- [ ] Integrate with RFC 003: Accepting a suggested tag may promote its group
+      to a named group; Dismiss creates nothing. Add a **dated amendment** note
+      to the frozen RFC, never a silent body edit.
+- [ ] i18n EN/VI for group labels, split/rename/delete actions and the
+      "ungrouped" state; update `docs/as-built/DESIGN.md` for the new UI.
+- [ ] Update `REQ-001` / `REQ-003` acceptance criteria for editable, local-only
+      groups and date-as-filter.
+- [ ] Verify: groups persist across reloads; split/edit survive regeneration;
+      deleting a group keeps its captures; no group data appears in any
+      Firestore write; `npm run typecheck && npm run build` pass.
+
 ## P1 — product quality
 
 - [ ] Automatic F4 protection (health/medicine entities, blurry images, photos
@@ -243,8 +311,24 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
       returning a stitched list labelled `SIMULATED`.
 - [ ] Strengthen the verifier: check tokens/entities against the cited capture,
       drop substring number matching, require at least one sourced claim.
-- [ ] Make each "Ask about this capture" chip use its own question and pin the
-      capture as context.
+- [ ] Contextual "Ask about this capture" suggestions: add a pure local helper
+      (e.g. `src/lib/suggestions.ts`) that derives up to 3–4 questions from the
+      capture's `type`, `expiryDate`, `entities` and `summary` — e.g. an expiry
+      question only when an expiry exists, a voice-specific question, an
+      entity-specific question, plus a generic fallback. No model call or
+      network. Add the EN/VI strings to `src/lib/i18n.ts`.
+- [ ] `DetailSheet`: render the derived questions instead of the three fixed
+      strings; each chip passes its own question via
+      `onAskAbout(capture, question)`. `App.askAbout` seeds that exact question
+      instead of the generic `What details are in this capture: {summary}`.
+- [ ] Pin the capture as context: thread an optional `pinnedCaptureId` from
+      `askAbout` through `Ask` / `handleAsk` into `buildAnswer`, so the answer is
+      grounded in only the tapped capture (skip the retrieval threshold for it)
+      while `verifyClaim` stays fail-closed.
+- [ ] Update `docs/as-built/DESIGN.md` UI-005 to note contextual suggestions and
+      pinned answers. Verify with `npm run typecheck && npm run build` plus a
+      manual browser check that each chip asks its own question and cites the
+      tapped capture.
 - [ ] Add a 5-second countdown and auto-dismiss to the undo toast.
 - [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
       auth and deletion behaviour.

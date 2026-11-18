@@ -100,6 +100,8 @@ export interface ExtractionRequest {
   imageDataUrl?: string;
   audioBlob?: Blob;
   audioMimeType?: string;
+  /** Original's own timestamp (e.g. EXIF DateTimeOriginal); defaults to now. */
+  capturedAt?: string;
 }
 
 export interface ExtractionResult {

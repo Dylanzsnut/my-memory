@@ -71,7 +71,7 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 |---|---|---|---|---|---|---|
 | `id` | string | C3 | immutable | store | yes | citation target |
 | `type` | `photo \| voice \| note` | C3 | immutable | capture time | yes | `REQ-001` |
-| `capturedAt` | ISO string | C3 | immutable | capture time; EXIF `DateTimeOriginal` for imported photos, fallback `file.lastModified` → import time *(planned)* | yes | index `by-date` |
+| `capturedAt` | ISO string | C3 | immutable | capture time; EXIF `DateTimeOriginal` for imported photos, fallback `file.lastModified` → import time *(Claimed — manual mobile check pending)* | yes | index `by-date` |
 | `summary` | string | C3 | mutable via re-extraction | model extraction | yes | index only, never replaces original |
 | `entities` | string[] | C3 | mutable via re-extraction | model extraction | yes | sensitive values need consent before cloud use (P1) |
 | `expiryDate` | string \| null | C3 | mutable via re-extraction | captured content only | yes | `F2`: never inferred |
