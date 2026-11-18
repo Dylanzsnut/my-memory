@@ -1,3 +1,15 @@
+> **HISTORICAL — superseded by the extraction map below. Do not implement from this file.**
+>
+> Extraction map:
+> - §1 design system → `docs/as-built/design-system.md`
+> - §2 information architecture → `docs/as-built/DESIGN.md` surfaces
+> - §3 four interaction loops → `docs/as-built/DESIGN.md` state matrix
+> - §4 interaction matrix → `docs/as-built/DESIGN.md`, `docs/as-built/specs/`
+>
+> Parity: partial — visible prototype artifacts remain in `docs/prototypes/`;
+> as-built behaviour is in `docs/as-built/DESIGN.md`. Status checked
+> 2026-11-18 against `d7aa8d2`.
+
 # 'My Memory' — UX Architecture, Flowchart & Interaction Loops Specification
 
 > **Product Vision:** A second memory that lives in your pocket — like human memory, except it never makes things up. Built local-first with on-device AI, 1-tap capture, 100% cited evidence retrieval, and a human-supervised mindful forgetting queue.

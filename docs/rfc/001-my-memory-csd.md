@@ -1,7 +1,29 @@
+> **HISTORICAL — superseded by the extraction map below. Do not implement from this file.**
+>
+> Extraction map:
+> - §1–§2 problem and concept → `docs/requirements/BRD-my-memory.md`
+> - §3 trust boundary → `ARCHITECTURE.md`, `docs/as-built/specs/inference-boundaries.md`
+> - §4 architecture → `ARCHITECTURE.md`, `docs/as-built/specs/`
+> - §5 data model → `docs/as-built/DATA.md`, `contracts/README.md`
+> - §7 rules → `docs/as-built/specs/forgetting.md`, `docs/requirements/req-web-app.md`
+> - §10 tool contracts → `src/types.ts`, `docs/as-built/specs/`
+> - §11 UI/UX → `docs/as-built/DESIGN.md`
+> - §12 test set → executable tests not yet extracted; tracked in `docs/plan/tasks.md`
+> - §15 ADRs → `docs/adr/ADR-001` … `ADR-009`
+> - §19 risks → `docs/plan/tasks.md`
+>
+> Parity: partial — the 20-question test set and measured numbers remain here
+> as historical targets. No claim in this file overrides `docs/as-built/`.
+> Status checked 2026-11-18 against `d7aa8d2`.
+>
+> Amendment 2026-11-18: links to `../../competitions/firebase-hybrid-ai-hackathon.md`
+> are broken because that file is not in this repository. They are retained only as
+> historical references, not as build dependencies.
+
 # CSD v1.1 — My Memory: Pocket Knowledge Like Human Memory
 
 **Project:** My Memory — capture anything, find it instantly, and learn to forget with your approval.
-**Contest:** [#BuildHybridAI 2026](../../competitions/firebase-hybrid-ai-hackathon.md) (Firebase AI Logic, Devpost).
+**Contest:** #BuildHybridAI 2026 (Firebase AI Logic, Devpost).
 **Track:** Android (primary) + Web/Chrome companion — one multi-platform submission.
 **Deadline:** submissions close **2026-11-30, 2:00 PM PT** (= 2026-11-30 17:00 ET = 2026-12-01 05:00 ICT). Judging runs **2026-12-10 → 2026-12-16**; winners announced on or around **2026-12-21**. All times Pacific Time per the brief.
 **Status:** DRAFT v1.3, 2026-11-17 — for implementation. Supersedes v1.2 / v1.1 / v1.0 of this document and the earlier smart-home CSD as the active BuildHybridAI entry draft.
@@ -16,7 +38,7 @@
 > measured later, this document says so.
 
 **Sources for the technical facts below:** the competition brief
-[#BuildHybridAI 2026](../../competitions/firebase-hybrid-ai-hackathon.md) (tracks, checklist,
+#BuildHybridAI 2026 (tracks, checklist,
 rubric, dates) · [Firebase AI Logic hybrid inference docs](https://firebase.google.com/docs/ai-logic/hybrid)
 (inference modes, `inferenceSource`, structured output, model selection — Android and Web) ·
 [EmbeddingGemma 2 announcement, 2026-10-06](https://blog.google/innovation-and-ai/technology/developers-tools/embeddinggemma-2/)

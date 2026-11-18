@@ -1,3 +1,20 @@
+> **HISTORICAL — superseded by the extraction map below. Do not implement from this file.**
+>
+> Extraction map:
+> - §2 value proposition → `README.md`, `docs/requirements/BRD-my-memory.md`
+> - §3 solution design → `ARCHITECTURE.md`, `docs/as-built/specs/`
+> - §4.2 data model → `docs/as-built/DATA.md`, `contracts/README.md`
+> - §6 tool contracts → `docs/requirements/req-web-app.md`, `docs/as-built/specs/`
+> - §7 risks → `docs/plan/tasks.md`
+>
+> Parity: partial — raw evidence, measurable requirements and executable tests are
+> not extracted; remaining content stays here as history. Status checked
+> 2026-11-18 against `d7aa8d2`.
+>
+> Amendment 2026-11-18: the former link to `../../competitions/firebase-hybrid-ai-hackathon.md`
+> is broken because that file is not in this repository. It is retained only as a
+> historical reference, not as an unresolved build dependency.
+
 ---
 id: "AGENT-173"
 name: "My Memory"
@@ -437,7 +454,7 @@ repo, hosted URL and video exist.
 - **Status:** concept. The source is an interactive design concept page with illustrative sample data,
   explicitly labelled as a mockup; there is no repository, hosted build or real capture data yet.
   Design source: [My Memory · Pocket Knowledge](https://muse.ai/s/my-memory-design-xoxo6xrhe0xqxoh6/5jZVMp5IlMivb8tWfmyHUuFNvBMhK_lw0Y7Z0Om1Wjs).
-- **Competition:** [#BuildHybridAI 2026](../../competitions/firebase-hybrid-ai-hackathon.md) —
+- **Competition:** #BuildHybridAI 2026 —
   target **Android primary + Web/Chrome companion**. Submission closes **2026-11-30, 2:00 PM PT**;
   finals ~2026-12-21.
 - **Demo beat (under 3 minutes, English UI and voiceover):** type "when does mum's medicine expire?"

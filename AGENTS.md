@@ -10,9 +10,13 @@ platform and is not in this repository yet.
 Before changing behaviour, read:
 
 - `README.md` — user-facing overview and current status.
-- `docs/req/idea.md` — conceptual design, guardrails, and failure modes.
-- `docs/design/my-memory-csd.md` — build specification; pins the models and acceptance criteria.
-- `docs/uiux/` — UX architecture and screen designs.
+- `ARCHITECTURE.md` — system index and hard boundaries.
+- `docs/as-built/DATA.md` if touching storage; `docs/as-built/DESIGN.md` if touching UI.
+- `docs/requirements/req-web-app.md` for acceptance criteria.
+- `docs/plan/tasks.md` — single source of truth for tasks.
+- `docs/standards/documentation-playbook-v3.1.md` for documentation rules.
+
+`docs/rfc/`, `docs/adr/` and `docs/prototypes/` are history, not build sources.
 
 ## Non-negotiable invariants
 
@@ -164,10 +168,25 @@ parallel checklist in chat, comments, or another file.
 - Match existing naming and module boundaries: pure logic goes in `src/lib/`, UI in `src/components/`.
 - Preserve the `InferenceSource` and `Claim` data shapes; the HUD and evidence sheet depend on them.
 - When adding an inference path, make the fallback explicit and label it; never degrade silently.
-- When touching the forgetting flow, re-read §3.4 of `docs/req/idea.md` first.
+- When touching the forgetting flow, re-read REQ-004/REQ-005 and `docs/as-built/specs/forgetting.md` first.
 - Avoid adding third-party dependencies unless there is no local solution — the app must work offline.
 - Describe limitations honestly in docs; design targets (e.g. sub-second search) are not measured
   benchmarks.
+
+## Documentation rules for agents
+
+- Write facts once. Use `docs/plan/tasks.md`, `docs/requirements/`,
+  `docs/as-built/` and `contracts/` as sources; never duplicate a number or a
+  requirement across files.
+- Reference stable IDs (`REQ-`, `INV-`, `UI-`, `ADR-`), not section numbers.
+- `docs/rfc/`, `docs/adr/` and `docs/prototypes/` are immutable history; never
+  edit them silently. Corrections are explicit dated amendments.
+- Mark claims `Verified`, `Claimed` or `UNVERIFIED`. A doc without evidence is
+  honest about that; it does not soften the claim.
+- Keep repo docs in English. Vietnamese belongs in chat and review notes.
+- No secrets, tokens, API keys or pasted production logs in docs.
+- Run `npm run typecheck && npm run build`, then check doc links, before
+  declaring a docs task done.
 
 ## Quick checklist before committing
 

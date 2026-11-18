@@ -128,6 +128,20 @@ disclosure text, submission copy) are intentionally out of scope.
 - [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
       auth and deletion behaviour.
 
+## Documentation
+
+- [x] Restructure `docs/` according to `docs/standards/documentation-playbook-v3.1.md`:
+      move historical specs to `docs/rfc/`, create root `ARCHITECTURE.md` plus
+      `docs/requirements/`, `docs/as-built/`, `docs/operations/`,
+      `docs/prototypes/`, `docs/standards/`, `docs/adr/` and `contracts/`;
+      add HISTORICAL banners and extraction maps; update all internal links and
+      AGENTS.md reading order; verify no broken links and no duplicate SSOT.
+      Note: requirements live in `docs/requirements/` rather than the single
+      `docs/REQUIREMENTS.md` from the plan; all markdown links resolve, and
+      `npm run typecheck && npm run build` pass. AGENTS.md is exactly at its
+      200-line cap. The broken `competitions/` links in frozen RFCs were
+      converted to plain text with a dated amendment note.
+
 ## P2 — cleanup
 
 - [ ] i18n for remaining hard-coded English strings in `Ask`, `Onboarding`,

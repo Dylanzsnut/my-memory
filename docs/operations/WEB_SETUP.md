@@ -1,7 +1,8 @@
 # My Memory — Web app setup
 
 React + Vite + TypeScript implementation of the Web/Chrome companion described in
-`design/my-memory-csd.md`.
+`../rfc/001-my-memory-csd.md` (historical design). Current behaviour is documented
+in `../as-built/` and tasks in `../plan/tasks.md`.
 
 ## Run locally
 

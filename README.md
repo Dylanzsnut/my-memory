@@ -86,31 +86,36 @@ The models are pinned by the build specification: **Gemini Nano 4 only** for on-
 
 ## Repository layout
 
-- [`docs/req/idea.md`](docs/req/idea.md) — conceptual design and architecture record (8 sections).
-- [`docs/design/my-memory-csd.md`](docs/design/my-memory-csd.md) — build specification; pins the
-  model choices and guardrails.
-- `docs/uiux/` — UX architecture, interaction specs, and screen designs.
+- [`docs/README.md`](docs/README.md) — documentation map and reading order.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system index into the as-built zone.
+- [`docs/requirements/`](docs/requirements/) — business brief and numbered requirements.
+- [`docs/as-built/`](docs/as-built/) — current data, UI and verification truth.
+- [`docs/operations/WEB_SETUP.md`](docs/operations/WEB_SETUP.md) — local and Firebase setup.
+- [`docs/plan/tasks.md`](docs/plan/tasks.md) — single source of truth for tasks.
+- [`docs/rfc/`](docs/rfc/) and [`docs/adr/`](docs/adr/) — historical design and decisions.
+- [`docs/prototypes/`](docs/prototypes/) — design prototypes.
 - `LICENSE` — Apache License 2.0.
 
 ## Project status
 
-As of **2026-11-17**, nothing has been pushed beyond the repository skeleton: `main` is a single
-commit (`d11ee62`, "Initial commit") containing only `LICENSE` and a one-line `README.md`. There is
-no application code, hosted build, demo video, or real capture data in the repository.
+As of **2026-11-18**, the Web/Chrome companion is implemented in `src/` and
+deployed to Firebase Hosting. Mandatory Google sign-in and manual memory deletion
+are planned, not implemented at HEAD; see `docs/plan/tasks.md`.
 
 | Surface | Status |
 | :--- | :--- |
-| Public repository | Initialized — `Dylanzsnut/my-memory` |
-| Android (Kotlin) capture and on-device query | Not pushed |
-| Web/Chrome companion (Prompt API + IndexedDB) | Not pushed |
-| Hybrid inference, citation evidence, deletion approval | Not pushed |
-| Demo video or hosted build | None |
+| Public repository | `Dylanzsnut/my-memory` |
+| Android (Kotlin) capture and on-device query | Not started |
+| Web/Chrome companion (React + IndexedDB) | Implemented |
+| Hybrid inference, citation evidence, human-only forget decisions | Implemented with labelled local fallbacks |
+| Mandatory Google sign-in / manual delete | Planned |
+| Hosted build | `https://my-memory-hybrid-2026.web.app` |
+| Demo video | None |
 
 ## Getting started
 
-The app is not runnable yet. The design documents and a Vite/React scaffold exist in the working
-tree but have not been pushed; the public repository currently contains only the license and this
-README. Once the implementation lands, the intended local workflow is:
+The Web app is runnable locally. Copy `.env.example` to `.env`, fill in Firebase
+values for live inference, then:
 
 ```bash
 npm install
@@ -118,8 +123,8 @@ npm run dev      # start the Vite dev server
 npm run build    # type-check and build
 ```
 
-For the full design and the build-time checks that still need validating, start with
-[`docs/req/idea.md`](docs/req/idea.md) and [`docs/design/my-memory-csd.md`](docs/design/my-memory-csd.md).
+Start with [`docs/README.md`](docs/README.md). Historical design and original
+build targets are in [`docs/rfc/`](docs/rfc/); they do not override as-built docs.
 
 ## Roadmap
 
