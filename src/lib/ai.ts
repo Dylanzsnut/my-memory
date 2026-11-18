@@ -211,12 +211,47 @@ export async function initializeDeviceModel(onProgress?: (fraction: number) => v
   }
 }
 
-function contextFrom(captures: CaptureRecord[]): string {
+const SENSITIVE_KEYWORD_RE =
+  /\b(password|passcode|passphrase|pwd|mat\s*khau|otp|verification\s*code|ma\s*xac\s*thuc|pin\s*code|cvv|secret|api\s*key|token|wifi\s*key)\b/i;
+
+const SENSITIVE_INLINE_RE =
+  /\b(password|passcode|passphrase|pwd|mat\s*khau|otp|verification\s*code|ma\s*xac\s*thuc|pin\s*code|cvv|secret|token)\b(\s*(?:is|la|:|=)?\s*)([^\s,;]+)/gi;
+
+const BENIGN_ENTITY_RE =
+  /^(?:\d{2}\/\d{4}|\d{4}-\d{2}|[\d.,]+\s*(?:vnd|₫|k)|\d{2}[a-z]-?\d+\.\d+|wifi|password|mat khau|receipt|medicine)$/i;
+
+export function isSensitiveEntity(
+  value: string,
+  capture?: Pick<CaptureRecord, 'summary' | 'derivedText'>,
+): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (SENSITIVE_KEYWORD_RE.test(trimmed)) return true;
+  if (BENIGN_ENTITY_RE.test(normalize(trimmed))) return false;
+  const captureText = normalize(`${capture?.summary || ''} ${capture?.derivedText || ''}`);
+  if (SENSITIVE_KEYWORD_RE.test(captureText)) {
+    return /^[a-z0-9!@#$%^&*_.-]{4,}$/i.test(trimmed) || /^\d{4,8}$/.test(trimmed);
+  }
+  return false;
+}
+
+export function hasSensitiveEntities(captures: CaptureRecord[]): boolean {
+  return captures.some((c) => c.entities.some((e) => isSensitiveEntity(e, c)));
+}
+
+function redactSensitiveText(text: string): string {
+  return text.replace(SENSITIVE_INLINE_RE, '$1$2[REDACTED]');
+}
+
+function contextFrom(captures: CaptureRecord[], allowSensitiveCloud = false): string {
   return captures
-    .map(
-      (c) =>
-        `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${c.summary}\n  entities: ${c.entities.join(', ')}\n  expiryDate: ${c.expiryDate ?? 'null'}`,
-    )
+    .map((c) => {
+      const summary = allowSensitiveCloud ? c.summary : redactSensitiveText(c.summary);
+      const entities = c.entities.map((e) =>
+        allowSensitiveCloud || !isSensitiveEntity(e, c) ? e : '[REDACTED]',
+      );
+      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}\n  expiryDate: ${c.expiryDate ?? 'null'}`;
+    })
     .join('\n');
 }
 
@@ -273,8 +308,19 @@ export async function answerQuestion(
   question: string,
   captures: CaptureRecord[],
   intent: 'short' | 'long',
+  options?: { allowSensitiveCloud?: boolean },
 ): Promise<Omit<AnswerResult, 'claims' | 'sources' | 'notFound'>> {
   const started = performance.now();
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (intent === 'long' && offline) {
+    return {
+      text: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+      inferenceSource: 'SIMULATED',
+      latencyMs: Math.round(performance.now() - started),
+      intent,
+      error: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+    };
+  }
   const { ai } = getServices();
   if (!ai) {
     return {
@@ -310,7 +356,7 @@ export async function answerQuestion(
       `Question: ${question}`,
       '',
       'Captures:',
-      contextFrom(captures),
+      contextFrom(captures, options?.allowSensitiveCloud ?? false),
     ].join('\n');
     let result;
     try {
@@ -336,6 +382,15 @@ export async function answerQuestion(
     // reason is surfaced so the failure is never hidden behind a plausible answer.
     const message = error instanceof Error ? error.message : String(error);
     console.warn('[ai] live answer failed; using local fallback', message);
+    if (intent === 'long' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return {
+        text: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+        inferenceSource: 'SIMULATED',
+        latencyMs: Math.round(performance.now() - started),
+        intent,
+        error: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+      };
+    }
     return {
       text: simulatedAnswer(question, captures, intent),
       inferenceSource: 'SIMULATED',

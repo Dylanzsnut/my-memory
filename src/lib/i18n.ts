@@ -130,6 +130,12 @@ const EN = {
   deleteAccount: 'Delete account & local data',
   deleteAccountConfirm: 'Permanently remove all captures, proposals, and synced metadata for this account?',
   demoBadge: 'Demo mode',
+  hudOnDevice: 'on-device',
+  hudCloud: 'cloud',
+  hudSimulated: 'simulated',
+  notFoundMessage: 'Not found in memory. No capture supports an answer to that question.',
+  offlineSynthesisRequired: 'An internet connection is required for cross-capture cloud synthesis. Connect and try again.',
+  sensitiveCloudPrompt: 'Retrieved captures contain sensitive details (such as passwords or OTPs). Send them to the cloud model for this answer? Click Cancel to redact them before sending.',
 };
 
 const VI: Record<keyof typeof EN, string> = {
@@ -262,6 +268,12 @@ const VI: Record<keyof typeof EN, string> = {
   deleteAccount: 'Xóa tài khoản & dữ liệu máy',
   deleteAccountConfirm: 'Xóa vĩnh viễn toàn bộ ký ức, đề xuất và metadata đã đồng bộ của tài khoản này?',
   demoBadge: 'Chế độ Demo',
+  hudOnDevice: 'trên máy',
+  hudCloud: 'đám mây',
+  hudSimulated: 'mô phỏng',
+  notFoundMessage: 'Không tìm thấy trong bộ nhớ. Chưa có ký ức nào xác thực cho câu hỏi này.',
+  offlineSynthesisRequired: 'Cần có kết nối mạng để tổng hợp nhiều ký ức trên đám mây. Hãy kết nối và thử lại.',
+  sensitiveCloudPrompt: 'Ký ức liên quan có thông tin nhạy cảm (như mật khẩu hoặc OTP). Cho phép gửi lên mô hình đám mây cho câu trả lời này? Chọn Hủy để che thông tin nhạy cảm trước khi gửi.',
 };
 
 export type TranslationKey = keyof typeof EN;

@@ -1,14 +1,30 @@
 import type { CaptureRecord, SearchResult } from '../types';
-import { cosine, embed, normalize, tokenize } from './embeddings';
+import { SYNONYMS, contentWords, cosine, embed, normalize, rawWords, tokenize } from './embeddings';
 
 function lexicalScore(query: string, capture: CaptureRecord): number {
-  const qTokens = tokenize(query).filter((t) => !t.includes('_'));
-  if (!qTokens.length) return 0;
-  const haystack = normalize(
+  const qWords = contentWords(query);
+  if (!qWords.length) return 0;
+  const captureWords = rawWords(
     [capture.summary, capture.entities.join(' '), (capture.tags || []).join(' '), capture.derivedText || ''].join(' '),
   );
-  const hits = qTokens.filter((token) => haystack.includes(token)).length;
-  return hits / qTokens.length;
+  const captureWordSet = new Set(captureWords);
+  let matched = 0;
+  for (const word of qWords) {
+    const singular = word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word;
+    const directHit =
+      captureWordSet.has(word) ||
+      captureWordSet.has(singular) ||
+      (word.length >= 3 && captureWords.some((cw) => cw.startsWith(word)));
+    if (directHit) {
+      matched += 1;
+      continue;
+    }
+    const syns = SYNONYMS[word] || [];
+    if (syns.some((syn) => captureWordSet.has(syn))) {
+      matched += 0.85;
+    }
+  }
+  return matched / qWords.length;
 }
 
 export async function searchCaptures(
@@ -19,17 +35,27 @@ export async function searchCaptures(
   const active = captures.filter((c) => c.retentionState !== 'trashed');
   const queryVector = await embed(query || 'everything');
   const qTokens = tokenize(query).filter((t) => !t.includes('_'));
-  const results = active.map((capture) => {
-    const vector = cosine(queryVector, capture.embedding);
-    const lexical = lexicalScore(query, capture);
-    const tagMatch = (capture.tags || []).some((tag) => {
-      const normTag = normalize(tag);
-      return qTokens.some((tok) => normTag.includes(tok) || tok.includes(normTag));
-    });
-    const baseScore = query.trim() ? 0.65 * Math.max(0, vector) + 0.35 * lexical : 0.5;
-    const score = query.trim() ? Math.min(1, baseScore + (tagMatch ? 0.08 : 0)) : baseScore;
-    return { capture, score };
-  });
+  const results = await Promise.all(
+    active.map(async (capture) => {
+      const vectorSource =
+        capture.embedding.length === queryVector.length
+          ? capture.embedding
+          : await embed(
+              [capture.summary, capture.entities.join(' '), (capture.tags || []).join(' '), capture.derivedText || '']
+                .filter(Boolean)
+                .join(' '),
+            );
+      const vector = cosine(queryVector, vectorSource);
+      const lexical = lexicalScore(query, capture);
+      const tagMatch = (capture.tags || []).some((tag) => {
+        const normTag = normalize(tag);
+        return qTokens.some((tok) => tok.length >= 2 && (normTag === tok || normTag.includes(tok)));
+      });
+      const baseScore = query.trim() ? 0.65 * Math.max(0, vector) + 0.35 * lexical : 0.5;
+      const score = query.trim() ? Math.min(1, baseScore + (tagMatch ? 0.08 : 0)) : baseScore;
+      return { capture, score };
+    }),
+  );
   return results
     .filter((r) => !query.trim() || r.score >= threshold)
     .sort((a, b) => b.score - a.score);

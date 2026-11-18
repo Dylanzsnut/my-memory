@@ -21,7 +21,8 @@ import {
   signOutFirebase,
 } from './lib/firebase';
 import { initializeDeviceModel, extractCapture, probeNanoAvailability, type NanoAvailability } from './lib/ai';
-import { embed, normalize } from './lib/embeddings';
+import { EMBEDDING_DIM, embed, normalize } from './lib/embeddings';
+import { detectProtection } from './lib/protection';
 import {
   addHudEvent,
   cleanupDemoRecordsForUser,
@@ -166,8 +167,17 @@ export default function App() {
       currentProposals = loadedProposals.filter((p) => !purgedIds.has(p.captureId));
     }
 
+    const migratedCaptures = await Promise.all(
+      activeCaptures.map(async (c) => {
+        if (c.embedding.length === EMBEDDING_DIM) return c;
+        const next = { ...c, embedding: await embed(rebuildSearchText(c) || c.summary || 'capture') };
+        await saveCapture(next).catch((err) => console.warn('[store] re-embed migration failed', err));
+        return next;
+      }),
+    );
+
     setSession(activeSession);
-    setCaptures(activeCaptures);
+    setCaptures(migratedCaptures);
     setProposals(currentProposals);
     setHudEvents(loadedHud);
     setLanguage(savedLang);
@@ -175,14 +185,14 @@ export default function App() {
     setNanoStatus(probedNano);
     setDismissedTagGroups(savedDismissed);
 
-    const fresh = scanForProposals(activeCaptures, settings.duplicateThreshold, currentProposals).map((p) => ({
+    const fresh = scanForProposals(migratedCaptures, settings.duplicateThreshold, currentProposals).map((p) => ({
       ...p,
       ownerUid: uid,
     }));
     for (const proposal of fresh) await saveProposal(proposal);
     if (fresh.length) setProposals([...currentProposals, ...fresh]);
 
-    await syncTagSuggestions(activeCaptures, savedDismissed);
+    await syncTagSuggestions(migratedCaptures, savedDismissed);
     if (purged.length) {
       setToast({ message: t(savedLang, 'purgedExpiredCount', { n: purged.length }) });
     }
@@ -289,16 +299,28 @@ export default function App() {
       ].join(' ');
       const uid = session?.uid;
       const syncUid = session?.mode === 'google' ? uid : undefined;
+      const resolvedSummary = unextracted ? fallbackNoteSummary : extraction?.summary || 'Capture';
+      const resolvedEntities = extraction?.entities || [];
+      const protectedReason = await detectProtection(
+        {
+          type: request.type,
+          summary: resolvedSummary,
+          entities: resolvedEntities,
+          derivedText: trimmedText || undefined,
+        },
+        request.imageDataUrl,
+      );
       const capture: CaptureRecord = {
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: request.type,
         capturedAt: request.capturedAt || new Date().toISOString(),
-        summary: unextracted ? fallbackNoteSummary : extraction?.summary || 'Capture',
-        entities: extraction?.entities || [],
+        summary: resolvedSummary,
+        entities: resolvedEntities,
         expiryDate: extraction?.expiryDate || null,
         language,
         inferenceSource: result.source,
-        retentionState: 'active',
+        retentionState: protectedReason ? 'protected' : 'active',
+        ...(protectedReason ? { protectedReason } : {}),
         originalRef: request.imageDataUrl,
         audioBlob: request.audioBlob,
         audioMimeType: request.audioMimeType,
@@ -332,9 +354,15 @@ export default function App() {
       const targetCapture = captureId
         ? captures.find((c) => c.id === captureId && c.retentionState !== 'trashed')
         : undefined;
+      const answerOptions = {
+        language,
+        onSensitiveCloudConfirm: getServices().ai
+          ? async () => window.confirm(t(language, 'sensitiveCloudPrompt'))
+          : undefined,
+      };
       const result = captureId
-        ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0)
-        : await buildAnswer(question, captures, settings.retrievalThreshold);
+        ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0, answerOptions)
+        : await buildAnswer(question, captures, settings.retrievalThreshold, answerOptions);
       if (result.sources.length) {
         for (const source of result.sources) await saveCapture(source);
         setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));

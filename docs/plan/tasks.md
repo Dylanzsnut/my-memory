@@ -249,24 +249,32 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 
 ## P1 — product quality
 
-- [ ] Automatic F4 protection (health/medicine entities, blurry images, photos
+- [x] Automatic F4 protection (health/medicine entities, blurry images, photos
       with people). Currently only the seed record has `protectedReason`.
-- [ ] Improve search: stopwords, fewer hash collisions, broader EN/VI synonyms.
+      (Added `src/lib/protection.ts` wired into `handleCapture` in `src/App.tsx`.)
+- [x] Improve search: stopwords, fewer hash collisions, broader EN/VI synonyms.
+      (Updated `src/lib/embeddings.ts` to 512-dim signed hashing, EN/VI
+      stopwords & synonyms; improved word-level scoring + dimension migration in
+      `src/lib/search.ts` and `src/App.tsx`.)
 - [ ] Add a search/answer test set with in-corpus and out-of-corpus questions;
       out-of-corpus must return "Not found".
-- [ ] Split the HUD into three counters: on-device, cloud, simulated.
-- [ ] Filter or ask consent before sending sensitive `entities` (passwords,
-      OTPs) to the cloud.
-- [ ] For long synthesis while offline, say a connection is needed instead of
-      returning a stitched list labelled `SIMULATED`.
-- [ ] Strengthen the verifier: check tokens/entities against the cited capture,
+- [x] Split the HUD into three counters: on-device, cloud, simulated.
+      (Updated `src/components/Hud.tsx` and `src/lib/i18n.ts`.)
+- [x] Filter or ask consent before sending sensitive `entities` (passwords,
+      OTPs) to the cloud. (Added `hasSensitiveEntities` + default redaction in
+      `src/lib/ai.ts` with user confirmation in `src/lib/answer.ts`/`src/App.tsx`.)
+- [x] For long synthesis while offline, say a connection is needed instead of
+      returning a stitched list labelled `SIMULATED`. (Handled in `src/lib/ai.ts`
+      and `src/lib/answer.ts`.)
+- [x] Strengthen the verifier: check tokens/entities against the cited capture,
       drop substring number matching, require at least one sourced claim.
+      (Updated `verifyClaim` and `extractNumberTokens` in `src/lib/answer.ts`.)
 - [x] Make each "Ask about this capture" chip use its own question and pin the
       capture as context. (Added `askCaptureId`/`seedCaptureId` scoping across
       `DetailSheet.tsx`, `App.tsx`, and `Ask.tsx`.)
 - [x] Add a 5-second countdown and auto-dismiss to the undo toast.
-- [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
-      auth and deletion behaviour.
+- [x] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
+      auth and deletion behaviour. (Verified `AGENTS.md` line count <= 200.)
 
 ## Documentation
 
