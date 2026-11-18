@@ -10,11 +10,10 @@ platform and is not in this repository yet.
 Before changing behaviour, read:
 
 - `README.md` — user-facing overview and current status.
-- `ARCHITECTURE.md` — system index and hard boundaries.
+- `docs/ARCHITECTURE.md` — system index and hard boundaries.
 - `docs/as-built/DATA.md` if touching storage; `docs/as-built/DESIGN.md` if touching UI.
 - `docs/requirements/req-web-app.md` for acceptance criteria.
-- `docs/plan/tasks.md` — single source of truth for tasks.
-- `docs/standards/documentation-playbook-v3.1.md` for documentation rules.
+- `docs/plan/tasks.md` — single source of truth for tasks and documentation rules.
 
 `docs/rfc/`, `docs/adr/` and `docs/prototypes/` are history, not build sources.
 
@@ -72,10 +71,11 @@ src/
     forget.ts             proposal scan and decisions
     i18n.ts               English/Vietnamese strings
 docs/
-  plan/tasks.md           single source of truth for all tasks — read before any work
-  design/                 build specification
-  req/                    conceptual design
-  uiux/                   UX architecture and screen designs
+  README.md · ARCHITECTURE.md   doc map + system index (moved from root)
+  plan/tasks.md                 single source of truth — read before any work
+  requirements/ · as-built/     BRD/REQ + current data/UI/verification truth
+  rfc/ · adr/                   frozen design + decisions
+  operations/ · prototypes/     runbooks + historical design artifacts
 firebase.json             Hosting + Firestore rules config
 firestore.rules           metadata-only demo rules
 ```
@@ -175,18 +175,16 @@ parallel checklist in chat, comments, or another file.
 
 ## Documentation rules for agents
 
-- Write facts once. Use `docs/plan/tasks.md`, `docs/requirements/`,
-  `docs/as-built/` and `contracts/` as sources; never duplicate a number or a
-  requirement across files.
-- Reference stable IDs (`REQ-`, `INV-`, `UI-`, `ADR-`), not section numbers.
+- Write facts once in `docs/plan/tasks.md`, `docs/requirements/`, `docs/as-built/`
+  and `contracts/`; reference stable IDs (`REQ-`, `INV-`, `UI-`, `ADR-`), not
+  section numbers.
 - `docs/rfc/`, `docs/adr/` and `docs/prototypes/` are immutable history; never
   edit them silently. Corrections are explicit dated amendments.
 - Mark claims `Verified`, `Claimed` or `UNVERIFIED`. A doc without evidence is
   honest about that; it does not soften the claim.
 - Keep repo docs in English. Vietnamese belongs in chat and review notes.
-- No secrets, tokens, API keys or pasted production logs in docs.
-- Run `npm run typecheck && npm run build`, then check doc links, before
-  declaring a docs task done.
+- No secrets in docs. Run `npm run typecheck && npm run build` and check doc
+  links before declaring a docs task done.
 
 ## Quick checklist before committing
 

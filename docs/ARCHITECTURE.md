@@ -205,4 +205,4 @@ ADR-009 Ingest runs `ONLY_ON_DEVICE`.
 
 `README.md`, `AGENTS.md`, `docs/README.md`, `docs/requirements/`,
 `docs/as-built/`, `docs/operations/WEB_SETUP.md`, `docs/prototypes/`,
-`docs/standards/documentation-playbook-v3.1.md`, `docs/rfc/001-my-memory-csd.md`.
+`docs/rfc/001-my-memory-csd.md`.

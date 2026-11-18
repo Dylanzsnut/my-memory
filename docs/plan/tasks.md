@@ -130,6 +130,18 @@ disclosure text, submission copy) are intentionally out of scope.
 
 ## Documentation
 
+- [x] Remove references to the retired documentation standard from `AGENTS.md`,
+      `docs/README.md`, `docs/ARCHITECTURE.md` and this plan; leave the file
+      itself untouched because the owner will remove it; verify links and build,
+      then mark done.
+- [x] Update `AGENTS.md` after `ARCHITECTURE.md` moved from the repo root to
+      `docs/ARCHITECTURE.md`: fix the reading path and repository layout, repair
+      any root-level `ARCHITECTURE.md` links in `README.md` and `docs/README.md`,
+      keep AGENTS.md within its 200-line cap, verify links and build, then mark done.
+      Note: all links resolve and `npm run typecheck && npm run build` pass.
+      The architecture index was moved into `docs/` at the owner's request;
+      agent instructions and links now follow the moved path. AGENTS.md is
+      exactly 200 lines after compressing the documentation rules.
 - [x] Expand `ARCHITECTURE.md` from the frozen CSD (`docs/rfc/001-my-memory-csd.md`):
       extract topology, hybrid mode table, trust boundary, canonical flows,
       failure modes and guardrails into the root index; cite REQ/INV/ADR IDs,
@@ -138,10 +150,10 @@ disclosure text, submission copy) are intentionally out of scope.
       Note: expanded to 208 lines (under the ~800-line split trigger). All links
       resolve, no CSD numeric targets were copied into the index, and
       `npm run typecheck && npm run build` pass. AGENTS.md remains at 200 lines.
-- [x] Restructure `docs/` according to `docs/standards/documentation-playbook-v3.1.md`:
-      move historical specs to `docs/rfc/`, create root `ARCHITECTURE.md` plus
+- [x] Restructure `docs/` into layered zones:
+      move historical specs to `docs/rfc/`, create `ARCHITECTURE.md` plus
       `docs/requirements/`, `docs/as-built/`, `docs/operations/`,
-      `docs/prototypes/`, `docs/standards/`, `docs/adr/` and `contracts/`;
+      `docs/prototypes/` and `docs/adr/`, with `contracts/` at the root;
       add HISTORICAL banners and extraction maps; update all internal links and
       AGENTS.md reading order; verify no broken links and no duplicate SSOT.
       Note: requirements live in `docs/requirements/` rather than the single

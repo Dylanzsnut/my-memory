@@ -87,7 +87,7 @@ The models are pinned by the build specification: **Gemini Nano 4 only** for on-
 ## Repository layout
 
 - [`docs/README.md`](docs/README.md) — documentation map and reading order.
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system index into the as-built zone.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system index into the as-built zone.
 - [`docs/requirements/`](docs/requirements/) — business brief and numbered requirements.
 - [`docs/as-built/`](docs/as-built/) — current data, UI and verification truth.
 - [`docs/operations/WEB_SETUP.md`](docs/operations/WEB_SETUP.md) — local and Firebase setup.
