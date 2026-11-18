@@ -2,7 +2,7 @@ export type CaptureType = 'photo' | 'voice' | 'note';
 export type InferenceSource = 'ON_DEVICE' | 'IN_CLOUD' | 'SIMULATED';
 export type RetentionState = 'active' | 'proposed' | 'trashed' | 'protected';
 export type Language = 'en' | 'vi';
-export type Tab = 'memories' | 'ask' | 'forget';
+export type Tab = 'memories' | 'ask' | 'forget' | 'trash';
 
 export interface Extraction {
   summary: string;
@@ -35,6 +35,8 @@ export interface CaptureRecord {
   trashedAt?: string;
   /** When the recoverable trash window ends and the capture may be purged. */
   purgeAt?: string;
+  /** Origin of trash transition so manual deletion stays distinct from proposal approval. */
+  trashSource?: 'proposal' | 'manual';
   /** User-authored tags (local only, never synced to Firestore). */
   tags?: string[];
   /** Model/grouping-derived tag proposals (local only, never synced). */
@@ -75,7 +77,7 @@ export interface AnswerResult {
 }
 
 export type ForgetReason = 'duplicate' | 'expired';
-export type Decision = 'approve' | 'keep';
+export type Decision = 'approve' | 'keep' | 'manual';
 
 export interface ForgetProposal {
   id: string;

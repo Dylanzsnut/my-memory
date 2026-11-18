@@ -8,6 +8,7 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  deleteDoc,
   doc,
   setDoc,
   type Firestore,
@@ -165,5 +166,16 @@ export async function syncCaptureMetadata(captures: CaptureRecord[]): Promise<vo
   } catch (error) {
     // Never let a sync failure become an unhandled rejection or block capture.
     console.warn('[firebase] metadata sync failed', error);
+  }
+}
+
+export async function deleteCaptureMetadata(captureId: string): Promise<void> {
+  if (!enableFirestoreSync) return;
+  const firestore = services.firestore;
+  if (!firestore) return;
+  try {
+    await deleteDoc(doc(firestore, 'captures', captureId));
+  } catch (error) {
+    console.warn('[firebase] metadata delete failed', error);
   }
 }

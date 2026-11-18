@@ -11,11 +11,13 @@ import type {
   TagGroupProposal,
 } from './types';
 import { settings } from './lib/config';
-import { initFirebase, getServices, syncCaptureMetadata } from './lib/firebase';
+import { initFirebase, getServices, syncCaptureMetadata, deleteCaptureMetadata } from './lib/firebase';
 import { initializeDeviceModel, extractCapture, probeNanoAvailability, type NanoAvailability } from './lib/ai';
 import { embed, normalize } from './lib/embeddings';
 import {
   addHudEvent,
+  deleteCapture,
+  deleteProposal,
   getCaptures,
   getHudEvents,
   getMeta,
@@ -26,7 +28,7 @@ import {
   setMeta,
 } from './lib/store';
 import { buildAnswer } from './lib/answer';
-import { applyDecision, scanForProposals } from './lib/forget';
+import { applyDecision, moveToTrash, purgeExpiredTrash, scanForProposals } from './lib/forget';
 import { computeTagGroups, rebuildSearchText } from './lib/tags';
 import { t } from './lib/i18n';
 import Onboarding from './components/Onboarding';
@@ -34,6 +36,7 @@ import BottomNav from './components/BottomNav';
 import Memories from './components/Memories';
 import Ask from './components/Ask';
 import Forget from './components/Forget';
+import Trash from './components/Trash';
 import DetailSheet from './components/DetailSheet';
 import Hud from './components/Hud';
 import Toast from './components/Toast';
@@ -60,6 +63,7 @@ export default function App() {
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
   const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
+  const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
   const booted = useRef(false);
 
   const syncTagSuggestions = async (currentCaptures: CaptureRecord[], dismissed: string[]) => {
@@ -115,19 +119,35 @@ export default function App() {
           probeNanoAvailability(),
           getMeta<string[]>('dismissedTagGroups', []),
         ]);
-        setCaptures(loadedCaptures);
-        setProposals(loadedProposals);
+        const { active: activeCaptures, purged } = purgeExpiredTrash(loadedCaptures);
+        let currentProposals = loadedProposals;
+        if (purged.length) {
+          const purgedIds = new Set(purged.map((c) => c.id));
+          const staleProposals = loadedProposals.filter((p) => purgedIds.has(p.captureId));
+          await Promise.all([
+            ...purged.map((c) => deleteCapture(c.id).catch((err) => console.warn('[store] purge deleteCapture failed', err))),
+            ...staleProposals.map((p) => deleteProposal(p.id).catch((err) => console.warn('[store] purge deleteProposal failed', err))),
+            ...purged.map((c) => deleteCaptureMetadata(c.id)),
+          ]);
+          currentProposals = loadedProposals.filter((p) => !purgedIds.has(p.captureId));
+        }
+
+        setCaptures(activeCaptures);
+        setProposals(currentProposals);
         setHudEvents(loadedHud);
         setLanguage(savedLang);
         setOnboardingDone(savedOnboarding);
         setNanoStatus(probedNano);
         setDismissedTagGroups(savedDismissed);
 
-        const fresh = scanForProposals(loadedCaptures, settings.duplicateThreshold, loadedProposals);
+        const fresh = scanForProposals(activeCaptures, settings.duplicateThreshold, currentProposals);
         for (const proposal of fresh) await saveProposal(proposal);
         if (fresh.length) setProposals((prev) => [...prev, ...fresh]);
 
-        await syncTagSuggestions(loadedCaptures, savedDismissed);
+        await syncTagSuggestions(activeCaptures, savedDismissed);
+        if (purged.length) {
+          setToast({ message: t(savedLang, 'purgedExpiredCount', { n: purged.length }) });
+        }
       } catch (error) {
         console.error('[app] boot initialization failed', error);
       } finally {
@@ -230,8 +250,13 @@ export default function App() {
       saveCapture(updatedCapture).catch((err) => console.warn('[store] saveCapture failed', err)),
       saveProposal(updatedProposal).catch((err) => console.warn('[store] saveProposal failed', err)),
     ]);
-    setCaptures((prev) => prev.map((c) => (c.id === updatedCapture.id ? updatedCapture : c)));
+    const nextCaptures = captures.map((c) => (c.id === updatedCapture.id ? updatedCapture : c));
+    setCaptures(nextCaptures);
     setProposals((prev) => prev.map((p) => (p.id === updatedProposal.id ? updatedProposal : p)));
+    if (decision === 'approve') {
+      void syncCaptureMetadata([updatedCapture]);
+      await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+    }
     setToast({
       message:
         decision === 'approve'
@@ -242,21 +267,86 @@ export default function App() {
           saveCapture(previousCapture).catch((err) => console.warn('[store] saveCapture undo failed', err)),
           saveProposal(proposal).catch((err) => console.warn('[store] saveProposal undo failed', err)),
         ]);
-        setCaptures((prev) => prev.map((c) => (c.id === previousCapture.id ? previousCapture : c)));
+        const restoredCaptures = nextCaptures.map((c) => (c.id === previousCapture.id ? previousCapture : c));
+        setCaptures(restoredCaptures);
         setProposals((prev) => prev.map((p) => (p.id === proposal.id ? proposal : p)));
+        if (decision === 'approve') {
+          void syncCaptureMetadata([previousCapture]);
+          await syncTagSuggestions(restoredCaptures, dismissedTagGroups);
+        }
         setToast(null);
       },
     });
   };
 
+  const handleManualTrash = async (capture: CaptureRecord) => {
+    const trashedCapture = moveToTrash(capture, settings.trashRetentionDays, 'manual');
+    const pendingForCapture = proposals.filter((p) => p.captureId === capture.id && !p.decided);
+    const closedProposals = pendingForCapture.map((p) => ({ ...p, decided: 'manual' as const }));
+
+    await Promise.all([
+      saveCapture(trashedCapture).catch((err) => console.warn('[store] manual trash saveCapture failed', err)),
+      ...closedProposals.map((p) =>
+        saveProposal(p).catch((err) => console.warn('[store] manual trash closeProposal failed', err)),
+      ),
+    ]);
+
+    const nextCaptures = captures.map((c) => (c.id === trashedCapture.id ? trashedCapture : c));
+    const nextProposals = proposals.map((p) => closedProposals.find((u) => u.id === p.id) || p);
+    setCaptures(nextCaptures);
+    setProposals(nextProposals);
+    setSelected((prev) => (prev?.id === trashedCapture.id ? null : prev));
+    void syncCaptureMetadata([trashedCapture]);
+    await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+    log(t(language, 'sourceManual'), capture.inferenceSource, 0, capture.summary.slice(0, 60));
+
+    setToast({
+      message: t(language, 'movedToTrash', { n: settings.trashRetentionDays }),
+      undo: async () => {
+        await Promise.all([
+          saveCapture(capture).catch((err) => console.warn('[store] manual trash undo failed', err)),
+          ...pendingForCapture.map((p) =>
+            saveProposal(p).catch((err) => console.warn('[store] manual trash undo proposal failed', err)),
+          ),
+        ]);
+        const restoredCaptures = nextCaptures.map((c) => (c.id === capture.id ? capture : c));
+        setCaptures(restoredCaptures);
+        setProposals((prev) => prev.map((p) => pendingForCapture.find((u) => u.id === p.id) || p));
+        void syncCaptureMetadata([capture]);
+        await syncTagSuggestions(restoredCaptures, dismissedTagGroups);
+        setToast(null);
+      },
+    });
+  };
+
+  const handlePermanentDelete = async (capture: CaptureRecord) => {
+    const relatedProposals = proposals.filter((p) => p.captureId === capture.id);
+    await Promise.all([
+      deleteCapture(capture.id).catch((err) => console.warn('[store] deleteCapture failed', err)),
+      ...relatedProposals.map((p) =>
+        deleteProposal(p.id).catch((err) => console.warn('[store] deleteProposal failed', err)),
+      ),
+      deleteCaptureMetadata(capture.id),
+    ]);
+    const nextCaptures = captures.filter((c) => c.id !== capture.id);
+    setCaptures(nextCaptures);
+    setProposals((prev) => prev.filter((p) => p.captureId !== capture.id));
+    setSelected((prev) => (prev?.id === capture.id ? null : prev));
+    await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+    log(t(language, 'deletePerm'), capture.inferenceSource, 0, capture.summary.slice(0, 60));
+  };
+
   const handleRestore = async (capture: CaptureRecord) => {
     const restored: CaptureRecord = {
       ...capture,
-      retentionState: 'active',
+      retentionState: capture.protectedReason ? 'protected' : 'active',
       trashedAt: undefined,
       purgeAt: undefined,
+      trashSource: undefined,
     };
-    const affected = proposals.filter((p) => p.captureId === capture.id && p.decided === 'approve');
+    const affected = proposals.filter(
+      (p) => p.captureId === capture.id && (p.decided === 'approve' || p.decided === 'manual'),
+    );
     const updatedProposals = affected.map((p) => ({ ...p, decided: 'keep' as const }));
     await Promise.all([
       saveCapture(restored).catch((err) => console.warn('[store] saveCapture restore failed', err)),
@@ -264,12 +354,12 @@ export default function App() {
         saveProposal(proposal).catch((err) => console.warn('[store] saveProposal restore failed', err)),
       ),
     ]);
-    setCaptures((prev) => prev.map((c) => (c.id === restored.id ? restored : c)));
+    const nextCaptures = captures.map((c) => (c.id === restored.id ? restored : c));
+    setCaptures(nextCaptures);
     if (updatedProposals.length) {
       setProposals((prev) => prev.map((p) => updatedProposals.find((u) => u.id === p.id) || p));
     }
-
-    const nextCaptures = captures.map((c) => (c.id === restored.id ? restored : c));
+    void syncCaptureMetadata([restored]);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
   };
@@ -395,6 +485,12 @@ export default function App() {
             onRefreshTagGroups={() => {
               void syncTagSuggestions(captures, dismissedTagGroups);
             }}
+            onManualTrash={handleManualTrash}
+            onOpenTrash={() => {
+              setTrashReturnTab('memories');
+              setTab('trash');
+            }}
+            trashDays={settings.trashRetentionDays}
           />
         )}
         {tab === 'ask' && (
@@ -419,8 +515,21 @@ export default function App() {
             captures={captures}
             language={language}
             onDecide={handleDecide}
-            onRestore={handleRestore}
+            onOpenTrash={() => {
+              setTrashReturnTab('forget');
+              setTab('trash');
+            }}
             trashDays={settings.trashRetentionDays}
+          />
+        )}
+        {tab === 'trash' && (
+          <Trash
+            captures={captures}
+            language={language}
+            trashDays={settings.trashRetentionDays}
+            onBack={() => setTab(trashReturnTab)}
+            onRestore={handleRestore}
+            onPermanentDelete={handlePermanentDelete}
           />
         )}
         <div className="mt-6">
@@ -437,6 +546,9 @@ export default function App() {
           onClose={() => setSelected(null)}
           onAskAbout={askAbout}
           onUpdateTags={handleUpdateTags}
+          onManualTrash={handleManualTrash}
+          onPermanentDelete={handlePermanentDelete}
+          trashDays={settings.trashRetentionDays}
         />
       )}
       {toast && (

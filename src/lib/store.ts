@@ -35,6 +35,10 @@ export async function saveCapture(capture: CaptureRecord): Promise<void> {
   await (await db()).put('captures', capture);
 }
 
+export async function deleteCapture(id: string): Promise<void> {
+  await (await db()).delete('captures', id);
+}
+
 export async function getProposals(): Promise<ForgetProposal[]> {
   const all = await (await db()).getAll('proposals');
   return all.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -42,6 +46,10 @@ export async function getProposals(): Promise<ForgetProposal[]> {
 
 export async function saveProposal(proposal: ForgetProposal): Promise<void> {
   await (await db()).put('proposals', proposal);
+}
+
+export async function deleteProposal(id: string): Promise<void> {
+  await (await db()).delete('proposals', id);
 }
 
 export async function clearProposals(): Promise<void> {

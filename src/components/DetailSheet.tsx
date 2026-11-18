@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Tag, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Tag, Trash2, X } from 'lucide-react';
 import type { CaptureRecord, Language } from '../types';
 import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
@@ -11,11 +11,24 @@ interface Props {
   onClose: () => void;
   onAskAbout: (capture: CaptureRecord, question?: string) => void;
   onUpdateTags?: (capture: CaptureRecord, nextTags: string[]) => Promise<void> | void;
+  onManualTrash?: (capture: CaptureRecord) => Promise<void> | void;
+  onPermanentDelete?: (capture: CaptureRecord) => Promise<void> | void;
+  trashDays?: number;
 }
 
-export default function DetailSheet({ capture, language, onClose, onAskAbout, onUpdateTags }: Props) {
+export default function DetailSheet({
+  capture,
+  language,
+  onClose,
+  onAskAbout,
+  onUpdateTags,
+  onManualTrash,
+  onPermanentDelete,
+  trashDays = 30,
+}: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
+  const [deleteStep, setDeleteStep] = useState<'none' | 'trash' | 'perm1' | 'perm2'>('none');
 
   const userTags = capture.tags || [];
 
@@ -226,7 +239,78 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout, on
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-line bg-canvas/95 p-4">
+        <div className="shrink-0 space-y-2 border-t border-line bg-canvas/95 p-4">
+          {deleteStep === 'trash' && onManualTrash && (
+            <div className="rounded-xl border border-danger/30 bg-danger-soft/50 p-3">
+              <p className="text-[11.5px] font-semibold text-ink">
+                {capture.protectedReason
+                  ? t(language, 'deleteConfirmProtected', {
+                      reason: capture.protectedReason,
+                      days: trashDays,
+                    })
+                  : t(language, 'deleteConfirmBody', { days: trashDays })}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteStep('none')}
+                  className="flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
+                >
+                  {t(language, 'cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteStep('none');
+                    void onManualTrash(capture);
+                    onClose();
+                  }}
+                  className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                >
+                  {t(language, 'confirmMoveToTrash')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(deleteStep === 'perm1' || deleteStep === 'perm2') && onPermanentDelete && (
+            <div className="rounded-xl border border-danger bg-danger-soft p-3">
+              <p className="text-[11.5px] font-bold text-danger">
+                {deleteStep === 'perm1' ? t(language, 'deletePermNow') : t(language, 'deletePermStep2')}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteStep('none')}
+                  className="flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
+                >
+                  {t(language, 'cancel')}
+                </button>
+                {deleteStep === 'perm1' ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteStep('perm2')}
+                    className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                  >
+                    {t(language, 'continue')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteStep('none');
+                      void onPermanentDelete(capture);
+                      onClose();
+                    }}
+                    className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                  >
+                    {t(language, 'deletePerm')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => onAskAbout(capture)}
@@ -234,7 +318,31 @@ export default function DetailSheet({ capture, language, onClose, onAskAbout, on
           >
             {t(language, 'askAbout')} <ArrowUpRight size={16} />
           </button>
-          <p className="mt-2 flex items-center justify-center gap-1 text-[10px] text-ink3">
+
+          {(onManualTrash || onPermanentDelete) && deleteStep === 'none' && (
+            <div className="flex gap-2">
+              {onManualTrash && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteStep('trash')}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-line bg-surface2 py-2 text-[11.5px] font-bold text-ink2 hover:border-danger hover:text-danger"
+                >
+                  <Trash2 size={13} /> {t(language, 'confirmMoveToTrash')}
+                </button>
+              )}
+              {onPermanentDelete && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteStep('perm1')}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-danger/30 bg-danger-soft/60 py-2 text-[11.5px] font-bold text-danger"
+                >
+                  {t(language, 'deletePermNow')}
+                </button>
+              )}
+            </div>
+          )}
+
+          <p className="flex items-center justify-center gap-1 text-[10px] text-ink3">
             <Lock size={11} /> {language === 'vi' ? 'Bản gốc ở lại trên máy.' : 'The original stays on this device.'}
           </p>
         </div>

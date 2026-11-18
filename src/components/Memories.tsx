@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag,
+  Trash2,
   X,
 } from 'lucide-react';
 import type { CaptureRecord, CaptureType, ExtractionRequest, Language, TagGroupProposal } from '../types';
@@ -30,6 +31,9 @@ interface Props {
   onAcceptTagGroup?: (group: TagGroupProposal, selectedIds: string[], labelOverride?: string) => Promise<void> | void;
   onDismissTagGroup?: (group: TagGroupProposal) => Promise<void> | void;
   onRefreshTagGroups?: () => void;
+  onManualTrash?: (capture: CaptureRecord) => Promise<void> | void;
+  onOpenTrash?: () => void;
+  trashDays?: number;
 }
 
 const TYPE_STYLE: Record<CaptureType, string> = {
@@ -86,6 +90,9 @@ export default function Memories({
   onAcceptTagGroup,
   onDismissTagGroup,
   onRefreshTagGroups,
+  onManualTrash,
+  onOpenTrash,
+  trashDays = 30,
 }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +112,7 @@ export default function Memories({
   const [groupSelections, setGroupSelections] = useState<Record<string, string[]>>({});
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [confirmTrash, setConfirmTrash] = useState<CaptureRecord | null>(null);
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -244,6 +252,7 @@ export default function Memories({
   };
 
   const visibleCaptures = captures.filter((c) => c.retentionState !== 'trashed');
+  const trashedCount = captures.length - visibleCaptures.length;
   const allTags = Array.from(new Set(visibleCaptures.flatMap((c) => c.tags || []))).sort((a, b) =>
     a.localeCompare(b),
   );
@@ -273,11 +282,22 @@ export default function Memories({
         <div className="grid h-10 w-10 place-items-center rounded-full bg-accent text-sm font-black text-white">M</div>
       </div>
 
-      <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
-        <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
-        <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
-          {language === 'vi' ? '100% trên máy · sẵn sàng offline' : '100% on-device · offline ready'}
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
+          <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
+          <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
+            {language === 'vi' ? '100% trên máy · sẵn sàng offline' : '100% on-device · offline ready'}
+          </span>
+        </div>
+        {onOpenTrash && trashedCount > 0 && (
+          <button
+            type="button"
+            onClick={onOpenTrash}
+            className="inline-flex items-center gap-1 rounded-full border border-line2 bg-canvas px-3 py-1 text-[11px] font-bold text-ink2 hover:border-accent"
+          >
+            <Trash2 size={12} /> {t(language, 'openTrash', { n: trashedCount })}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
@@ -608,11 +628,9 @@ export default function Memories({
             </span>
           </div>
           {items.map((capture) => (
-            <button
+            <div
               key={capture.id}
-              type="button"
-              onClick={() => onOpenDetail(capture)}
-              className="w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all active:scale-[0.99] hover:border-line2"
+              className="w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -630,11 +648,31 @@ export default function Memories({
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] font-bold text-accent">
-                  {language === 'vi' ? 'Xem bằng chứng' : 'Tap proof'} →
-                </span>
+                <div className="flex items-center gap-2">
+                  {onManualTrash && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmTrash(capture)}
+                      aria-label={t(language, 'deleteMemory')}
+                      className="rounded-full p-1 text-ink3 transition-colors hover:bg-danger-soft hover:text-danger"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onOpenDetail(capture)}
+                    className="text-[11px] font-bold text-accent"
+                  >
+                    {language === 'vi' ? 'Xem bằng chứng' : 'Tap proof'} →
+                  </button>
+                </div>
               </div>
-              <div className="mt-2.5 flex items-start gap-3">
+              <button
+                type="button"
+                onClick={() => onOpenDetail(capture)}
+                className="mt-2.5 flex w-full items-start gap-3 text-left"
+              >
                 {capture.originalRef && capture.type === 'photo' ? (
                   <img src={capture.originalRef} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" />
                 ) : (
@@ -671,11 +709,61 @@ export default function Memories({
                     </span>
                   </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
           ))}
         </section>
       ))}
+
+      {confirmTrash && onManualTrash && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
+          onClick={() => setConfirmTrash(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t(language, 'deleteConfirmTitle')}
+            className="animate-sheet w-full max-w-sm rounded-2xl border border-line bg-canvas p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[14px] font-bold text-ink">{t(language, 'deleteConfirmTitle')}</h2>
+            <p className="mt-1 truncate text-[12px] font-semibold text-ink2">{confirmTrash.summary}</p>
+            <p
+              className={`mt-2 rounded-xl p-2.5 text-[11.5px] leading-snug ${
+                confirmTrash.protectedReason ? 'bg-danger-soft text-danger font-semibold' : 'bg-surface2 text-ink2'
+              }`}
+            >
+              {confirmTrash.protectedReason
+                ? t(language, 'deleteConfirmProtected', {
+                    reason: confirmTrash.protectedReason,
+                    days: trashDays,
+                  })
+                : t(language, 'deleteConfirmBody', { days: trashDays })}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmTrash(null)}
+                className="flex-1 rounded-full border border-line bg-canvas py-2 text-[12px] font-bold text-ink2"
+              >
+                {t(language, 'cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = confirmTrash;
+                  setConfirmTrash(null);
+                  void onManualTrash(target);
+                }}
+                className="flex-1 rounded-full bg-danger py-2 text-[12px] font-bold text-white"
+              >
+                {t(language, 'confirmMoveToTrash')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="flex items-center justify-center gap-1.5 pb-2 text-[10.5px] text-ink3">
         <Lock size={12} /> {t(language, 'zeroDeletions')}

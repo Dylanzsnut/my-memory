@@ -74,6 +74,21 @@ export function scanForProposals(
   return proposals;
 }
 
+export function moveToTrash(
+  capture: CaptureRecord,
+  retentionDays: number,
+  source: 'proposal' | 'manual',
+): CaptureRecord {
+  const now = Date.now();
+  return {
+    ...capture,
+    retentionState: 'trashed',
+    trashedAt: new Date(now).toISOString(),
+    purgeAt: new Date(now + retentionDays * 86_400_000).toISOString(),
+    trashSource: source,
+  };
+}
+
 export function applyDecision(
   capture: CaptureRecord,
   decision: Decision,
@@ -84,11 +99,24 @@ export function applyDecision(
     // for the same reason because the proposal is marked decided.
     return { ...capture, retentionState: 'active' };
   }
-  const now = Date.now();
-  return {
-    ...capture,
-    retentionState: 'trashed',
-    trashedAt: new Date(now).toISOString(),
-    purgeAt: new Date(now + retentionDays * 86_400_000).toISOString(),
-  };
+  return moveToTrash(capture, retentionDays, decision === 'manual' ? 'manual' : 'proposal');
+}
+
+export function purgeExpiredTrash(
+  captures: CaptureRecord[],
+  nowMs = Date.now(),
+): { active: CaptureRecord[]; purged: CaptureRecord[] } {
+  const active: CaptureRecord[] = [];
+  const purged: CaptureRecord[] = [];
+  for (const capture of captures) {
+    if (capture.retentionState === 'trashed' && capture.purgeAt) {
+      const purgeMs = new Date(capture.purgeAt).getTime();
+      if (Number.isFinite(purgeMs) && purgeMs <= nowMs) {
+        purged.push(capture);
+        continue;
+      }
+    }
+    active.push(capture);
+  }
+  return { active, purged };
 }

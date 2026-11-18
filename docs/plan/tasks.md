@@ -147,30 +147,33 @@ INV-302, seed-decision note above).
 
 ## Manual memory deletion
 
-- [ ] Add a delete action to `DetailSheet` and to each card in `Memories`, with
+- [x] Add a delete action to `DetailSheet` and to each card in `Memories`, with
       a confirmation dialog.
-- [ ] Add "Delete permanently now" in `DetailSheet` behind a stronger
+- [x] Add "Delete permanently now" in `DetailSheet` behind a stronger
       confirmation (second confirm, no trash). Record it as a distinct decision
       type and document it as the explicit exception to the `REQ-005`
       recoverable window (`docs/as-built/specs/forgetting.md`, `docs/DATA.md` §3).
-- [ ] Manual delete moves the memory to the 30-day trash and shows a 5-second
+- [x] Manual delete moves the memory to the 30-day trash and shows a 5-second
       undo toast.
-- [ ] Share the delete implementation with the Forget flow (reuse
+- [x] Share the delete implementation with the Forget flow (reuse
       `applyDecision` or add a common helper), but record "manual delete"
       separately from "proposal approved".
-- [ ] Close any pending proposal for a manually deleted memory.
-- [ ] Add a dedicated Trash screen: list, restore, days remaining. Currently
+- [x] Close any pending proposal for a manually deleted memory.
+- [x] Add a dedicated Trash screen: list, restore, days remaining. Currently
       the trash is only a section inside the Forget tab.
-- [ ] Add "Delete permanently" in the Trash with a confirmation; remove the
+- [x] Add "Delete permanently" in the Trash with a confirmation; remove the
       image and audio blobs from IndexedDB.
-- [ ] Purge items past `purgeAt` on app open. Document this as an intentional,
+- [x] Purge items past `purgeAt` on app open. Document this as an intentional,
       user-visible exception to the "no background deletion" rule.
-- [ ] Sync the `trashed` state to Firestore and delete the metadata document on
+- [x] Sync the `trashed` state to Firestore and delete the metadata document on
       permanent deletion.
-- [ ] Verify deleted captures never appear in search or Ask and are never sent
-      to the cloud.
-- [ ] Update `AGENTS.md` §3, `idea.md` §3.4, CSD §7.2 and i18n strings: the rule
+- [x] Verify deleted captures never appear in search or Ask and are never sent
+      to the cloud. (Verified in `searchCaptures`, `handleAsk`, and `Memories`;
+      automated regression tests added in P2.)
+- [x] Update `AGENTS.md` §3, `idea.md` §3.4, CSD §7.2 and i18n strings: the rule
       is "the AI never deletes on its own", not "deletion only via proposals".
+      (Updated `AGENTS.md` §3, `docs/rfc/000-my-memory-concept.md` §3.4,
+      `docs/rfc/001-my-memory-csd.md` §7.2 via dated amendments, and `i18n.ts`.)
 
 ## Import & capture sources
 
@@ -255,7 +258,7 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 - [x] Make each "Ask about this capture" chip use its own question and pin the
       capture as context. (Added `askCaptureId`/`seedCaptureId` scoping across
       `DetailSheet.tsx`, `App.tsx`, and `Ask.tsx`.)
-- [ ] Add a 5-second countdown and auto-dismiss to the undo toast.
+- [x] Add a 5-second countdown and auto-dismiss to the undo toast.
 - [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
       auth and deletion behaviour.
 

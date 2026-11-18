@@ -20,7 +20,7 @@ export default function BottomNav({ active, onChange, language, reviewCount }: P
     <nav className="sticky bottom-0 z-30 border-t border-line bg-canvas/95 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-4">
         {items.map(({ id, icon: Icon, key }) => {
-          const isActive = active === id;
+          const isActive = active === id || (id === 'forget' && active === 'trash');
           return (
             <button
               key={id}

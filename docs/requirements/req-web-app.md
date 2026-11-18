@@ -40,12 +40,12 @@
 
 ## REQ-005 — Manual deletion with recovery
 
-- Statement: A user can delete one memory at a time; deletion enters a recoverable trash. Permanent removal happens only from the trash or when the recovery window ends.
+- Statement: A user can delete one memory at a time; deletion enters a recoverable trash. Permanent removal happens only from the trash, when the recovery window ends on app open, or via explicit two-step "Delete permanently now" in `DetailSheet` (documented exception).
 - Type: functional · Priority: must
 - Source: OUT-4
-- Acceptance: recovery window target is **30 days**; permanent removal deletes the metadata document and local blob.
-- Implemented by: planned — see `plan/tasks.md`
-- Verified by: UNVERIFIED — not implemented at HEAD
+- Acceptance: recovery window target is **30 days**; permanent removal deletes the metadata document (`deleteCaptureMetadata`) and local blobs (`deleteCapture`).
+- Implemented by: `src/components/Trash.tsx`, `src/components/DetailSheet.tsx`, `src/components/Memories.tsx`, `src/lib/forget.ts`, `src/App.tsx`
+- Verified by: UNVERIFIED — code + build checked; automated tests added in P2
 
 ## REQ-006 — Mandatory Google sign-in
 

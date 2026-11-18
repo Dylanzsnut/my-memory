@@ -27,9 +27,9 @@ These are product rules, not suggestions. Breaking them breaks the project's rea
 2. **Citation or refusal.** No answer may contain a factual claim without a resolved source capture.
    `NOT_FOUND` / "Not found in memory" is the correct output when evidence is missing. Keep the
    fail-closed logic in `src/lib/answer.ts` intact.
-3. **Human-in-the-loop forgetting.** `src/lib/forget.ts` only produces **proposals**. Never add an
-   auto-delete path, bulk approval, or a background job that bypasses a recorded decision. Approved
-   captures are recoverable for 30 days.
+3. **Human-in-the-loop forgetting.** The AI never deletes on its own: `src/lib/forget.ts` only
+   proposes. Owners may manually trash or confirm permanent delete; trash purges past `purgeAt`
+   on app open (explicit user-visible exception, recoverable for 30 days before then).
 4. **Protected captures stay protected.** A unique health/safety capture (`protectedReason`) is
    excluded from proposals regardless of score. Remote Config may tune thresholds, never this rule.
 5. **Provenance is explicit.** `InferenceSource` is `ON_DEVICE`, `IN_CLOUD`, or `SIMULATED`. Never

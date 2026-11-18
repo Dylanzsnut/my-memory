@@ -548,6 +548,11 @@ month.
   happens only after those 30 days, and the queue shows "0 deletions without approval" as a standing
   counter in the UI — the number the demo points at.
 
+> **Amendment (2026-11-18):** The Web companion enforces "the AI never deletes on its own". In
+> addition to F5 proposal approvals, owners can manually move individual items to Trash, delete
+> permanently now behind a two-step confirmation (`REQ-005` exception), or permanently delete in the
+> dedicated Trash screen; items past `purgeAt` are purged on app open (user-visible exception).
+
 **UI contract for decisions** (UX spec §4): every queue card offers exactly two deliberate actions —
 `Move to Trash` and `Keep` — with an instant undo toast (5-second countdown) after a trash action,
 a protected-item badge for exclusions, and no bulk or automatic purge anywhere in the product.

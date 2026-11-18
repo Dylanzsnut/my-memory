@@ -141,11 +141,11 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 | active → proposed | `scanForProposals` | code, **proposal only** | `F1`/`F2` evidence required (`INV-201`) |
 | proposed → active | keep | human | recorded decision, feeds curator |
 | proposed → trashed | approve | human | recorded decision (`INV-204`) |
-| active → trashed (manual delete) | delete action | human | confirmation; recorded as *manual delete*, not *proposal approved* (planned) |
+| active → trashed (manual delete) | delete action | human | confirmation; recorded via `trashSource: 'manual'`, not *proposal approved* |
 | any → protected | `protectedReason` set | deterministic rule | never proposed regardless of score (`F4`, `INV-003`) |
 | trashed → active | restore | human | before `purgeAt` |
-| trashed → purged | `purgeAt` reached | app open, user-visible (planned) | documented exception to "no background deletion"; still human-scheduled |
-| active → purged (delete permanently now) | `DetailSheet` action | human | stronger second confirmation; recorded as a distinct decision type; *(planned)* the explicit documented exception to the `REQ-005` recoverable window; never offered in bulk |
+| trashed → purged | `purgeAt` reached | app open, user-visible (`purgeExpiredTrash`) | documented exception to "no background deletion"; still human-scheduled |
+| active → purged (delete permanently now) | `DetailSheet` action | human | stronger second confirmation; recorded as a distinct decision; explicit documented exception to the `REQ-005` recoverable window; never offered in bulk |
 
 Invariant `F5`: every transition to `trashed` requires a recorded human decision
 and stays recoverable for the `REQ-005` window. There is no auto-delete path,
@@ -155,7 +155,7 @@ no bulk approval and no background job that bypasses a decision.
 
 created → decided(`approve`) → capture moves to `trashed`
 created → decided(`keep`) → capture stays `active`, score is feedback
-created → (target deleted manually) → proposal closed (planned)
+created → (target deleted manually) → proposal closed (`decided: 'manual'`) or deleted on purge
 
 ## 4. Physical storage design
 
@@ -256,10 +256,10 @@ local captures (`REQ-007`, `INV-103`).
 |---|---|---|
 | C1/C2 capture data | until a human deletes it | no automatic expiry (`F5`) |
 | Trashed capture | `trashRetentionDays` (default 30, `REQ-005`) | `purgeAt = trashedAt + window`; restore before then |
-| Purged capture | removed from IndexedDB | planned: on app open, user-visible exception (plan § Manual memory deletion) |
+| Purged capture | removed from IndexedDB | on app open (`purgeExpiredTrash`), user-visible exception, or explicit permanent delete |
 | `HudEvent` | last 60 | trimmed on write |
-| Proposal | until decided | closed when its target is deleted (planned) |
-| Firestore metadata | until permanent deletion | document deleted when the capture is purged (planned) |
+| Proposal | until decided | closed (`decided: 'manual'`) or deleted when target is deleted |
+| Firestore metadata | until permanent deletion | document deleted via `deleteCaptureMetadata` when capture is purged |
 
 Protected captures are still deletable, but only with a stronger confirmation;
 `F4` protects them from *proposals*, not from their owner.
