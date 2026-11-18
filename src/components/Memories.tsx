@@ -654,7 +654,7 @@ export default function Memories({
                       type="button"
                       onClick={() => setConfirmTrash(capture)}
                       aria-label={t(language, 'deleteMemory')}
-                      className="rounded-full p-1 text-ink3 transition-colors hover:bg-danger-soft hover:text-danger"
+                      className="grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-ink3 transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -662,7 +662,7 @@ export default function Memories({
                   <button
                     type="button"
                     onClick={() => onOpenDetail(capture)}
-                    className="text-[11px] font-bold text-accent"
+                    className="inline-flex min-h-11 items-center px-1 text-[11px] font-bold text-accent"
                   >
                     {language === 'vi' ? 'Xem bằng chứng' : 'Tap proof'} →
                   </button>

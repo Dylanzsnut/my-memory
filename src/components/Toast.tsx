@@ -34,15 +34,15 @@ export default function Toast({ message, language = 'en', onUndo, onDismiss }: P
       <span className="text-[12.5px] font-medium">{message}</span>
       <div className="flex shrink-0 items-center gap-3">
         {onUndo && (
-          <button type="button" onClick={onUndo} className="inline-flex items-center gap-1 text-[12px] font-bold text-teal-soft">
+          <button type="button" onClick={onUndo} className="inline-flex min-h-11 items-center gap-1 px-1 text-[12px] font-bold text-teal-soft">
             <Undo2 size={14} /> {t(language, 'undo')} ({secondsLeft}s)
           </button>
         )}
         <button
           type="button"
           onClick={onDismiss}
-          aria-label={language === 'vi' ? 'Đóng' : 'Dismiss'}
-          className="text-[12px] text-canvas/60 hover:text-canvas"
+          aria-label={t(language, 'dismiss')}
+          className="grid min-h-11 min-w-11 place-items-center text-[12px] text-canvas/60 hover:text-canvas"
         >
           ✕
         </button>

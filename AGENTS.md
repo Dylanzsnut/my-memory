@@ -82,12 +82,14 @@ firestore.rules           per-user /users/{uid}/captures/{captureId} metadata-on
 npm install
 npm run dev         # Vite dev server
 npm run typecheck   # tsc -b --pretty false
+npm run lint        # ESLint across src/ and tests/
+npm test            # Node test suite (tests/core.test.ts)
 npm run build       # tsc -b && vite build
 npm run preview     # serve dist/ locally
 ```
 
-Run `npm run typecheck && npm run build` before declaring a task done. There is no automated test
-suite yet; verify UI changes manually in the browser.
+Run `npm run typecheck && npm run lint && npm test && npm run build` before declaring a task
+done; verify live Chrome Nano 4 / Console behaviour manually when changing device integrations.
 
 ### Environment
 

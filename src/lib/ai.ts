@@ -1,10 +1,4 @@
-import {
-  getGenerativeModel,
-  InferenceMode,
-  InferenceSource as SdkInferenceSource,
-  Schema,
-  type GenerativeModel,
-} from 'firebase/ai';
+import type { GenerativeModel } from 'firebase/ai';
 import type {
   AnswerResult,
   CaptureRecord,
@@ -16,16 +10,27 @@ import { getServices } from './firebase';
 import { FALLBACK_CLOUD_MODEL, settings, ON_DEVICE_PROMPT_INSTRUCTIONS } from './config';
 import { normalize } from './embeddings';
 
-const extractionSchema = Schema.object({
-  properties: {
-    summary: Schema.string(),
-    entities: Schema.array({ items: Schema.string() }),
-    expiryDate: Schema.string({ nullable: true }),
-  },
-  optionalProperties: ['expiryDate'],
-});
+let aiSdkPromise: Promise<typeof import('firebase/ai')> | null = null;
+let cachedExtractionJsonSchema: object | null = null;
 
-const extractionJsonSchema = JSON.parse(JSON.stringify(extractionSchema)) as object;
+function loadAiSdk() {
+  return (aiSdkPromise ??= import('firebase/ai'));
+}
+
+function getExtractionJsonSchema(Schema: (typeof import('firebase/ai'))['Schema']): object {
+  if (!cachedExtractionJsonSchema) {
+    const extractionSchema = Schema.object({
+      properties: {
+        summary: Schema.string(),
+        entities: Schema.array({ items: Schema.string() }),
+        expiryDate: Schema.string({ nullable: true }),
+      },
+      optionalProperties: ['expiryDate'],
+    });
+    cachedExtractionJsonSchema = JSON.parse(JSON.stringify(extractionSchema)) as object;
+  }
+  return cachedExtractionJsonSchema;
+}
 
 function isValidYearMonthDay(year: number, month: number, day?: number): boolean {
   if (month < 1 || month > 12) return false;
@@ -54,11 +59,18 @@ function normalizeExpiryDate(value: unknown): string | null {
   return null;
 }
 
-function toSdkSource(source: unknown): InferenceSource {
+function toSdkSource(
+  source: unknown,
+  sdkInferenceSource?: { IN_CLOUD: unknown; ON_DEVICE: unknown },
+): InferenceSource {
   // The SDK reports lowercase values ('in_cloud' / 'on_device'), not the
   // uppercase labels used by this app's UI and data model.
-  if (source === SdkInferenceSource.IN_CLOUD || source === 'IN_CLOUD') return 'IN_CLOUD';
-  if (source === SdkInferenceSource.ON_DEVICE || source === 'ON_DEVICE') return 'ON_DEVICE';
+  if (source === sdkInferenceSource?.IN_CLOUD || source === 'IN_CLOUD' || source === 'in_cloud') {
+    return 'IN_CLOUD';
+  }
+  if (source === sdkInferenceSource?.ON_DEVICE || source === 'ON_DEVICE' || source === 'on_device') {
+    return 'ON_DEVICE';
+  }
   return 'SIMULATED'; // unknown/missing provenance must never be shown as a real inference
 }
 
@@ -106,6 +118,8 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
   if (!ai) return simulatedExtraction(req);
 
   try {
+    const { getGenerativeModel, InferenceMode, InferenceSource: SdkInferenceSource, Schema } =
+      await loadAiSdk();
     const expectedInputs: { type: 'text' | 'image'; languages?: string[] }[] = [
       { type: 'text', languages: ['en'] },
       ...(req.imageDataUrl ? [{ type: 'image' as const }] : []),
@@ -119,7 +133,7 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
             { role: 'system', content: [{ type: 'text', value: ON_DEVICE_PROMPT_INSTRUCTIONS }] },
           ],
         },
-        promptOptions: { responseConstraint: extractionJsonSchema },
+        promptOptions: { responseConstraint: getExtractionJsonSchema(Schema) },
       },
     });
 
@@ -139,7 +153,7 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
         entities: parsed.entities.filter((e) => typeof e === 'string'),
         expiryDate: normalizeExpiryDate(parsed.expiryDate),
       },
-      source: toSdkSource(sdkSource),
+      source: toSdkSource(sdkSource, SdkInferenceSource),
       latencyMs: Math.round(performance.now() - started),
     };
   } catch (error) {
@@ -202,6 +216,7 @@ export async function initializeDeviceModel(onProgress?: (fraction: number) => v
   const { ai } = getServices();
   if (!ai) return false;
   try {
+    const { getGenerativeModel, InferenceMode } = await loadAiSdk();
     const model = getGenerativeModel(ai, { mode: InferenceMode.PREFER_ON_DEVICE });
     await model.initializeDeviceModel((value: number) => onProgress?.(Math.min(1, value)));
     return true;
@@ -332,6 +347,7 @@ export async function answerQuestion(
   }
 
   try {
+    const { getGenerativeModel, InferenceMode, InferenceSource: SdkInferenceSource } = await loadAiSdk();
     const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.PREFER_ON_DEVICE;
     const cloudModelName = settings.cloudModel;
     const buildModel = (cloudModel: string) =>
@@ -370,7 +386,7 @@ export async function answerQuestion(
       result = await model.generateContent(prompt);
     }
     const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
-    const source = toSdkSource(sdkSource);
+    const source = toSdkSource(sdkSource, SdkInferenceSource);
     return {
       text: result.response.text().trim(),
       inferenceSource: source,

@@ -74,7 +74,9 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
               key={lang}
               type="button"
               onClick={() => onLanguageChange(lang)}
-              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase ${
+              aria-label={`${t(language, 'ariaToggleLanguage')}: ${lang.toUpperCase()}`}
+              aria-pressed={language === lang}
+              className={`min-h-11 min-w-11 rounded-full px-3 py-1 text-[11px] font-bold uppercase ${
                 language === lang ? 'bg-ink text-bg' : 'text-ink2'
               }`}
             >
@@ -88,7 +90,12 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
         <span className="text-[11px] font-bold uppercase tracking-wider text-ink3">
           {t(language, 'onboardingStep', { n: step + 1 })}
         </span>
-        <button type="button" onClick={onComplete} className="text-[11px] font-semibold text-ink3 hover:text-ink">
+        <button
+          type="button"
+          onClick={onComplete}
+          aria-label={t(language, 'skip')}
+          className="min-h-11 px-2 text-[11px] font-semibold text-ink3 hover:text-ink"
+        >
           {t(language, 'skip')}
         </button>
       </div>
@@ -157,7 +164,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
           <div className="animate-sheet space-y-6">
             <div>
               <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
-                Smart universal search · on-device
+                {t(language, 'ob2Badge')}
               </span>
               <h1 className="mt-4 font-serif text-[26px] font-bold leading-tight tracking-tight">
                 {t(language, 'ob2Title')}
@@ -167,9 +174,9 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
             <div className="grid grid-cols-3 gap-2">
               {(
                 [
-                  [Image, 'accent', language === 'vi' ? 'Ảnh' : 'Photos'],
-                  [AudioLines, 'teal', language === 'vi' ? 'Giọng nói' : 'Voice'],
-                  [NotepadText, 'gold', language === 'vi' ? 'Ghi chú' : 'Notes'],
+                  [Image, 'accent', t(language, 'ob2Photos')],
+                  [AudioLines, 'teal', t(language, 'ob2Voice')],
+                  [NotepadText, 'gold', t(language, 'ob2Notes')],
                 ] as const
               ).map(([Icon, tone, label]) => (
                 <div key={label} className={`flex flex-col items-center gap-1.5 rounded-xl ${TONE[tone]} p-3`}>
@@ -180,22 +187,20 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
             </div>
             <div className="rounded-2xl border border-line bg-canvas p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">Connected memory</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">{t(language, 'ob2ConnectedTitle')}</span>
                 <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-bold text-gold">
-                  {language === 'vi' ? 'Tìm cùng nhau' : 'Find everything together'}
+                  {t(language, 'ob2ConnectedBadge')}
                 </span>
               </div>
               <div className="mt-4 flex items-center justify-center gap-2 text-center text-[11px] font-semibold text-ink2">
-                <span className="rounded-lg bg-accent-soft px-2 py-1 text-accent">Receipts</span>
+                <span className="rounded-lg bg-accent-soft px-2 py-1 text-accent">{t(language, 'ob2ChipReceipts')}</span>
                 <span>+</span>
-                <span className="rounded-lg bg-teal-soft px-2 py-1 text-teal">Medicine</span>
+                <span className="rounded-lg bg-teal-soft px-2 py-1 text-teal">{t(language, 'ob2ChipMedicine')}</span>
                 <span>+</span>
-                <span className="rounded-lg bg-gold-soft px-2 py-1 text-gold">Wi-Fi</span>
+                <span className="rounded-lg bg-gold-soft px-2 py-1 text-gold">{t(language, 'ob2ChipWifi')}</span>
               </div>
               <div className="mt-4 flex items-center justify-between rounded-xl bg-surface2 px-3 py-2">
-                <span className="text-[12px] font-semibold">
-                  {language === 'vi' ? 'Tìm trong chưa tới 1 giây' : 'Find in under a second'}
-                </span>
+                <span className="text-[12px] font-semibold">{t(language, 'ob2SpeedLabel')}</span>
                 <span className="rounded-full bg-teal px-2 py-0.5 text-[10px] font-bold text-white">&lt; 1s</span>
               </div>
             </div>
@@ -206,7 +211,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
           <div className="animate-sheet space-y-4">
             <div>
               <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
-                {language === 'vi' ? 'Lời hứa riêng tư' : 'Our privacy promise'}
+                {t(language, 'ob3Badge')}
               </span>
               <h1 className="mt-4 font-serif text-[26px] font-bold leading-tight tracking-tight">
                 {t(language, 'ob3Title')}
@@ -215,11 +220,11 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
             </div>
             {(
               [
-                ['rule1', '01', 'accent'],
-                ['rule2', '02', 'teal'],
-                ['rule3', '03', 'gold'],
+                ['rule1', '01', 'accent', 'obRule1Desc'],
+                ['rule2', '02', 'teal', 'obRule2Desc'],
+                ['rule3', '03', 'gold', 'obRule3Desc'],
               ] as const
-            ).map(([key, number, tone]) => (
+            ).map(([key, number, tone, descKey]) => (
               <div key={key} className="flex gap-3 rounded-2xl border border-line bg-canvas p-3.5 shadow-sm">
                 <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-black ${TONE[tone]}`}>
                   {number}
@@ -227,17 +232,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
                 <div>
                   <p className="text-[13px] font-bold">{t(language, key as TranslationKey)}</p>
                   <p className="mt-0.5 text-[11.5px] leading-snug text-ink2">
-                    {key === 'rule1'
-                      ? language === 'vi'
-                        ? 'Mọi câu trả lời kèm bản gốc làm bằng chứng.'
-                        : 'Every answer shows the original as proof.'
-                      : key === 'rule2'
-                        ? language === 'vi'
-                          ? 'Chỉ đề xuất — xóa luôn cần cái chạm của bạn.'
-                          : 'Only suggests — deletion always needs your tap.'
-                        : language === 'vi'
-                          ? 'Khôi phục bất cứ mục nào trong 30 ngày.'
-                          : 'Restore anything within 30 days.'}
+                    {t(language, descKey as TranslationKey)}
                   </p>
                 </div>
               </div>
@@ -251,7 +246,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
           type="button"
           onClick={next}
           disabled={preparing}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-[14px] font-bold text-white shadow-md transition-transform active:scale-[0.98] disabled:opacity-60"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-[14px] font-bold text-white shadow-md transition-transform active:scale-[0.98] disabled:opacity-60"
         >
           {step === 2 ? t(language, 'enterApp') : t(language, 'continue')}
           <ArrowRight size={18} />
@@ -260,9 +255,10 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
           <button
             type="button"
             onClick={() => setStep(step - 1)}
-            className="mx-auto flex items-center gap-1 rounded-full px-4 py-2 text-[12px] font-semibold text-ink2 hover:text-ink"
+            aria-label={t(language, 'back')}
+            className="mx-auto flex min-h-11 items-center gap-1 rounded-full px-4 py-2 text-[12px] font-semibold text-ink2 hover:text-ink"
           >
-            <ArrowLeft size={14} /> {language === 'vi' ? 'Quay lại' : 'Back'}
+            <ArrowLeft size={14} /> {t(language, 'back')}
           </button>
         )}
       </div>

@@ -11,7 +11,7 @@ const TAG_EXIF_IFD_POINTER = 0x8769;
 const TAG_DATE_TIME_ORIGINAL = 0x9003;
 
 function parseExifDateString(raw: string): string | null {
-  const match = raw.trim().match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  const match = raw.trim().match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]);

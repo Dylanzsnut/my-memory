@@ -256,8 +256,9 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
       (Updated `src/lib/embeddings.ts` to 512-dim signed hashing, EN/VI
       stopwords & synonyms; improved word-level scoring + dimension migration in
       `src/lib/search.ts` and `src/App.tsx`.)
-- [ ] Add a search/answer test set with in-corpus and out-of-corpus questions;
-      out-of-corpus must return "Not found".
+- [x] Add a search/answer test set with in-corpus and out-of-corpus questions;
+      out-of-corpus must return "Not found". (`tests/core.test.ts` runs 5 EN/VI
+      in-corpus queries and 5 out-of-corpus / trashed queries via `npm test`.)
 - [x] Split the HUD into three counters: on-device, cloud, simulated.
       (Updated `src/components/Hud.tsx` and `src/lib/i18n.ts`.)
 - [x] Filter or ask consent before sending sensitive `entities` (passwords,
@@ -383,13 +384,25 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 
 ## P2 — cleanup
 
-- [ ] i18n for remaining hard-coded English strings in `Ask`, `Onboarding`,
-      `Hud` and `answer.ts`.
-- [ ] Add aria-labels and check touch target sizes.
-- [ ] Add an error UI when Firebase initialization fails.
-- [ ] Publish a Remote Config template.
-- [ ] Restrict the Firebase API key by HTTP referrer.
-- [ ] Add ESLint and unit tests for `answer.ts`, `forget.ts` and `search.ts`.
-- [ ] Address the Vite build warning: the `firebase` manual chunk is ~649 kB
+- [x] i18n for remaining hard-coded English strings in `Ask`, `Onboarding`,
+      `Hud` and `answer.ts`. (Added remaining EN/VI strings in `src/lib/i18n.ts`.)
+- [x] Add aria-labels and check touch target sizes. (Upgraded interactive
+      controls across `App.tsx`, `Ask.tsx`, `Onboarding.tsx`, `Hud.tsx`,
+      `BottomNav.tsx`, `DetailSheet.tsx`, `Forget.tsx`, `Trash.tsx`, `Toast.tsx`,
+      and `SignInGate.tsx` with `min-h-11` targets and `aria-label` attributes.)
+- [x] Add an error UI when Firebase initialization fails. (Dismissible alert
+      banner in `src/App.tsx` surfaced when `isFirebaseConfigured && error`.)
+- [ ] Publish a Remote Config template. (Added tracked `remoteconfig.template.json`
+      in the repo root; publishing to the live project requires Firebase Console /
+      CLI credentials external to the repo.)
+- [ ] Restrict the Firebase API key by HTTP referrer. (Requires Google Cloud /
+      Firebase Console access external to the repo.)
+- [x] Add ESLint and unit tests for `answer.ts`, `forget.ts` and `search.ts`.
+      (Added `eslint.config.js`, `npm run lint`, `scripts/run-tests.mjs`, and
+      `tests/core.test.ts` covering `answer.ts`, `forget.ts`, `search.ts`,
+      `protection.ts`, `tags.ts`, and `exif.ts`.)
+- [x] Address the Vite build warning: the `firebase` manual chunk is ~649 kB
       (196 kB gzip). Lazy-load `firebase/ai` or raise `build.chunkSizeWarningLimit`
-      if the size is acceptable.
+      if the size is acceptable. (Lazy-loaded `firebase/ai` and
+      `firebase/firestore`, split `firebase-core` and `firebase-auth`, and set
+      `build.chunkSizeWarningLimit: 600` for the async Firestore SDK chunk.)

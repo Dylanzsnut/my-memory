@@ -88,7 +88,7 @@ export default function DetailSheet({
         <div className="shrink-0 border-b border-line bg-canvas/95 px-4 py-3">
           <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line2" />
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={onClose} className="inline-flex items-center gap-1 rounded-full border border-line bg-surface2 px-3 py-1.5 text-[12px] font-semibold">
+            <button type="button" onClick={onClose} aria-label={t(language, 'dismiss')} className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-surface2 px-3.5 py-1.5 text-[12px] font-semibold">
               <ArrowLeft size={15} /> {t(language, 'back')}
             </button>
             <span className="text-[13px] font-bold">Memory #{capture.id.slice(-4)}</span>
@@ -208,7 +208,7 @@ export default function DetailSheet({
                 <button
                   type="submit"
                   disabled={!tagInput.trim()}
-                  className="inline-flex items-center gap-1 rounded-full bg-teal px-3 py-1.5 text-[11.5px] font-bold text-white disabled:opacity-40"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-full bg-teal px-3.5 py-1.5 text-[11.5px] font-bold text-white disabled:opacity-40"
                 >
                   <Plus size={13} /> {t(language, 'addTag')}
                 </button>
@@ -254,7 +254,7 @@ export default function DetailSheet({
                 <button
                   type="button"
                   onClick={() => setDeleteStep('none')}
-                  className="flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
+                  className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
                 >
                   {t(language, 'cancel')}
                 </button>
@@ -265,7 +265,7 @@ export default function DetailSheet({
                     void onManualTrash(capture);
                     onClose();
                   }}
-                  className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                  className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
                 >
                   {t(language, 'confirmMoveToTrash')}
                 </button>
@@ -282,7 +282,7 @@ export default function DetailSheet({
                 <button
                   type="button"
                   onClick={() => setDeleteStep('none')}
-                  className="flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
+                  className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
                 >
                   {t(language, 'cancel')}
                 </button>
@@ -290,7 +290,7 @@ export default function DetailSheet({
                   <button
                     type="button"
                     onClick={() => setDeleteStep('perm2')}
-                    className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                    className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
                   >
                     {t(language, 'continue')}
                   </button>
@@ -302,7 +302,7 @@ export default function DetailSheet({
                       void onPermanentDelete(capture);
                       onClose();
                     }}
-                    className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                    className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
                   >
                     {t(language, 'deletePerm')}
                   </button>

@@ -98,14 +98,14 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'keep')}
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-line2 bg-canvas text-[12px] font-bold text-ink transition-colors hover:bg-surface2"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-line2 bg-canvas text-[12px] font-bold text-ink transition-colors hover:bg-surface2"
                 >
                   <CheckCircle2 size={15} className="text-teal" /> {t(language, 'keep')}
                 </button>
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'approve')}
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-accent-bright"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-accent-bright"
                 >
                   <Trash2 size={15} /> {t(language, 'moveToTrash')}
                 </button>
@@ -152,7 +152,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
         <button
           type="button"
           onClick={onOpenTrash}
-          className="shrink-0 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
+          className="min-h-11 shrink-0 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
         >
           {t(language, 'openTrash', { n: trashedCaptures.length })}
         </button>

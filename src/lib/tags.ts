@@ -70,7 +70,7 @@ function extractCandidateTokens(capture: CaptureRecord): CandidateToken[] {
       const norm = normalize(word);
       if (!norm || norm.length < 2 || STOPWORDS.has(norm) || seen.has(norm)) continue;
       seen.add(norm);
-      const hasDiacritics = /[^\u0000-\u007f]/.test(word);
+      const hasDiacritics = Array.from(word).some((ch) => ch.charCodeAt(0) > 0x7f);
       out.push({
         norm,
         surface: word.toLowerCase(),

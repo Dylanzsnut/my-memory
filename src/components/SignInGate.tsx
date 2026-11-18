@@ -65,8 +65,8 @@ export default function SignInGate({ language, onLanguageChange, onAuthenticated
         <button
           type="button"
           onClick={() => onLanguageChange(language === 'en' ? 'vi' : 'en')}
-          aria-label="Toggle language"
-          className="inline-flex items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
+          aria-label={t(language, 'ariaToggleLanguage')}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
         >
           <Languages size={14} /> {language}
         </button>

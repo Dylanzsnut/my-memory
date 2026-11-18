@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Fingerprint, Languages, LogOut, Trash2, User } from 'lucide-react';
+import { AlertTriangle, Fingerprint, Languages, LogOut, Trash2, User, X } from 'lucide-react';
 import type {
   AuthSession,
   CaptureRecord,
@@ -11,7 +11,7 @@ import type {
   Tab,
   TagGroupProposal,
 } from './types';
-import { settings } from './lib/config';
+import { isFirebaseConfigured, settings } from './lib/config';
 import {
   initFirebase,
   getServices,
@@ -81,6 +81,7 @@ export default function App() {
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
   const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
   const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const booted = useRef(false);
 
   const syncTagSuggestions = async (currentCaptures: CaptureRecord[], dismissed: string[]) => {
@@ -203,7 +204,10 @@ export default function App() {
     booted.current = true;
     (async () => {
       try {
-        await initFirebase();
+        const services = await initFirebase();
+        if (isFirebaseConfigured && services.error) {
+          setFirebaseError(services.error);
+        }
         const [savedGlobalLang, cachedSession] = await Promise.all([
           getMeta<Language>('language', 'en'),
           getMeta<AuthSession | null>('activeAuthSession', null),
@@ -216,6 +220,9 @@ export default function App() {
         }
       } catch (error) {
         console.error('[app] boot initialization failed', error);
+        if (isFirebaseConfigured) {
+          setFirebaseError(error instanceof Error ? error.message : String(error));
+        }
       } finally {
         setReady(true);
       }
@@ -618,8 +625,8 @@ export default function App() {
           <button
             type="button"
             onClick={() => changeLanguage(language === 'en' ? 'vi' : 'en')}
-            aria-label="Toggle language"
-            className="inline-flex items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
+            aria-label={t(language, 'ariaToggleLanguage')}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold uppercase text-ink2"
           >
             <Languages size={14} /> {language}
           </button>
@@ -629,8 +636,9 @@ export default function App() {
               setAccountMenuOpen((open) => !open);
               setDeleteAccountConfirm(false);
             }}
-            aria-label="Account menu"
-            className="inline-flex max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
+            aria-label={t(language, 'ariaAccountMenu')}
+            aria-expanded={accountMenuOpen}
+            className="inline-flex min-h-11 max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
           >
             <User size={13} className="shrink-0" />
             <span className="truncate">
@@ -649,7 +657,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => void handleSignOut()}
-                className="flex w-full items-center gap-2 rounded-xl bg-surface2 px-3 py-2 text-left text-[12px] font-semibold text-ink hover:bg-line/40"
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-surface2 px-3 py-2 text-left text-[12px] font-semibold text-ink hover:bg-line/40"
               >
                 <LogOut size={14} /> {t(language, 'signOut')}
               </button>
@@ -660,14 +668,14 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setDeleteAccountConfirm(false)}
-                      className="flex-1 rounded-full border border-line bg-canvas py-1 text-[11px] font-bold text-ink2"
+                      className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1 text-[11px] font-bold text-ink2"
                     >
                       {t(language, 'cancel')}
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleDeleteAccount()}
-                      className="flex-1 rounded-full bg-danger py-1 text-[11px] font-bold text-white"
+                      className="min-h-11 flex-1 rounded-full bg-danger py-1 text-[11px] font-bold text-white"
                     >
                       {t(language, 'deletePerm')}
                     </button>
@@ -677,7 +685,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setDeleteAccountConfirm(true)}
-                  className="flex w-full items-center gap-2 rounded-xl bg-danger-soft/50 px-3 py-2 text-left text-[12px] font-semibold text-danger hover:bg-danger-soft"
+                  className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-danger-soft/50 px-3 py-2 text-left text-[12px] font-semibold text-danger hover:bg-danger-soft"
                 >
                   <Trash2 size={14} /> {t(language, 'deleteAccount')}
                 </button>
@@ -688,6 +696,28 @@ export default function App() {
       </header>
 
       <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5">
+        {firebaseError && (
+          <div
+            role="alert"
+            className="mb-4 flex items-start justify-between gap-2 rounded-2xl border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-[12px] text-danger"
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-bold">{t(language, 'firebaseErrorTitle')}</p>
+                <p className="mt-0.5 text-[11px]">{firebaseError}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFirebaseError(null)}
+              aria-label={t(language, 'dismiss')}
+              className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full text-danger hover:bg-danger/10"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
         {tab === 'memories' && (
           <Memories
             captures={captures}

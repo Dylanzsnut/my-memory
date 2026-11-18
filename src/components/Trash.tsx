@@ -35,7 +35,8 @@ export default function Trash({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas px-3 py-1.5 text-[12px] font-semibold text-ink2 hover:border-accent"
+          aria-label={t(language, 'back')}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-canvas px-3.5 py-1.5 text-[12px] font-semibold text-ink2 hover:border-accent"
         >
           <ArrowLeft size={14} /> {t(language, 'back')}
         </button>
@@ -91,7 +92,7 @@ export default function Trash({
                       <button
                         type="button"
                         onClick={() => setConfirmingId(null)}
-                        className="flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
+                        className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
                       >
                         {t(language, 'cancel')}
                       </button>
@@ -101,7 +102,7 @@ export default function Trash({
                           setConfirmingId(null);
                           void onPermanentDelete(capture);
                         }}
-                        className="flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
+                        className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
                       >
                         {t(language, 'deletePerm')}
                       </button>
@@ -112,14 +113,14 @@ export default function Trash({
                     <button
                       type="button"
                       onClick={() => void onRestore(capture)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-teal-soft py-2 text-[11.5px] font-bold text-teal"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-teal-soft py-2 text-[11.5px] font-bold text-teal"
                     >
                       <RotateCcw size={13} /> {t(language, 'restore')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmingId(capture.id)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-danger/30 bg-danger-soft/60 py-2 text-[11.5px] font-bold text-danger"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-danger/30 bg-danger-soft/60 py-2 text-[11.5px] font-bold text-danger"
                     >
                       <Trash2 size={13} /> {t(language, 'deletePerm')}
                     </button>

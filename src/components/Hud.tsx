@@ -38,7 +38,13 @@ export default function Hud({ events, language, demoMode }: Props) {
 
   return (
     <div className="rounded-2xl border border-line bg-canvas p-3 shadow-sm">
-      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-2 text-left">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label={t(language, 'ariaToggleHud')}
+        className="flex min-h-11 w-full items-center justify-between gap-2 text-left"
+      >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse-dot rounded-full bg-teal" />
           <span className="text-xs font-bold uppercase tracking-wider text-ink2">{t(language, 'hud')}</span>

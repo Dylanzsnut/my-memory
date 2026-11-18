@@ -11,17 +11,7 @@ import {
   signOut as firebaseSignOut,
   type Auth,
 } from 'firebase/auth';
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  setDoc,
-  type Firestore,
-} from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
 import {
   getRemoteConfig,
   fetchAndActivate,
@@ -29,7 +19,7 @@ import {
   setLogLevel,
   type RemoteConfig,
 } from 'firebase/remote-config';
-import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
+import type { AI } from 'firebase/ai';
 import type { AuthSession, CaptureRecord } from '../types';
 import {
   enableFirestoreSync,
@@ -56,6 +46,12 @@ const services: Services = {
   ai: null,
   error: isFirebaseConfigured ? null : 'Firebase config missing — running in local demo mode.',
 };
+
+let firestoreSdkPromise: Promise<typeof import('firebase/firestore')> | null = null;
+
+function loadFirestoreSdk() {
+  return (firestoreSdkPromise ??= import('firebase/firestore'));
+}
 
 export function getServices(): Services {
   return services;
@@ -87,12 +83,18 @@ export async function initFirebase(): Promise<Services> {
     }
 
     services.auth = getAuth(app);
-    services.firestore = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    });
+    if (enableFirestoreSync) {
+      const { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } =
+        await loadFirestoreSdk();
+      services.firestore = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      });
+    }
 
+    // Lazy-load firebase/ai so offline/demo sessions avoid downloading AI SDK code upfront.
     // Generative models use 5-minute limited-use App Check tokens for replay
     // protection; without this flag those requests fail with HTTP 403.
+    const { getAI, GoogleAIBackend } = await import('firebase/ai');
     services.ai = getAI(app, {
       backend: new GoogleAIBackend(),
       useLimitedUseAppCheckTokens: true,
@@ -188,6 +190,7 @@ export async function syncCaptureMetadata(captures: CaptureRecord[], uid?: strin
   const firestore = services.firestore;
   if (!firestore) return;
   try {
+    const { doc, setDoc } = await loadFirestoreSdk();
     for (const capture of captures) {
       if (capture.demo) continue;
       await setDoc(doc(firestore, 'users', uid, 'captures', capture.id), {
@@ -213,6 +216,7 @@ export async function deleteCaptureMetadata(captureId: string, uid?: string): Pr
   const firestore = services.firestore;
   if (!firestore) return;
   try {
+    const { deleteDoc, doc } = await loadFirestoreSdk();
     await deleteDoc(doc(firestore, 'users', uid, 'captures', captureId));
   } catch (error) {
     console.warn('[firebase] metadata delete failed', error);
@@ -224,6 +228,7 @@ export async function deleteAllUserMetadata(uid: string, knownCaptureIds: string
   const firestore = services.firestore;
   if (!firestore) return;
   try {
+    const { collection, deleteDoc, doc, getDocs } = await loadFirestoreSdk();
     const colRef = collection(firestore, 'users', uid, 'captures');
     const snap = await getDocs(colRef).catch(() => null);
     const ids = new Set(knownCaptureIds);

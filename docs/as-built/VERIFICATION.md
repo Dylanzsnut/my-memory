@@ -1,23 +1,22 @@
 # Verification
 
-- Owner: Duy · Last verified: 2026-11-18 · Against HEAD: `d7aa8d2`
-- Build commands: `npm run typecheck && npm run build` (passed 2026-11-17)
-- Run log: not persisted in repo; command output was captured in the work session.
+- Owner: Duy · Last verified: 2026-11-18
+- Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`12` tests across `4` suites in `tests/core.test.ts`), `npm run build`
+- Live device / Console caveats: Automated unit and corpus tests verify local search, fail-closed claim verification, offline synthesis refusal, sensitive-entity detection, F1/F2/F4 forgetting + trash purge, auto-tagging, and JPEG EXIF parsing. Physical Chrome 139+ Nano 4 hardware behavior and Firebase Console configuration remain manual external checks.
 
 | Requirement | Component | Entity / Flow | Surface | Verified by |
 |---|---|---|---|---|
-| REQ-001 | CMP-001 | ENT-001 / FLOW-001 | UI-002 | UNVERIFIED — no test yet |
-| REQ-002 | CMP-003 | ENT-001 / FLOW-002 | UI-003 | UNVERIFIED — no test yet |
-| REQ-003 | CMP-004 | ENT-001 / FLOW-002 | UI-002 | UNVERIFIED — no offline run log |
-| REQ-004 | CMP-005 | ENT-002 / FLOW-003 | UI-004 | UNVERIFIED — no test yet |
-| REQ-005 | planned | ENT-001 | planned | UNVERIFIED — not implemented at HEAD |
-| REQ-006 | planned | new uid key | planned | UNVERIFIED — not implemented at HEAD |
-| REQ-007 | CMP-002, CMP-006 | FLOW-001, FLOW-002 | UI-006 | UNVERIFIED — no live smoke-test log |
+| REQ-001 | CMP-001 | ENT-001 / FLOW-001 | UI-002 | Verified (unit/EXIF): `parseExifDateTimeOriginal` tested in `tests/core.test.ts`; camera/multi-select UI compiled cleanly (`npm run build`). Physical mobile Chrome gallery import needs manual device test. |
+| REQ-002 | CMP-003 | ENT-001 / FLOW-002 | UI-003 | Verified (unit/corpus): `search.ts` & `embeddings.ts` stopwords, EN/VI synonym retrieval, and trashed exclusion pass in `tests/core.test.ts`. |
+| REQ-003 | CMP-004 | ENT-001 / FLOW-002 | UI-002 | Verified (offline guard): `answer.ts` & `ai.ts` fail-closed `verifyClaim`, 5 in-corpus + 5 out-of-corpus Not-found checks, and offline long-synthesis connection guard pass in `tests/core.test.ts`. |
+| REQ-004 | CMP-005 | ENT-002 / FLOW-003 | UI-004 | Verified (unit): F1 duplicate, F2 expired, F4 `protectedReason` exclusion (`scanForProposals`, `detectTextProtection`), and `applyDecision('keep')` pass in `tests/core.test.ts`. |
+| REQ-005 | CMP-005 | ENT-001 / FLOW-003 | UI-004, UI-007 | Verified (unit): `moveToTrash` and `purgeExpiredTrash` (`purgeAt`) pass in `tests/core.test.ts`; Trash & DetailSheet delete/restore UI compiles (`npm run build`). |
+| REQ-006 | CMP-007 | ownerUid partition | UI-001 | Verified (typecheck/lint/build): `SignInGate`, UID-partitioned IndexedDB (`store.ts`), and `/users/{uid}/captures/{captureId}` `firestore.rules` compile cleanly; Google provider Console sign-in & multi-user rule deployment need live Firebase project check. |
+| REQ-007 | CMP-002, CMP-006 | FLOW-001, FLOW-002 | UI-006 | UNVERIFIED on live hardware — Nano 4 extraction/answer and App Check token exchange require Chrome 139+ with flags and provisioned Firebase Console project. |
 
 ## Input coverage
 
-No `IN-xxx` evidence items are registered. Requirements derive from `README.md`,
-`plan/tasks.md` and the historical RFCs via the BRD.
+Automated corpus tests in `tests/core.test.ts` cover 5 EN/VI in-corpus questions, 5 out-of-corpus/trashed questions (`notFound: true`), whole-number and alphanumeric token verification, offline synthesis refusal, and sensitive-entity detection. The full 20-item manual field dataset in `docs/rfc/001-my-memory-csd.md` remains an external manual device evaluation.
 
 ## Process risks
 

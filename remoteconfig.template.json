@@ -1,0 +1,53 @@
+{
+  "parameters": {
+    "cloud_model": {
+      "defaultValue": {
+        "value": "gemini-3.8-flash"
+      },
+      "description": "Primary cloud synthesis model ID when cross-capture escalation runs.",
+      "valueType": "STRING"
+    },
+    "duplicate_threshold": {
+      "defaultValue": {
+        "value": "0.86"
+      },
+      "description": "Cosine similarity threshold for F1 duplicate forgetting proposals.",
+      "valueType": "NUMBER"
+    },
+    "retrieval_threshold": {
+      "defaultValue": {
+        "value": "0.28"
+      },
+      "description": "Minimum hybrid score required for local memory retrieval.",
+      "valueType": "NUMBER"
+    },
+    "trash_retention_days": {
+      "defaultValue": {
+        "value": "30"
+      },
+      "description": "Days before trashed captures are auto-purged past purgeAt.",
+      "valueType": "NUMBER"
+    },
+    "group_threshold_photo": {
+      "defaultValue": {
+        "value": "0.85"
+      },
+      "description": "Minimum embedding similarity for suggested tag groups across photos.",
+      "valueType": "NUMBER"
+    },
+    "group_threshold_voice": {
+      "defaultValue": {
+        "value": "0.85"
+      },
+      "description": "Minimum embedding similarity for suggested tag groups across voice memos.",
+      "valueType": "NUMBER"
+    },
+    "group_threshold_note": {
+      "defaultValue": {
+        "value": "0.85"
+      },
+      "description": "Minimum embedding similarity for suggested tag groups across text notes.",
+      "valueType": "NUMBER"
+    }
+  }
+}

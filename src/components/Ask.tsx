@@ -57,9 +57,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="font-serif text-[26px] font-bold tracking-tight">{t(language, 'ask')}</h1>
-        <p className="mt-1 text-[12px] text-ink2">
-          {language === 'vi' ? 'Hỏi bằng lời của bạn — nhận lại bằng chứng gốc.' : 'Ask in your own words — get the original back as proof.'}
-        </p>
+        <p className="mt-1 text-[12px] text-ink2">{t(language, 'askSubtitle')}</p>
       </div>
 
       <form
@@ -74,13 +72,14 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(language, 'askPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink3"
+          aria-label={t(language, 'askPlaceholder')}
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink3"
         />
         <button
           type="submit"
           disabled={busy || !query.trim()}
           aria-label={t(language, 'search')}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
         >
           <Sparkles size={16} />
         </button>
@@ -97,7 +96,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
                 setQuery(label);
                 submit(label);
               }}
-              className="rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
+              className="min-h-11 rounded-full border border-line2 bg-canvas px-3.5 py-2 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
             >
               {label}
             </button>
@@ -183,7 +182,12 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             })}
 
             <div className="flex items-center justify-between border-t border-line pt-3 text-[10.5px] text-ink3">
-              <span>{answer.latencyMs} ms · {!answer.notFound && answer.intent === 'long' ? 'cross-capture synthesis' : 'local lookup'}</span>
+              <span>
+                {answer.latencyMs} ms ·{' '}
+                {!answer.notFound && answer.intent === 'long'
+                  ? t(language, 'crossCaptureSynthesis')
+                  : t(language, 'localLookup')}
+              </span>
               <span className="inline-flex items-center gap-1">
                 <ShieldCheck size={12} className="text-teal" /> {t(language, 'zeroDeletions')}
               </span>
@@ -193,9 +197,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
       ) : (
         <div className="rounded-2xl border border-dashed border-line2 bg-canvas/50 px-5 py-10 text-center">
           <Sparkles size={26} className="mx-auto text-line2" />
-          <p className="mt-3 text-[13px] text-ink2">
-            {language === 'vi' ? 'Câu trả lời sẽ xuất hiện ở đây, kèm bản gốc.' : 'Answers appear here, with the original capture attached.'}
-          </p>
+          <p className="mt-3 text-[13px] text-ink2">{t(language, 'askEmptyHint')}</p>
         </div>
       )}
     </div>

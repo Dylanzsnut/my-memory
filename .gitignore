@@ -36,6 +36,7 @@ jspm_packages/
 dist/
 build/
 out/
+.test-dist/
 coverage/
 *.tsbuildinfo
 

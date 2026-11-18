@@ -26,7 +26,7 @@ export default function BottomNav({ active, onChange, language, reviewCount }: P
               key={id}
               type="button"
               onClick={() => onChange(id)}
-              className={`relative flex min-w-16 flex-col items-center gap-0.5 py-1 ${
+              className={`relative flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 py-1 ${
                 isActive ? 'text-accent' : 'text-ink2 hover:text-ink'
               }`}
             >
