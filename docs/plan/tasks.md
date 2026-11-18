@@ -130,6 +130,14 @@ disclosure text, submission copy) are intentionally out of scope.
 
 ## Documentation
 
+- [x] Expand `ARCHITECTURE.md` from the frozen CSD (`docs/rfc/001-my-memory-csd.md`):
+      extract topology, hybrid mode table, trust boundary, canonical flows,
+      failure modes and guardrails into the root index; cite REQ/INV/ADR IDs,
+      keep as-built docs authoritative, and do not convert design targets into
+      verified claims. Verify links and build, then mark done.
+      Note: expanded to 208 lines (under the ~800-line split trigger). All links
+      resolve, no CSD numeric targets were copied into the index, and
+      `npm run typecheck && npm run build` pass. AGENTS.md remains at 200 lines.
 - [x] Restructure `docs/` according to `docs/standards/documentation-playbook-v3.1.md`:
       move historical specs to `docs/rfc/`, create root `ARCHITECTURE.md` plus
       `docs/requirements/`, `docs/as-built/`, `docs/operations/`,
