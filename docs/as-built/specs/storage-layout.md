@@ -11,6 +11,7 @@
 | INV-301 | Originals are stored in IndexedDB, not Firestore | UNVERIFIED — no test yet |
 | INV-302 | Demo records are skipped by Firestore sync | UNVERIFIED — no test yet |
 | INV-303 | A sync failure never blocks a capture | UNVERIFIED — no test yet |
+| INV-304 | Only `DateTimeOriginal` (`0x9003`) is read from EXIF (`src/lib/exif.ts`); GPS and device-identifying EXIF fields are never stored or synced | UNVERIFIED — no test yet |
 
 ## 2. Layout
 

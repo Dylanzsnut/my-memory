@@ -100,6 +100,7 @@ export interface ExtractionRequest {
   imageDataUrl?: string;
   audioBlob?: Blob;
   audioMimeType?: string;
+  capturedAt?: string;
 }
 
 export interface ExtractionResult {

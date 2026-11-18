@@ -4,11 +4,11 @@
 
 ## REQ-001 — Zero-effort multi-type capture
 
-- Statement: A signed-in user can create a photo, voice or note capture without naming or filing it.
+- Statement: A signed-in user can create a photo (via camera or multi-select gallery import), voice or note capture without naming or filing it.
 - Type: functional · Priority: must
 - Source: OUT-1
-- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears.
-- Implemented by: `src/components/Memories.tsx`, `src/lib/ai.ts`
+- Acceptance: one action creates a `CaptureRecord` (or sequential batch queue for multi-select import with visible progress); no folder/tag/title prompt appears; photo imports derive `capturedAt` from EXIF `DateTimeOriginal` → `file.lastModified` → import time without storing GPS or device-identifying EXIF fields (`INV-304`).
+- Implemented by: `src/components/Memories.tsx`, `src/lib/exif.ts`, `src/lib/ai.ts`
 - Verified by: UNVERIFIED — no test yet
 
 ## REQ-002 — Cited answer or refusal

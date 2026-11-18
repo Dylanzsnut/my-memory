@@ -37,7 +37,12 @@ export function scanForProposals(
     let best: { other: CaptureRecord; score: number } | null = null;
     for (const other of candidates) {
       if (other.id === capture.id) continue;
-      if (other.capturedAt >= capture.capturedAt) continue;
+      if (
+        other.capturedAt > capture.capturedAt ||
+        (other.capturedAt === capture.capturedAt && other.id >= capture.id)
+      ) {
+        continue;
+      }
       if (other.type !== capture.type) continue;
       const score = cosine(capture.embedding, other.embedding);
       if (score >= duplicateThreshold && (!best || score > best.score)) best = { other, score };

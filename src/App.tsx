@@ -135,7 +135,7 @@ export default function App() {
       const capture: CaptureRecord = {
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         type: request.type,
-        capturedAt: new Date().toISOString(),
+        capturedAt: request.capturedAt || new Date().toISOString(),
         summary: unextracted ? fallbackNoteSummary : extraction?.summary || 'Capture',
         entities: extraction?.entities || [],
         expiryDate: extraction?.expiryDate || null,

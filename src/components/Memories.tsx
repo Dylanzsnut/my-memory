@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, Image, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
+import { Camera, CheckCircle2, Image, Images, Lock, Mic, NotepadText, ShieldCheck, X } from 'lucide-react';
 import type { CaptureRecord, CaptureType, ExtractionRequest, Language } from '../types';
+import { extractPhotoCapturedAt } from '../lib/exif';
 import { t } from '../lib/i18n';
 import { SourceBadge } from './Hud';
 
@@ -37,8 +38,28 @@ interface VoiceDraft {
   error?: string;
 }
 
+interface ImportProgress {
+  active: boolean;
+  done: number;
+  total: number;
+  failed: number;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Unexpected non-string FileReader result'));
+    };
+    reader.onerror = () => reject(reader.error || new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Memories({ captures, language, onCapture, onOpenDetail, busy }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -50,6 +71,7 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
   const [recording, setRecording] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
   const [voiceText, setVoiceText] = useState('');
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -81,19 +103,45 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
     };
   }, []);
 
-  const handleFile = (file?: File) => {
-    if (!file || busy) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return;
-      void onCapture({ type: 'photo', imageDataUrl: reader.result }).catch((err) => {
+  const handlePhotoBatch = async (files: FileList | null) => {
+    if (!files?.length || busy || importProgress?.active) return;
+    const queue = Array.from(files);
+    if (queue.length === 1) {
+      try {
+        const [imageDataUrl, capturedAt] = await Promise.all([
+          readFileAsDataUrl(queue[0]),
+          extractPhotoCapturedAt(queue[0]),
+        ]);
+        await onCapture({ type: 'photo', imageDataUrl, capturedAt });
+      } catch (err) {
         console.warn('[memories] photo capture failed', err);
-      });
-    };
-    reader.onerror = () => {
-      console.warn('[memories] failed to read image file', reader.error);
-    };
-    reader.readAsDataURL(file);
+        if (mountedRef.current) {
+          setImportProgress({ active: false, done: 1, total: 1, failed: 1 });
+        }
+      }
+      return;
+    }
+
+    let failed = 0;
+    setImportProgress({ active: true, done: 0, total: queue.length, failed: 0 });
+    for (let i = 0; i < queue.length; i++) {
+      try {
+        const [imageDataUrl, capturedAt] = await Promise.all([
+          readFileAsDataUrl(queue[i]),
+          extractPhotoCapturedAt(queue[i]),
+        ]);
+        await onCapture({ type: 'photo', imageDataUrl, capturedAt });
+      } catch (err) {
+        failed += 1;
+        console.warn('[memories] gallery import item failed', err);
+      }
+      if (mountedRef.current) {
+        setImportProgress({ active: i + 1 < queue.length, done: i + 1, total: queue.length, failed });
+      }
+    }
+    if (mountedRef.current && failed === 0) {
+      setImportProgress(null);
+    }
   };
 
   const toggleRecording = async () => {
@@ -192,24 +240,32 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
         </span>
       </div>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
+      <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent-soft py-2.5 text-[12px] font-bold text-accent active:scale-95 disabled:opacity-50"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={busy || Boolean(importProgress?.active)}
+          className="inline-flex items-center justify-center gap-1 rounded-xl bg-accent-soft px-2 py-2.5 text-[11.5px] font-bold text-accent active:scale-95 disabled:opacity-50"
         >
-          <Camera size={16} /> {t(language, 'snap')}
+          <Camera size={15} /> {t(language, 'snap')}
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          disabled={busy || Boolean(importProgress?.active)}
+          className="inline-flex items-center justify-center gap-1 rounded-xl bg-accent-soft/60 px-2 py-2.5 text-[11.5px] font-bold text-accent active:scale-95 disabled:opacity-50"
+        >
+          <Images size={15} /> {t(language, 'importPhotos')}
         </button>
         <button
           type="button"
           onClick={toggleRecording}
-          disabled={busy && !recording}
-          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold active:scale-95 disabled:opacity-50 ${
+          disabled={(busy || Boolean(importProgress?.active)) && !recording}
+          className={`inline-flex items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[11.5px] font-bold active:scale-95 disabled:opacity-50 ${
             recording ? 'bg-danger-soft text-danger' : 'bg-teal-soft text-teal'
           }`}
         >
-          <Mic size={16} /> {recording ? t(language, 'recording') : t(language, 'record')}
+          <Mic size={15} /> {recording ? t(language, 'recording') : t(language, 'record')}
         </button>
         <button
           type="button"
@@ -217,22 +273,53 @@ export default function Memories({ captures, language, onCapture, onOpenDetail, 
             if (!noteOpen) clearDraft();
             setNoteOpen(!noteOpen);
           }}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-soft py-2.5 text-[12px] font-bold text-gold active:scale-95"
+          className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold-soft px-2 py-2.5 text-[11.5px] font-bold text-gold active:scale-95"
         >
-          <NotepadText size={16} /> {t(language, 'note')}
+          <NotepadText size={15} /> {t(language, 'note')}
         </button>
         <input
-          ref={fileRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
           className="hidden"
           onChange={(e) => {
-            handleFile(e.target.files?.[0]);
+            void handlePhotoBatch(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void handlePhotoBatch(e.target.files);
             e.target.value = '';
           }}
         />
       </div>
+
+      {importProgress && (
+        <div className="flex items-center justify-between rounded-xl border border-line bg-surface2 px-3 py-2 text-[11.5px]">
+          <span className={importProgress.failed > 0 && !importProgress.active ? 'font-semibold text-danger' : 'font-semibold text-ink2'}>
+            {importProgress.active
+              ? t(language, 'importingPhotos', { done: importProgress.done, total: importProgress.total })
+              : t(language, 'importFailed', { n: importProgress.failed })}
+          </span>
+          {!importProgress.active && (
+            <button
+              type="button"
+              onClick={() => setImportProgress(null)}
+              aria-label={t(language, 'cancel')}
+              className="text-ink3 hover:text-ink"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
 
       {voiceDraft && (
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">

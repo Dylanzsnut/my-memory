@@ -179,24 +179,26 @@ capture="environment">` — `capture="environment"` forces the camera on mobile,
 single file only, and `capturedAt` is the import time. Target: gallery import
 with correct dates, without weakening the privacy boundary.
 
-- [ ] Split the capture control into "Take photo" (`capture="environment"`) and
+- [x] Split the capture control into "Take photo" (`capture="environment"`) and
       "Import photos" (no `capture` attribute) so mobile opens the gallery and
       desktop opens the file picker.
-- [ ] Multi-select import: accept multiple files, queue one on-device extraction
+- [x] Multi-select import: accept multiple files, queue one on-device extraction
       per image with visible progress; a failed item keeps its original and
       shows an error state instead of dropping it.
-- [ ] Set `capturedAt` from EXIF `DateTimeOriginal` when present, falling back
+- [x] Set `capturedAt` from EXIF `DateTimeOriginal` when present, falling back
       to `file.lastModified` then import time; document the derivation in
       `docs/DATA.md` §2.1 and keep the `by-date` index consistent.
-- [ ] Privacy: read only `DateTimeOriginal` from EXIF; never store or sync GPS,
+- [x] Privacy: read only `DateTimeOriginal` from EXIF; never store or sync GPS,
       device serial or other EXIF fields. Add this as a storage invariant
       (`INV-3xx` in `docs/as-built/specs/storage-layout.md`).
-- [ ] Duplicates from batch import stay handled by `F1` proposals (earlier
+- [x] Duplicates from batch import stay handled by `F1` proposals (earlier
       capture is never the proposed one).
-- [ ] Update `REQ-001` acceptance criteria in `docs/requirements/req-web-app.md`
+- [x] Update `REQ-001` acceptance criteria in `docs/requirements/req-web-app.md`
       for camera + gallery import and multi-select.
 - [ ] Verify in mobile Chrome: gallery import, multi-select order and dates,
       EXIF fallback chain, no GPS/device fields in IndexedDB or Firestore.
+      Note: code and `npm run typecheck && npm run build` verified; physical
+      mobile Chrome gallery picker requires manual device check.
 
 ## Tags & suggested groups
 
