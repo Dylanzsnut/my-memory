@@ -6,7 +6,8 @@ import with EXIF dates and a user-owned tag layer (with embedding-based tag
 suggestions — design in `docs/rfc/003-auto-tagging-flow.md`) are in scope and
 tracked in their own sections below. All hackathon submission tasks (Android
 scope, demo video, judge instructions, disclosure text, submission copy) are
-intentionally out of scope.
+intentionally out of scope. Housekeeping — git commit/push and similar chores —
+is not logged here as tasks.
 
 ## Design decisions (defaults — change before implementation if needed)
 
@@ -61,13 +62,6 @@ intentionally out of scope.
       surfaced inference errors in the HUD (`error` on `AnswerResult`), real
       `trashedAt` plus separate `purgeAt`, no remote font requests, and corrected
       README / `WEB_SETUP.md` / `.env.example`.
-- [ ] Commit the current uncommitted changes (7 files at last check): new
-      `docs/DATA.md` (data design), new `docs/rfc/003-auto-tagging-flow.md`
-      (agreed tagging design), the `docs/specs/` zone retired the same day it
-      was created, plan updates (auth modes / import / tags / immediate delete
-      task groups and design decisions), `docs/README.md` zone map,
-      `docs/ARCHITECTURE.md` related docs, `docs/as-built/DATA.md` design-layer
-      pointer, and the two `AGENTS.md` zone rewordings.
 - [ ] Rebuild and redeploy Hosting from the new commit.
 - [x] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
       answer never renders with the "Verified from your capture" banner.
