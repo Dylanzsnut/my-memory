@@ -10,7 +10,7 @@
 | ID | Name | Route / trigger | Target viewport | Input |
 |---|---|---|---|---|
 | UI-001 | Onboarding | first run | mobile PWA, max-w-lg | touch |
-| UI-002 | Memories | tab `memories` | mobile PWA | file input, mic, textarea |
+| UI-002 | Memories | tab `memories` | mobile PWA | file input, mic, textarea, group chips, group edit controls |
 | UI-003 | Ask | tab `ask` | mobile PWA | text input, chips |
 | UI-004 | Forget | tab `forget` | mobile PWA | touch decisions |
 | UI-005 | Memory detail sheet | tap a capture | overlay sheet | touch |
@@ -28,6 +28,14 @@
 | UI-005 | n/a | n/a | extracted facts + original | n/a | n/a |
 | UI-006 | `—` | n/a | latency + source counters | SIMULATED counter shown separately | shows error detail |
 | UI-007 | n/a | n/a | auto-dismiss planned | n/a | n/a |
+
+UI-002 primary axis is now local-only **embedding groups** (`ENT-005`): each
+group shows an Auto/Custom badge, rename / split / delete-group actions, and a
+per-card "Move to…" selector. Today/Yesterday/Older are date *filter chips*,
+not group buckets; captures outside all groups appear under "Ungrouped".
+Deleting a group never deletes its captures (Verified: unit tests in
+`tests/core.test.ts`). Auto re-clustering skips manual groups and captures with
+`manualGroupLock`, so user edits survive recompute.
 
 Auto-dismiss for UI-007 is a known limit at HEAD; see `Known Limits` below.
 

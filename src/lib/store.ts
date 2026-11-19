@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { CaptureRecord, ForgetProposal, HudEvent, Language } from '../types';
+import type { CaptureRecord, ForgetProposal, HudEvent, Language, MemoryGroup } from '../types';
 import { embed } from './embeddings';
 import { SEED_DEMO } from './config';
 
@@ -8,18 +8,25 @@ interface MemoryDB extends DBSchema {
   proposals: { key: string; value: ForgetProposal };
   hud: { key: string; value: HudEvent };
   meta: { key: string; value: { key: string; value: unknown } };
+  groups: { key: string; value: MemoryGroup };
 }
 
 let dbPromise: Promise<IDBPDatabase<MemoryDB>> | null = null;
 
 function db(): Promise<IDBPDatabase<MemoryDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<MemoryDB>('my-memory', 1, {
-      upgrade(database) {
-        database.createObjectStore('captures', { keyPath: 'id' }).createIndex('by-date', 'capturedAt');
-        database.createObjectStore('proposals', { keyPath: 'id' });
-        database.createObjectStore('hud', { keyPath: 'id' });
-        database.createObjectStore('meta', { keyPath: 'key' });
+    dbPromise = openDB<MemoryDB>('my-memory', 2, {
+      upgrade(database, oldVersion) {
+        if (oldVersion < 1) {
+          database.createObjectStore('captures', { keyPath: 'id' }).createIndex('by-date', 'capturedAt');
+          database.createObjectStore('proposals', { keyPath: 'id' });
+          database.createObjectStore('hud', { keyPath: 'id' });
+          database.createObjectStore('meta', { keyPath: 'key' });
+        }
+        // v2: additive only — never touch existing captures/originals.
+        if (oldVersion < 2 && !database.objectStoreNames.contains('groups')) {
+          database.createObjectStore('groups', { keyPath: 'id' });
+        }
       },
     });
   }
@@ -68,6 +75,21 @@ export async function clearProposals(): Promise<void> {
   await (await db()).clear('proposals');
 }
 
+export async function getGroups(uid?: string): Promise<MemoryGroup[]> {
+  const all = await (await db()).getAll('groups');
+  return (uid ? all.filter((g) => belongsToOwner(g.ownerUid, uid)) : all).sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  );
+}
+
+export async function saveGroup(group: MemoryGroup): Promise<void> {
+  await (await db()).put('groups', group);
+}
+
+export async function deleteGroup(id: string): Promise<void> {
+  await (await db()).delete('groups', id);
+}
+
 export async function addHudEvent(event: HudEvent): Promise<void> {
   await (await db()).put('hud', event);
   const all = await (await db()).getAll('hud');
@@ -106,10 +128,11 @@ export async function setUserMeta(uid: string, key: string, value: unknown): Pro
 export async function cleanupDemoRecordsForUser(uid: string): Promise<void> {
   if (!uid || uid === DEMO_UID) return;
   const database = await db();
-  const [captures, proposals, hud] = await Promise.all([
+  const [captures, proposals, hud, groups] = await Promise.all([
     database.getAll('captures'),
     database.getAll('proposals'),
     database.getAll('hud'),
+    database.getAll('groups'),
   ]);
   const demoCaptureIds = new Set(
     captures
@@ -132,15 +155,21 @@ export async function cleanupDemoRecordsForUser(uid: string): Promise<void> {
       await database.delete('hud', e.id);
     }
   }
+  // Demo groups use the demo uid (or no uid in legacy records); never leak them
+  // into a real account.
+  for (const g of groups) {
+    if (!g.ownerUid || g.ownerUid === DEMO_UID) await database.delete('groups', g.id);
+  }
 }
 
 export async function deleteUserAccountData(uid: string): Promise<string[]> {
   const database = await db();
-  const [captures, proposals, hud, metaRows] = await Promise.all([
+  const [captures, proposals, hud, metaRows, groups] = await Promise.all([
     database.getAll('captures'),
     database.getAll('proposals'),
     database.getAll('hud'),
     database.getAll('meta'),
+    database.getAll('groups'),
   ]);
   const deletedCaptureIds: string[] = [];
   for (const c of captures) {
@@ -157,6 +186,11 @@ export async function deleteUserAccountData(uid: string): Promise<string[]> {
   for (const e of hud) {
     if (belongsToOwner(e.ownerUid, uid)) {
       await database.delete('hud', e.id);
+    }
+  }
+  for (const g of groups) {
+    if (belongsToOwner(g.ownerUid, uid)) {
+      await database.delete('groups', g.id);
     }
   }
   const prefix = `${uid}::`;

@@ -11,10 +11,11 @@ is not logged here as tasks.
 
 ## Design decisions (defaults — change before implementation if needed)
 
-- **Implementation order (default):** Import & capture sources *(done)* → Tags
-  & suggested groups → Groups: editable embedding groups → Manual memory
-  deletion; auth and console items run when the console or Firebase Auth is
-  available. Change here if priorities shift.
+- **Implementation order (default):** Groups: editable embedding groups (the
+  only remaining feature group; Import, Tags, Auth modes, Manual delete, P1 and
+  P2 code are complete). Console/live-verification items run in parallel when
+  Firebase Console or a mobile Chrome device is available. Change here if
+  priorities shift.
 - **Groups:** embedding groups replace the fixed Today/Yesterday/Older buckets
   as the primary axis of `Memories`; date becomes a filter/sort, not a group key.
   Groups are local-only (never synced) and user-editable: **Split** means select
@@ -54,9 +55,10 @@ is not logged here as tasks.
   memory loads. Demo data stays partitioned from real accounts and is never
   synced to Firestore (INV-302). This supersedes the earlier "dev builds only"
   default.
-- **Firestore sync:** off by default (`VITE_ENABLE_FIRESTORE_SYNC=false`). The
-  shipped rules deny all access; sync stays off until Firebase Auth and the
-  per-user rules template are active. No data leaves the device by default.
+- **Firestore sync:** off by default (`VITE_ENABLE_FIRESTORE_SYNC=false`).
+  `firestore.rules` enforces per-user `/users/{uid}/captures/{captureId}`
+  metadata-only rules in the repo (pending `firebase deploy --only
+  firestore:rules`). No data leaves the device by default.
 - **Ask-about-this-capture suggestions (owner decision 2026-11-18):** the three
   fixed questions in `DetailSheet` are a template; suggestions are instead
   derived from the capture's own fields (`type`, `expiryDate`, `entities`,
@@ -279,41 +281,99 @@ Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 Scope: `Memories.tsx` currently builds three fixed buckets from `capturedAt`
 (`dayGroup()` → Today / Yesterday / Older) on every render; nothing is persisted
 or editable (owner report 2026-11-18). Target: embedding groups are the primary
-axis of Memories, date is only a filter/sort, and groups are local-only and
-user-editable. Extends the Groups section of `docs/rfc/003-auto-tagging-flow.md`.
+axis of `Memories`, date is only a filter/sort, and groups are local-only
+(never synced) and user-editable. Extends `docs/rfc/003-auto-tagging-flow.md`.
 
-- [ ] Define a persisted group model: new `groups` store (id, name, createdAt)
-      plus membership (group holds capture ids, or captures hold `groupIds`).
-      Add ENT-005 to `docs/DATA.md`. Groups are local-only and never enter the
-      Firestore allowlist.
-- [ ] Bump IndexedDB to v2 with an additive upgrade (new store + optional
-      membership field). No migration may delete or rewrite an original; follow
-      `docs/DATA.md` §11 and record the bump in `docs/as-built/DATA.md` §5.
-- [ ] Replace `dayGroup()` bucketing in `Memories.tsx` with embedding groups as
-      the primary view. Keep Today/Yesterday/Older only as filter/sort chips,
-      never as the group key.
-- [ ] Auto-create groups locally from captures using the RFC 003 grouping rules
-      (per-type thresholds, higher threshold for cross-type pairs, min group
-      size 2). Grouping organises captures; it is **not** a tag claim — tag
-      suggestions still require Accept as in RFC 003.
-- [ ] **Split:** select captures inside a group → "Split into new group" → name
-      it → move the selection into the new group. The original group stays.
-- [ ] Edit a group: rename, add/remove members (move between groups), delete a
-      group. Deleting a group never deletes its captures — they return to
-      ungrouped / the date-filtered view.
-- [ ] Manual overrides outlive recompute: store explicit membership; auto-group
-      only captures the user has not manually assigned. Re-running generation
-      must not undo a split or an edit.
-- [ ] Integrate with RFC 003: Accepting a suggested tag may promote its group
-      to a named group; Dismiss creates nothing. Add a **dated amendment** note
-      to the frozen RFC, never a silent body edit.
-- [ ] i18n EN/VI for group labels, split/rename/delete actions and the
-      "ungrouped" state; update `docs/as-built/DESIGN.md` for the new UI.
-- [ ] Update `REQ-001` / `REQ-003` acceptance criteria for editable, local-only
-      groups and date-as-filter.
-- [ ] Verify: groups persist across reloads; split/edit survive regeneration;
-      deleting a group keeps its captures; no group data appears in any
-      Firestore write; `npm run typecheck && npm run build` pass.
+### Phase 1 — Data model & IndexedDB v2
+- [x] Types (`src/types.ts`): add `MemoryGroup` (`id`, `name`, `captureIds`,
+      `source: 'auto' | 'manual'`, `createdAt`, `updatedAt`, `ownerUid?`) and
+      optional `manualGroupLock?: boolean` (or explicit membership tracking) so
+      user edits survive recompute. Keep `CaptureRecord` originals untouched.
+- [x] IndexedDB v2 migration (`src/lib/store.ts`): bump `my-memory` DB version
+      from `1` to `2` with an additive `upgrade` that creates object store
+      `groups` (`keyPath: 'id'`); never touch existing `captures` originals.
+- [x] Store CRUD & UID partitioning (`src/lib/store.ts`): add `getGroups(uid)`,
+      `saveGroup(group)`, `deleteGroup(id)` scoped by `ownerUid` (same
+      `belongsToOwner` boundary as captures/proposals). Update
+      `cleanupDemoRecordsForUser(uid)` and `deleteUserLocalData(uid)` so demo
+      cleanup and account deletion also remove scoped groups.
+- [x] Firestore privacy guard (`src/lib/firebase.ts`, `firestore.rules`):
+      verify no group field or `groups` store is ever read or written by
+      `syncCaptureMetadata`; keep `groups` 100% local-only.
+
+### Phase 2 — Pure grouping & edit engine (`src/lib/groups.ts`)
+- [x] Extract shared clustering helpers from `src/lib/tags.ts` (reuse
+      `pairGroupThreshold` and `deriveGroupLabel`) so embedding clustering has
+      one implementation across tag proposals and editable groups.
+- [x] Auto-group generator (`reconcileAutoGroups` in `src/lib/groups.ts`):
+      cluster non-trashed captures not locked by manual assignment using RFC 003
+      per-type thresholds (cross-type pairs use the higher threshold, min size
+      2); preserve all `manual` groups and locked memberships verbatim; return
+      reconciled groups + ungrouped capture IDs. Grouping never writes `tags`.
+- [x] Pure edit helpers (`src/lib/groups.ts`): implement `splitGroup(group,
+      selectedIds, newName)`, `renameGroup(group, newName)`,
+      `moveCaptureToGroup(groups, captureId, targetGroupId | null)`, and
+      `removeGroup(groups, groupId)` (deleting a group returns its captures to
+      ungrouped and never deletes or trashes any capture).
+
+### Phase 3 — App state & RFC 003 integration (`src/App.tsx`)
+- [x] Load & reconcile groups in `App.tsx`: load `getGroups(session.uid)` on
+      boot/session switch, run `reconcileAutoGroups` when captures change
+      (capture added, trashed, restored, or permanently deleted), and persist
+      updated groups to IndexedDB.
+- [x] Wire group edit handlers in `App.tsx`: `handleSplitGroup`,
+      `handleRenameGroup`, `handleMoveToGroup`, `handleDeleteGroup` (persisting
+      manual lock so future recomputes never undo user edits).
+- [x] RFC 003 promotion hook: when accepting a `TagGroupProposal`, optionally
+      promote/name the corresponding group using the accepted label; Dismiss
+      creates no group.
+
+### Phase 4 — Memories UI (`src/components/Memories.tsx`, `src/lib/i18n.ts`)
+- [x] Replace `dayGroup()` bucketing in `Memories.tsx`: render persisted
+      embedding groups as the primary list, plus an "Ungrouped" section for
+      singletons / ungrouped captures.
+- [x] Date filter/sort chips: replace the old date buckets with filter chips
+      (`All` / `Today` / `Yesterday` / `Older`) that filter captures inside
+      groups without changing group membership, alongside existing tag chips.
+- [x] Group card header & inline rename/delete: each group header shows its
+      name, member count, an `Auto`/`Custom` badge, inline rename, and a delete
+      group button (with clear copy that captures are kept).
+- [x] **Split** flow UI: "Split" action on a group enters multi-select mode on
+      that group's captures, prompts for the new group name, and moves the
+      selected captures into the new group while keeping the original group.
+- [x] Move / add / remove member UI: allow moving a capture to another group or
+      removing it from a group (back to Ungrouped) from the group card or
+      `DetailSheet`.
+- [x] i18n EN/VI (`src/lib/i18n.ts`): add all strings for groups, Ungrouped,
+      date filter chips, Split, Rename, Move, Delete group (keeps captures),
+      and empty states; ensure `min-h-11` touch targets and `aria-label`s.
+
+### Phase 5 — Tests & documentation
+- [x] Unit tests (`tests/core.test.ts`): test `reconcileAutoGroups` (per-type &
+      cross-type thresholds, trashed excluded, manual overrides survive
+      recompute), `splitGroup`, `renameGroup`, `moveCaptureToGroup`, and
+      `removeGroup` (captures untouched).
+- [x] Docs update: add `ENT-005 MemoryGroup` and IndexedDB v2 migration to
+      `docs/DATA.md` and `docs/as-built/DATA.md`; add a **dated amendment** to
+      `docs/rfc/003-auto-tagging-flow.md` (no silent body edit); update
+      `docs/as-built/DESIGN.md`, `docs/requirements/req-web-app.md` (`REQ-001` /
+      `REQ-003`), and `docs/as-built/VERIFICATION.md`.
+- [x] Full automated verification: `npm run typecheck && npm run lint && npm test
+      && npm run build` pass (17 tests / 5 suites). `groups` CRUD is scoped by
+      `ownerUid`; `syncCaptureMetadata` writes only the C3 allowlist, so group
+      data never reaches Firestore.
+- [ ] Manual browser verification: groups persist across reloads; Split/Rename/
+      Move/Delete survive auto recompute; group UI works on a mobile viewport.
+      Note: not runnable in this environment — needs a live browser check.
+
+      Note (2026-11-19): implemented `src/lib/groups.ts` with shared clustering
+      from `src/lib/tags.ts` (`clusterCaptures`, `deriveGroupLabel`), IndexedDB
+      v2 `groups` store, `manualGroupLock`, App reconcile/edit handlers, RFC 003
+      Accept-promotion, and the full Memories UI (group cards, date filter
+      chips, Ungrouped, Split multi-select, per-card Move selector, EN/VI i18n,
+      `min-h-11`/`aria-label`). `dayGroup()` date buckets were removed as group
+      keys. Docs updated: `DATA.md` ENT-005 + v2, `as-built/DATA.md`, RFC 003
+      dated amendment, `DESIGN.md` UI-002, `REQ-001/003`, `VERIFICATION.md`.
 
 ## P1 — product quality
 

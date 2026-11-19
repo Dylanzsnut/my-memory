@@ -11,6 +11,13 @@ Everything below is `Claimed` design intent. Implementation truth will live in
 > dated amendments; after implementation, as-built truth lives in
 > `docs/as-built/specs/` and supersedes this file.
 
+> **Dated amendment — 2026-11-19:** the "Groups" section is now implemented as
+> *editable embedding groups* in `Memories` (`ENT-005`, IndexedDB v2). Date
+> buckets (Today/Yesterday/Older) became filter chips, not group keys. Groups
+> are local-only, never synced, and user-editable (rename / split / move /
+> delete-group-keeps-captures); manual overrides survive auto re-clustering.
+> This is an extension of the agreed design, not a silent body edit.
+
 - Owner: Duy
 - Created: 2026-11-18
 - Task group: `docs/plan/tasks.md` § Tags & suggested groups

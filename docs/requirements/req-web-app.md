@@ -7,9 +7,9 @@
 - Statement: A signed-in user can create a photo (via camera or multi-select gallery import), voice or note capture without naming or filing it.
 - Type: functional · Priority: must
 - Source: OUT-1
-- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears. A single **Photo** action opens the platform picker (camera or gallery/file) and accepts multiple images through a sequential batch queue with visible progress; it sets `capturedAt` from EXIF `DateTimeOriginal` → `file.lastModified` → import time and reads no other EXIF field (no GPS or device-identifying data, `INV-304`).
-- Implemented by: `src/components/Memories.tsx`, `src/lib/exif.ts`, `src/lib/ai.ts`
-- Verified by: UNVERIFIED — no test yet; gallery import and EXIF dates need manual check in mobile Chrome
+- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears. A single **Photo** action opens the platform picker (camera or gallery/file) and accepts multiple images through a sequential batch queue with visible progress; it sets `capturedAt` from EXIF `DateTimeOriginal` → `file.lastModified` → import time and reads no other EXIF field (no GPS or device-identifying data, `INV-304`). Captures may be organised into local-only editable groups (`ENT-005`): rename, split a selection into a new named group, move a capture, or delete a group while keeping all its captures; date is a filter, not a group key.
+- Implemented by: `src/components/Memories.tsx`, `src/lib/exif.ts`, `src/lib/groups.ts`, `src/lib/store.ts`, `src/lib/ai.ts`
+- Verified by: Verified (unit) for EXIF parsing and group edit helpers in `tests/core.test.ts`; physical mobile Chrome gallery import and group interactions still need a manual device check.
 
 ## REQ-002 — Cited answer or refusal
 
@@ -25,8 +25,8 @@
 - Statement: Capture, local search, user-owned tagging/grouping, and cached answers work after first load without a network connection.
 - Type: non-functional · Priority: must
 - Source: OUT-3, CON-2
-- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags` run locally and never leave the device (`INV-401`, `INV-402`).
-- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `src/lib/tags.ts`, `public/sw.js`
+- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags` and editable `MemoryGroup` records run locally and never leave the device (`INV-401`, `INV-402`); auto re-clustering never overwrites manual group edits.
+- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `src/lib/tags.ts`, `src/lib/groups.ts`, `public/sw.js`
 - Verified by: UNVERIFIED — no automated offline run yet
 
 ## REQ-004 — Human-controlled forgetting

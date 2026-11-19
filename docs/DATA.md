@@ -59,9 +59,13 @@ alone — they are excluded from the Firestore write path in
 | ENT-002 ForgetProposal | `id` | `src/lib/store.ts` | mutable state | created → decided(`approve` \| `keep`) |
 | ENT-003 HudEvent | `id` | `src/lib/store.ts` | append-only, capped | created → retained (max 60) → deleted |
 | ENT-004 Settings | `key` | `src/lib/store.ts` | mutable state | language / onboardingDone / auth mode / meta |
+| ENT-005 MemoryGroup | `id` | `src/lib/store.ts` | user-editable, local-only | auto-created → (rename/split/move → manual) → deleted (captures kept) |
 
-These four are the complete set at HEAD. A user/identity entity is *planned*
-(see §6); it does not exist in code yet.
+ENT-001…005 are the complete set at HEAD. Identity is carried by `ownerUid` on
+records rather than a separate user entity (see §6). `MemoryGroup` fields:
+`id`, `name`, `captureIds`, `source: 'auto' \| 'manual'`, `createdAt`,
+`updatedAt`, `ownerUid?`. A capture with `manualGroupLock` is skipped by auto
+reconciliation.
 
 ## 2.1 Attribute dictionary — ENT-001 Capture
 
@@ -161,14 +165,15 @@ created → (target deleted manually) → proposal closed (`decided: 'manual'`) 
 
 ### 4.1 IndexedDB (device, `src/lib/store.ts`)
 
-Database `my-memory`, version `1`, single writer (`Claimed`, `INV-301`).
+Database `my-memory`, version `2`, single writer (`Claimed`, `INV-301`).
 
 | Object store | Key | Key path | Index | Value | Notes |
 |---|---|---|---|---|---|
 | `captures` | `id` | `id` | `by-date` on `capturedAt` | `CaptureRecord` (incl. C1 blobs) | feed order, search corpus |
 | `proposals` | `id` | `id` | — | `ForgetProposal` | |
 | `hud` | `id` | `id` | — | `HudEvent` | trimmed above 60 entries |
-| `meta` | `key` | `key` | — | `{key, value}` | `language`, `onboardingDone`, planned `authMode`/`uid` |
+| `meta` | `key` | `key` | — | `{key, value}` | `language`, `onboardingDone`, `activeAuthSession`, `${uid}::*` settings |
+| `groups` | `id` | `id` | — | `MemoryGroup` | local-only; never synced to Firestore |
 
 Design consequences (all `Claimed`):
 
@@ -308,9 +313,10 @@ proposes, the human disposes (`F5`).
 
 ## 11. Schema evolution and migration policy
 
-Current state: IndexedDB version `1`, no migration code (`Claimed`).
+Current state: IndexedDB version `2` (v2 added the `groups` store additively;
+v1 records are untouched). `manualGroupLock` on captures defaults to absent.
 
-Rules for the first version bump (design intent, `Claimed`):
+Rules for future version bumps (design intent, `Claimed`):
 
 1. Bump the `openDB` version and add an `upgrade` handler; never write to stores
    before the upgrade completes.
@@ -322,9 +328,9 @@ Rules for the first version bump (design intent, `Claimed`):
 5. Record each migration in `docs/as-built/DATA.md` §5 with the version number
    and the class of data touched.
 
-Additive optional fields (`tags`, `suggestedTags`) follow rule 2 and must be
-read with a default of `[]` so pre-existing records stay valid. The planned
-`uid` partition (§6) is expected to be the first version bump.
+Additive optional fields (`tags`, `suggestedTags`, `manualGroupLock`, `ownerUid`)
+follow rule 2 and must be read with safe defaults so pre-existing records stay
+valid. Identity partitioning (§6) uses `ownerUid` in place of a version bump.
 
 ## 12. Data quality, correction and provenance
 

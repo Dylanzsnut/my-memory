@@ -8,6 +8,7 @@ import type {
   ForgetProposal,
   HudEvent,
   Language,
+  MemoryGroup,
   Tab,
   TagGroupProposal,
 } from './types';
@@ -27,14 +28,17 @@ import {
   addHudEvent,
   cleanupDemoRecordsForUser,
   deleteCapture,
+  deleteGroup,
   deleteProposal,
   deleteUserAccountData,
   getCaptures,
+  getGroups,
   getHudEvents,
   getMeta,
   getProposals,
   getUserMeta,
   saveCapture,
+  saveGroup,
   saveProposal,
   seedDemoCaptures,
   setMeta,
@@ -43,6 +47,13 @@ import {
 import { buildAnswer } from './lib/answer';
 import { applyDecision, moveToTrash, purgeExpiredTrash, scanForProposals } from './lib/forget';
 import { computeTagGroups, rebuildSearchText } from './lib/tags';
+import {
+  moveCaptureToGroup,
+  reconcileAutoGroups,
+  removeGroup,
+  renameGroup,
+  splitGroup,
+} from './lib/groups';
 import { t } from './lib/i18n';
 import Onboarding from './components/Onboarding';
 import SignInGate from './components/SignInGate';
@@ -80,9 +91,25 @@ export default function App() {
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
   const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
+  const [memoryGroups, setMemoryGroups] = useState<MemoryGroup[]>([]);
+  const activeUidRef = useRef<string | undefined>(undefined);
   const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const booted = useRef(false);
+
+  const syncMemoryGroups = async (currentCaptures: CaptureRecord[]) => {
+    const uid = activeUidRef.current;
+    const stored = await getGroups(uid);
+    const next = reconcileAutoGroups(currentCaptures, stored, settings, uid);
+    const keptIds = new Set(next.map((g) => g.id));
+    await Promise.all([
+      ...next.map((g) => saveGroup(g).catch((err) => console.warn('[store] saveGroup failed', err))),
+      ...stored
+        .filter((g) => !keptIds.has(g.id))
+        .map((g) => deleteGroup(g.id).catch((err) => console.warn('[store] deleteGroup failed', err))),
+    ]);
+    setMemoryGroups(next);
+  };
 
   const syncTagSuggestions = async (currentCaptures: CaptureRecord[], dismissed: string[]) => {
     const { groups, suggestedByCapture } = computeTagGroups(currentCaptures, settings, dismissed);
@@ -106,6 +133,7 @@ export default function App() {
     if (updatedCaptures.length) {
       setCaptures((prev) => prev.map((c) => updatedCaptures.find((u) => u.id === c.id) || c));
     }
+    await syncMemoryGroups(currentCaptures);
   };
 
   const log = (
@@ -131,6 +159,7 @@ export default function App() {
 
   const loadWorkspaceForSession = async (activeSession: AuthSession) => {
     const uid = activeSession.uid;
+    activeUidRef.current = uid;
     if (activeSession.mode === 'google') {
       await cleanupDemoRecordsForUser(uid);
     } else {
@@ -271,6 +300,8 @@ export default function App() {
     setProposals([]);
     setHudEvents([]);
     setTagGroups([]);
+    setMemoryGroups([]);
+    activeUidRef.current = undefined;
     setSelected(null);
     setToast(null);
   };
@@ -555,6 +586,21 @@ export default function App() {
     const nextCaptures = captures.map((c) => updatedMap.get(c.id) || c);
     setCaptures(nextCaptures);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
+
+    // RFC 003 promotion: accepting a suggested tag may name the matching
+    // auto group. Dismissal never creates a group.
+    const storedGroups = await getGroups(session?.uid);
+    const accepted = new Set(selectedIds);
+    const matching = storedGroups.find(
+      (g) => g.captureIds.length === accepted.size && g.captureIds.every((id) => accepted.has(id)),
+    );
+    if (matching) {
+      const promoted = renameGroup(matching, label);
+      if (promoted) {
+        await saveGroup(promoted);
+        setMemoryGroups((prev) => prev.map((g) => (g.id === promoted.id ? promoted : g)));
+      }
+    }
   };
 
   const handleDismissTagGroup = async (group: TagGroupProposal) => {
@@ -566,6 +612,65 @@ export default function App() {
       );
     }
     await syncTagSuggestions(captures, nextDismissed);
+  };
+
+  const handleSplitGroup = async (group: MemoryGroup, selectedIds: string[], name: string) => {
+    const result = splitGroup(group, selectedIds, name, session?.uid);
+    if (!result) return;
+    await Promise.all([saveGroup(result.source), saveGroup(result.split)]);
+    const picked = new Set(result.split.captureIds);
+    const nextCaptures = captures.map((c) => (picked.has(c.id) ? { ...c, manualGroupLock: true } : c));
+    await Promise.all(
+      nextCaptures.filter((c) => picked.has(c.id)).map((c) => saveCapture(c).catch((err) =>
+        console.warn('[store] saveCapture group lock failed', err),
+      )),
+    );
+    setCaptures(nextCaptures);
+    setMemoryGroups((prev) => prev.flatMap((g) => (g.id === group.id ? [result.source, result.split] : [g])));
+    setToast({ message: t(language, 'groupSplitDone') });
+  };
+
+  const handleRenameGroup = async (group: MemoryGroup, name: string) => {
+    const renamed = renameGroup(group, name);
+    if (!renamed) return;
+    await saveGroup(renamed);
+    setMemoryGroups((prev) => prev.map((g) => (g.id === group.id ? renamed : g)));
+  };
+
+  const handleMoveCaptureToGroup = async (captureId: string, targetGroupId: string | null) => {
+    const next = moveCaptureToGroup(memoryGroups, captureId, targetGroupId);
+    const keptIds = new Set(next.map((g) => g.id));
+    await Promise.all([
+      ...next.map((g) => saveGroup(g).catch((err) => console.warn('[store] saveGroup move failed', err))),
+      ...memoryGroups
+        .filter((g) => !keptIds.has(g.id))
+        .map((g) => deleteGroup(g.id).catch((err) => console.warn('[store] deleteGroup move failed', err))),
+    ]);
+    const capture = captures.find((c) => c.id === captureId);
+    if (capture) {
+      const updated: CaptureRecord = { ...capture, manualGroupLock: targetGroupId ? true : undefined };
+      await saveCapture(updated).catch((err) => console.warn('[store] saveCapture move lock failed', err));
+      setCaptures((prev) => prev.map((c) => (c.id === captureId ? updated : c)));
+    }
+    setMemoryGroups(next);
+  };
+
+  const handleDeleteGroup = async (group: MemoryGroup) => {
+    const groupId = group.id;
+    const next = removeGroup(memoryGroups, groupId);
+    await deleteGroup(groupId);
+    const ids = new Set(group.captureIds);
+    const nextCaptures = captures.map((c) =>
+      ids.has(c.id) && c.manualGroupLock ? { ...c, manualGroupLock: undefined } : c,
+    );
+    await Promise.all(
+      nextCaptures
+        .filter((c) => ids.has(c.id))
+        .map((c) => saveCapture(c).catch((err) => console.warn('[store] saveCapture unlock failed', err))),
+    );
+    setCaptures(nextCaptures);
+    setMemoryGroups(next);
+    setToast({ message: t(language, 'groupDeletedKeepsCaptures') });
   };
 
   const askAbout = (capture: CaptureRecord, question?: string) => {
@@ -737,6 +842,11 @@ export default function App() {
               setTab('trash');
             }}
             trashDays={settings.trashRetentionDays}
+            memoryGroups={memoryGroups}
+            onSplitGroup={handleSplitGroup}
+            onRenameGroup={handleRenameGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onMoveCaptureToGroup={handleMoveCaptureToGroup}
           />
         )}
         {tab === 'ask' && (

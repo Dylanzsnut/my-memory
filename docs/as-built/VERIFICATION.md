@@ -1,12 +1,13 @@
 # Verification
 
 - Owner: Duy · Last verified: 2026-11-18
-- Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`12` tests across `4` suites in `tests/core.test.ts`), `npm run build`
-- Live device / Console caveats: Automated unit and corpus tests verify local search, fail-closed claim verification, offline synthesis refusal, sensitive-entity detection, F1/F2/F4 forgetting + trash purge, auto-tagging, and JPEG EXIF parsing. Physical Chrome 139+ Nano 4 hardware behavior and Firebase Console configuration remain manual external checks.
+- Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`17` tests across `5` suites in `tests/core.test.ts`), `npm run build`
+- Live device / Console caveats: Automated unit and corpus tests verify local search, fail-closed claim verification, offline synthesis refusal, sensitive-entity detection, F1/F2/F4 forgetting + trash purge, auto-tagging, JPEG EXIF parsing, and editable embedding groups (reconcile/split/rename/move/remove). Physical Chrome 139+ Nano 4 hardware behavior, mobile gallery import, and Firebase Console configuration remain manual external checks.
 
 | Requirement | Component | Entity / Flow | Surface | Verified by |
 |---|---|---|---|---|
 | REQ-001 | CMP-001 | ENT-001 / FLOW-001 | UI-002 | Verified (unit/EXIF): `parseExifDateTimeOriginal` tested in `tests/core.test.ts`; camera/multi-select UI compiled cleanly (`npm run build`). Physical mobile Chrome gallery import needs manual device test. |
+| REQ-001/003 | CMP-001, CMP-004 | ENT-005 / group flows | UI-002 | Verified (unit): `reconcileAutoGroups`, `splitGroup`, `renameGroup`, `moveCaptureToGroup`, and `removeGroup` pass in `tests/core.test.ts`; manual edits survive recompute, trashed captures stay ungrouped, and group deletion never removes captures. Physical UI check pending. |
 | REQ-002 | CMP-003 | ENT-001 / FLOW-002 | UI-003 | Verified (unit/corpus): `search.ts` & `embeddings.ts` stopwords, EN/VI synonym retrieval, and trashed exclusion pass in `tests/core.test.ts`. |
 | REQ-003 | CMP-004 | ENT-001 / FLOW-002 | UI-002 | Verified (offline guard): `answer.ts` & `ai.ts` fail-closed `verifyClaim`, 5 in-corpus + 5 out-of-corpus Not-found checks, and offline long-synthesis connection guard pass in `tests/core.test.ts`. |
 | REQ-004 | CMP-005 | ENT-002 / FLOW-003 | UI-004 | Verified (unit): F1 duplicate, F2 expired, F4 `protectedReason` exclusion (`scanForProposals`, `detectTextProtection`), and `applyDecision('keep')` pass in `tests/core.test.ts`. |

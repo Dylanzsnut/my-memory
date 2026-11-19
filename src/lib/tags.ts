@@ -81,7 +81,7 @@ function extractCandidateTokens(capture: CaptureRecord): CandidateToken[] {
   return out;
 }
 
-function deriveGroupLabel(members: CaptureRecord[]): string | null {
+export function deriveGroupLabel(members: CaptureRecord[]): string | null {
   const sensitiveTokens = new Set<string>();
   for (const member of members) {
     if (!isSensitiveCapture(member)) continue;
@@ -122,13 +122,18 @@ function deriveGroupLabel(members: CaptureRecord[]): string | null {
   return preferredForm.slice(0, 32);
 }
 
-export function computeTagGroups(
+export interface CaptureCluster {
+  captureIds: string[];
+  meanSimilarity: number;
+}
+
+/** Shared embedding clustering (connected components, min size 2), used by tag
+ * proposals and by editable memory groups. Trashed captures are excluded. */
+export function clusterCaptures(
   captures: CaptureRecord[],
   thresholds: Pick<AppSettings, 'groupThresholdPhoto' | 'groupThresholdVoice' | 'groupThresholdNote'>,
-  dismissedFingerprints: string[] = [],
-): { groups: TagGroupProposal[]; suggestedByCapture: Map<string, string[]> } {
+): CaptureCluster[] {
   const eligible = captures.filter((c) => c.retentionState !== 'trashed');
-  const dismissed = new Set(dismissedFingerprints);
   const adj = new Map<string, { id: string; score: number }[]>();
 
   for (let i = 0; i < eligible.length; i++) {
@@ -144,11 +149,8 @@ export function computeTagGroups(
     }
   }
 
-  const byId = new Map(eligible.map((c) => [c.id, c]));
   const visited = new Set<string>();
-  const groups: TagGroupProposal[] = [];
-  const suggestedByCapture = new Map<string, string[]>();
-
+  const clusters: CaptureCluster[] = [];
   for (const seed of eligible) {
     if (visited.has(seed.id) || !adj.has(seed.id)) continue;
     const componentIds: string[] = [];
@@ -166,9 +168,42 @@ export function computeTagGroups(
     }
     if (componentIds.length < 2) continue;
 
-    const members = componentIds
+    const sortedIds = componentIds.slice().sort();
+    const memberSet = new Set(sortedIds);
+    let edgeSum = 0;
+    let edgeCount = 0;
+    for (const id of sortedIds) {
+      for (const edge of adj.get(id) || []) {
+        if (id < edge.id && memberSet.has(edge.id)) {
+          edgeSum += edge.score;
+          edgeCount += 1;
+        }
+      }
+    }
+    clusters.push({
+      captureIds: componentIds,
+      meanSimilarity: edgeCount ? edgeSum / edgeCount : 0,
+    });
+  }
+  return clusters;
+}
+
+export function computeTagGroups(
+  captures: CaptureRecord[],
+  thresholds: Pick<AppSettings, 'groupThresholdPhoto' | 'groupThresholdVoice' | 'groupThresholdNote'>,
+  dismissedFingerprints: string[] = [],
+): { groups: TagGroupProposal[]; suggestedByCapture: Map<string, string[]> } {
+  const dismissed = new Set(dismissedFingerprints);
+  const byId = new Map(captures.map((c) => [c.id, c]));
+  const groups: TagGroupProposal[] = [];
+  const suggestedByCapture = new Map<string, string[]>();
+
+  for (const cluster of clusterCaptures(captures, thresholds)) {
+    const members = cluster.captureIds
       .map((id) => byId.get(id)!)
+      .filter(Boolean)
       .sort((a, b) => a.capturedAt.localeCompare(b.capturedAt) || a.id.localeCompare(b.id));
+    if (members.length < 2) continue;
 
     const label = deriveGroupLabel(members);
     if (!label) continue;
@@ -183,25 +218,12 @@ export function computeTagGroups(
     );
     if (alreadyTaggedAll) continue;
 
-    let edgeSum = 0;
-    let edgeCount = 0;
-    const memberSet = new Set(sortedIds);
-    for (const id of sortedIds) {
-      for (const edge of adj.get(id) || []) {
-        if (id < edge.id && memberSet.has(edge.id)) {
-          edgeSum += edge.score;
-          edgeCount += 1;
-        }
-      }
-    }
-    const meanSimilarity = edgeCount ? edgeSum / edgeCount : 0;
-
     groups.push({
       id: `grp_${sortedIds[0].slice(-6)}_${groups.length + 1}`,
       fingerprint,
       label,
       captureIds: members.map((m) => m.id),
-      meanSimilarity,
+      meanSimilarity: cluster.meanSimilarity,
     });
 
     for (const member of members) {
