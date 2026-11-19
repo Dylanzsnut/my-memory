@@ -92,6 +92,7 @@ export default function App() {
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
   const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
   const [memoryGroups, setMemoryGroups] = useState<MemoryGroup[]>([]);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const activeUidRef = useRef<string | undefined>(undefined);
   const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
@@ -301,6 +302,7 @@ export default function App() {
     setHudEvents([]);
     setTagGroups([]);
     setMemoryGroups([]);
+    setActiveTag(null);
     activeUidRef.current = undefined;
     setSelected(null);
     setToast(null);
@@ -386,12 +388,19 @@ export default function App() {
     }
   };
 
-  const handleAsk = async (question: string, captureId?: string) => {
+  const handleAsk = async (question: string, captureId?: string, tagOverride?: string | null) => {
     setBusy(true);
     try {
+      const scopeTag = tagOverride !== undefined ? tagOverride : activeTag;
+      const normScope = scopeTag ? normalize(scopeTag) : null;
+      const inScope = (capture: CaptureRecord) =>
+        !normScope || (capture.tags || []).some((tag) => normalize(tag) === normScope);
       const targetCapture = captureId
-        ? captures.find((c) => c.id === captureId && c.retentionState !== 'trashed')
+        ? captures.find(
+            (c) => c.id === captureId && c.retentionState !== 'trashed' && inScope(c),
+          )
         : undefined;
+      const scopedCaptures = normScope ? captures.filter(inScope) : captures;
       const answerOptions = {
         language,
         onSensitiveCloudConfirm: getServices().ai
@@ -400,7 +409,7 @@ export default function App() {
       };
       const result = captureId
         ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0, answerOptions)
-        : await buildAnswer(question, captures, settings.retrievalThreshold, answerOptions);
+        : await buildAnswer(question, scopedCaptures, settings.retrievalThreshold, answerOptions);
       if (result.sources.length) {
         for (const source of result.sources) await saveCapture(source);
         setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));
@@ -673,6 +682,11 @@ export default function App() {
     setToast({ message: t(language, 'groupDeletedKeepsCaptures') });
   };
 
+  const handleTagNavigate = (tag: string) => {
+    setActiveTag(tag);
+    setTab('memories');
+  };
+
   const askAbout = (capture: CaptureRecord, question?: string) => {
     setSelected(null);
     const resolved =
@@ -716,6 +730,9 @@ export default function App() {
   }
 
   const pendingCount = proposals.filter((p) => !p.decided).length;
+  const askTags = Array.from(
+    new Set(captures.filter((c) => c.retentionState !== 'trashed').flatMap((c) => c.tags || [])),
+  ).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-bg">
@@ -842,6 +859,8 @@ export default function App() {
               setTab('trash');
             }}
             trashDays={settings.trashRetentionDays}
+            activeTag={activeTag}
+            onActiveTagChange={setActiveTag}
             memoryGroups={memoryGroups}
             onSplitGroup={handleSplitGroup}
             onRenameGroup={handleRenameGroup}
@@ -857,6 +876,10 @@ export default function App() {
             onAsk={handleAsk}
             onOpenDetail={setSelected}
             busy={busy}
+            tags={askTags}
+            activeTag={activeTag}
+            onActiveTagChange={setActiveTag}
+            onTagNavigate={handleTagNavigate}
             seedQuestion={askSeed}
             seedCaptureId={askCaptureId}
             onSeedConsumed={() => {

@@ -119,6 +119,17 @@ describe('embeddings and search', () => {
     assert.equal(trashedHits.length, 0);
   });
 
+  it('honours a tag-only query in the shared tag index', async () => {
+    const corpus = await createCorpus();
+    const hits = await searchCaptures('#receipts', corpus, 0.1);
+    assert.ok(hits.length >= 2);
+    assert.deepEqual(
+      hits.slice(0, 2).map((hit) => hit.capture.id).sort(),
+      ['cap_lunch1', 'cap_lunch2'],
+    );
+    assert.ok(!hits.slice(0, 2).some((hit) => hit.capture.id === 'cap_med'));
+  });
+
   it('detects long synthesis questions', () => {
     assert.equal(isLongSynthesisQuestion('total my lunch spending'), true);
     assert.equal(isLongSynthesisQuestion('tổng chi ăn trưa'), true);

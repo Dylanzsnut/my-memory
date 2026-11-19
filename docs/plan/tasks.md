@@ -375,6 +375,40 @@ axis of `Memories`, date is only a filter/sort, and groups are local-only
       keys. Docs updated: `DATA.md` ENT-005 + v2, `as-built/DATA.md`, RFC 003
       dated amendment, `DESIGN.md` UI-002, `REQ-001/003`, `VERIFICATION.md`.
 
+## Ask ↔ Memories tag alignment
+
+Scope: `Memories.tsx` owns a local `activeTag` filter and real `capture.tags`;
+`Ask.tsx` has only five hardcoded example questions and ignores tags entirely
+(owner report 2026-11-19). Target: one shared tag context across both tabs, and
+tag-bearing evidence cards in answers.
+
+- [x] Lift `activeTag` from `Memories.tsx` into `App.tsx` state; pass
+      `activeTag` / `onActiveTagChange` into both `Memories` and `Ask` so switching
+      tabs preserves the selected tag (both directions).
+- [x] `Ask.tsx`: derive tag chips from the actual tags on non-trashed captures
+      (passed from `App`), render them as `What do I have about {tag}?` questions,
+      keep the existing five example chips as a fallback / secondary row, and
+      show a clear "scoped to #tag" indicator when a tag is active.
+- [x] `App.handleAsk`: when a tag is active, scope `buildAnswer` to captures that
+      carry that tag (including the pinned-capture path) so the answer agrees
+      with the filter shown in Memories; `verifyClaim` stays fail-closed.
+- [x] `Ask.tsx` source cards: show the cited capture's `#tags`; clicking a tag
+      sets the shared `activeTag` and returns to the `memories` tab so the user
+      can continue filtering. Avoid nested buttons (keep the evidence card's
+      open-detail action accessible).
+- [x] i18n EN/VI for the new Ask tag strings and aria-labels; keep `min-h-11`
+      touch targets.
+- [x] Tests / docs: add a unit test for tag-scoped retrieval (`searchCaptures`
+      honours a tag-only query) and update `docs/as-built/DESIGN.md` (UI-003),
+      `docs/requirements/req-web-app.md` (REQ-002/REQ-003) and
+      `docs/as-built/VERIFICATION.md`.
+- [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`
+      pass; manual browser check that an accepted tag in Memories appears in
+      Ask, survives tab switches, scopes answers, and evidence tags navigate
+      back to the filtered memory list.
+
+      Note (2026-11-19): shared `activeTag` lifted to `App`; Ask derives tag chips from live tags and keeps the five example chips, scopes `buildAnswer` to the active tag (including pinned-capture path), and evidence cards show clickable `#tags` that return to the filtered Memories list. EN/VI strings added. 18/18 tests pass (new tag-only retrieval test); typecheck/lint/build pass. Manual browser check of the full flow still pending.
+
 ## P1 — product quality
 
 - [x] Automatic F4 protection (health/medicine entities, blurry images, photos

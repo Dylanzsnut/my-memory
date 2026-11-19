@@ -16,16 +16,16 @@
 - Statement: Every factual answer carries a capture id that resolves locally; otherwise the app says "Not found".
 - Type: functional · Priority: must
 - Source: OUT-2, CON-2
-- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`).
-- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`, `src/lib/tags.ts`
-- Verified by: UNVERIFIED — no test yet
+- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`). The tag selected in Memories is shared with Ask: Ask shows tag chips from real tags, scopes retrieval to the active `#tag`, and renders `#tags` on each evidence card.
+- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`, `src/lib/tags.ts`, `src/components/Ask.tsx`, `src/App.tsx`
+- Verified by: Verified (unit) for tag-only query retrieval in `tests/core.test.ts`; manual UI check of shared tag scope pending.
 
 ## REQ-003 — Local-first offline operation
 
 - Statement: Capture, local search, user-owned tagging/grouping, and cached answers work after first load without a network connection.
 - Type: non-functional · Priority: must
 - Source: OUT-3, CON-2
-- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags` and editable `MemoryGroup` records run locally and never leave the device (`INV-401`, `INV-402`); auto re-clustering never overwrites manual group edits.
+- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags`, the shared tag context, and editable `MemoryGroup` records run locally and never leave the device (`INV-401`, `INV-402`); auto re-clustering never overwrites manual group edits.
 - Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `src/lib/tags.ts`, `src/lib/groups.ts`, `public/sw.js`
 - Verified by: UNVERIFIED — no automated offline run yet
 

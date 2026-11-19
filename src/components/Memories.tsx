@@ -44,6 +44,8 @@ interface Props {
   onRenameGroup?: (group: MemoryGroup, name: string) => Promise<void> | void;
   onDeleteGroup?: (group: MemoryGroup) => Promise<void> | void;
   onMoveCaptureToGroup?: (captureId: string, targetGroupId: string | null) => Promise<void> | void;
+  activeTag?: string | null;
+  onActiveTagChange?: (tag: string | null) => void;
 }
 
 const TYPE_STYLE: Record<CaptureType, string> = {
@@ -111,6 +113,8 @@ export default function Memories({
   onRenameGroup,
   onDeleteGroup,
   onMoveCaptureToGroup,
+  activeTag: sharedActiveTag = null,
+  onActiveTagChange,
 }: Props) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -125,7 +129,12 @@ export default function Memories({
   const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
   const [voiceText, setVoiceText] = useState('');
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [localActiveTag, setLocalActiveTag] = useState<string | null>(null);
+  const activeTag = onActiveTagChange ? sharedActiveTag : localActiveTag;
+  const setActiveTag = (tag: string | null) => {
+    setLocalActiveTag(tag);
+    onActiveTagChange?.(tag);
+  };
   const [groupSelections, setGroupSelections] = useState<Record<string, string[]>>({});
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');

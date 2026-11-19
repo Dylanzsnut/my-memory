@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | UI-001 | Onboarding | first run | mobile PWA, max-w-lg | touch |
 | UI-002 | Memories | tab `memories` | mobile PWA | file input, mic, textarea, group chips, group edit controls |
-| UI-003 | Ask | tab `ask` | mobile PWA | text input, chips |
+| UI-003 | Ask | tab `ask` | mobile PWA | text input, example chips, live tag chips, tag-scope control |
 | UI-004 | Forget | tab `forget` | mobile PWA | touch decisions |
 | UI-005 | Memory detail sheet | tap a capture | overlay sheet | touch |
 | UI-006 | HUD | in every tab, collapsible | mobile PWA | read-only |
@@ -23,11 +23,18 @@
 |---|---|---|---|---|---|
 | UI-001 | three explanatory steps | model probe text | progress state | banner when Nano unavailable | plain-language model error |
 | UI-002 | demo seed banner when enabled | `busy` disables capture controls | feed updates on save | SIMULATED badge | capture stays unextracted with HUD error |
-| UI-003 | prompt to ask | `busy` disables submit | answer + evidence card | cloud unavailable → local fallback labelled SIMULATED | "Not found in memory" |
+| UI-003 | prompt + tag chips from real tags | `busy` disables submit | answer + evidence cards with `#tags` | cloud unavailable → local fallback labelled SIMULATED; active `#tag` scopes retrieval | "Not found in memory" |
 | UI-004 | "Nothing to forget right now" | n/a | proposal cards | protected badge | n/a |
 | UI-005 | n/a | n/a | extracted facts + original | n/a | n/a |
 | UI-006 | `—` | n/a | latency + source counters | SIMULATED counter shown separately | shows error detail |
 | UI-007 | n/a | n/a | auto-dismiss planned | n/a | n/a |
+
+The selected tag is shared state in `App.tsx`: choosing `#tag` in UI-002 filters
+the memory list, and switching to UI-003 keeps that scope — Ask shows a
+"Scoped to #tag" banner and grounds the answer only in captures carrying that
+tag. Evidence cards in UI-003 render the cited capture's tags; tapping one
+returns to UI-002 with that tag selected. Example chips remain as a secondary
+row; real tag chips come from non-trashed captures.
 
 UI-002 primary axis is now local-only **embedding groups** (`ENT-005`): each
 group shows an Auto/Custom badge, rename / split / delete-group actions, and a

@@ -8,9 +8,13 @@ import { SourceBadge } from './Hud';
 interface Props {
   language: Language;
   nanoStatus: NanoAvailability;
-  onAsk: (question: string, captureId?: string) => Promise<AnswerResult>;
+  onAsk: (question: string, captureId?: string, tag?: string | null) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy: boolean;
+  tags?: string[];
+  activeTag?: string | null;
+  onActiveTagChange?: (tag: string | null) => void;
+  onTagNavigate?: (tag: string) => void;
   seedQuestion?: string;
   seedCaptureId?: string;
   onSeedConsumed?: () => void;
@@ -24,7 +28,20 @@ const CHIPS: { en: string; vi: string }[] = [
   { en: 'total my lunch spending', vi: 'tổng chi phí ăn trưa' },
 ];
 
-export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion, seedCaptureId, onSeedConsumed }: Props) {
+export default function Ask({
+  language,
+  nanoStatus,
+  onAsk,
+  onOpenDetail,
+  busy,
+  tags = [],
+  activeTag = null,
+  onActiveTagChange,
+  onTagNavigate,
+  seedQuestion,
+  seedCaptureId,
+  onSeedConsumed,
+}: Props) {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [asked, setAsked] = useState('');
@@ -39,11 +56,11 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedQuestion, seedCaptureId]);
 
-  const submit = async (question: string, captureId?: string) => {
+  const submit = async (question: string, captureId?: string, tag?: string | null) => {
     if (!question.trim() || busy) return;
     setError(null);
     try {
-      const result = await onAsk(question, captureId);
+      const result = await onAsk(question, captureId, tag !== undefined ? tag : activeTag);
       setAsked(question);
       setAnswer(result);
     } catch (err) {
@@ -104,6 +121,45 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
         })}
       </div>
 
+      {tags.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink3">{t(language, 'askTagsTitle')}</p>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => {
+              const question = t(language, 'askTagQuestion', { tag });
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    onActiveTagChange?.(tag);
+                    setQuery(question);
+                    void submit(question, undefined, tag);
+                  }}
+                  className="min-h-11 rounded-full border border-teal/40 bg-teal-soft px-3.5 py-2 text-[11.5px] font-bold text-teal transition-colors hover:border-teal"
+                >
+                  #{tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTag && (
+        <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-[11.5px] font-bold text-accent">
+          <span className="min-w-0 flex-1 truncate">{t(language, 'askScopedTo', { tag: activeTag })}</span>
+          <button
+            type="button"
+            onClick={() => onActiveTagChange?.(null)}
+            aria-label={t(language, 'clearScope')}
+            className="min-h-11 rounded-full px-3 text-[11px] font-bold"
+          >
+            {t(language, 'clearScope')}
+          </button>
+        </div>
+      )}
+
       <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
         <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
         <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
@@ -156,28 +212,47 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             {answer.sources.map((capture) => {
               const match = capture.sourceMatch?.score;
               return (
-                <button
+                <div
                   key={capture.id}
-                  type="button"
-                  onClick={() => onOpenDetail(capture)}
-                  className="group flex w-full items-center gap-3 rounded-xl border border-line bg-surface2 p-2.5 text-left transition-colors hover:border-accent"
+                  className="rounded-xl border border-line bg-surface2 p-2.5 transition-colors hover:border-accent"
                 >
-                  {capture.originalRef && capture.type === 'photo' ? (
-                    <img src={capture.originalRef} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
-                  ) : (
-                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-teal-soft text-teal">
-                      <BookOpen size={22} />
+                  <button
+                    type="button"
+                    onClick={() => onOpenDetail(capture)}
+                    className="flex w-full items-center gap-3 text-left"
+                  >
+                    {capture.originalRef && capture.type === 'photo' ? (
+                      <img src={capture.originalRef} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-teal-soft text-teal">
+                        <BookOpen size={22} />
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px] font-bold">{capture.summary}</span>
+                      <span className="mt-0.5 block text-[10.5px] text-ink3">
+                        {new Date(capture.capturedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')} ·{' '}
+                        {t(language, 'match')} {match !== undefined ? match.toFixed(2) : '—'}
+                      </span>
                     </span>
+                    <ArrowUpRight size={16} className="shrink-0 text-accent" />
+                  </button>
+                  {capture.tags && capture.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5 border-t border-line pt-2">
+                      {capture.tags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => onTagNavigate?.(tag)}
+                          aria-label={`#${tag}`}
+                          className="min-h-11 rounded-full bg-teal-soft px-2.5 py-0.5 text-[10px] font-bold text-teal hover:bg-teal hover:text-white"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-bold">{capture.summary}</span>
-                    <span className="mt-0.5 block text-[10.5px] text-ink3">
-                      {new Date(capture.capturedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')} ·{' '}
-                      {t(language, 'match')} {match !== undefined ? match.toFixed(2) : '—'}
-                    </span>
-                  </span>
-                  <ArrowUpRight size={16} className="shrink-0 text-accent" />
-                </button>
+                </div>
               );
             })}
 
