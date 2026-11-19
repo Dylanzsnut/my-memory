@@ -445,6 +445,26 @@ search/Ask, **Delete** = Move to Trash everywhere except inside Trash.
       Note (2026-11-19): all 8 UX streamlining tasks verified via typecheck,
       lint, 18/18 tests, and production build.
 
+## Suggested tag rename applies immediately
+
+Scope: owner report (2026-11-19) — in the `Review` sheet, editing a suggested
+tag label changes only local `renamingId`/`renameValue` state; the label reverts
+unless the user clicks Accept, so the rename appears to do nothing on screen.
+
+- [x] `App.tsx`: add persisted `renamedTagGroups` map (`fingerprint → label`)
+      loaded from `getUserMeta(uid, 'renamedTagGroups', {})`; apply overrides to
+      groups **and** `suggestedByCapture` inside `syncTagSuggestions` so a rename
+      survives recompute/refresh.
+- [x] `App.tsx`: add `handleRenameTagGroup(group, label)` that updates
+      `tagGroups` immediately, persists the override, and refreshes suggestions
+      without waiting for Accept.
+- [x] `Memories.tsx`: commit the inline rename on **Enter and blur** (and clear
+      the editing state) so the new `#label` shows instantly in the review
+      sheet; keep Accept writing the currently displayed label.
+- [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`.
+
+      Note (2026-11-19): rename commits on Enter/blur and persists a fingerprint→label override in `renamedTagGroups` user meta; overrides are applied in `syncTagSuggestions` to both group labels and suggested tag lists. Accept now writes the displayed label. 18/18 tests + typecheck/lint/build pass.
+
 ## P1 — product quality
 
 - [x] Automatic F4 protection (health/medicine entities, blurry images, photos

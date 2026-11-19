@@ -40,6 +40,7 @@ interface Props {
   onAcceptTagGroup?: (group: TagGroupProposal, selectedIds: string[], labelOverride?: string) => Promise<void> | void;
   onDismissTagGroup?: (group: TagGroupProposal) => Promise<void> | void;
   onRefreshTagGroups?: () => void;
+  onRenameTagGroup?: (group: TagGroupProposal, label: string) => Promise<void> | void;
   onManualTrash?: (capture: CaptureRecord) => Promise<void> | void;
   onOpenTrash?: () => void;
   trashDays?: number;
@@ -109,6 +110,7 @@ export default function Memories({
   onAcceptTagGroup,
   onDismissTagGroup,
   onRefreshTagGroups,
+  onRenameTagGroup,
   onManualTrash,
   onOpenTrash,
   trashDays = 30,
@@ -809,7 +811,11 @@ export default function Memories({
                 if (members.length < 2) return null;
                 const selectedIds = groupSelections[group.id] ?? members.map((m) => m.id);
                 const isRenaming = renamingId === group.id;
-                const currentLabel = isRenaming ? renameValue.trim() || group.label : group.label;
+                const commitSuggestedRename = () => {
+                  const next = renameValue.trim().replace(/^#+/, '');
+                  setRenamingId(null);
+                  if (next && next !== group.label) onRenameTagGroup?.(group, next);
+                };
 
                 return (
                   <div key={group.id} className="rounded-xl border border-line bg-surface2 p-3">
@@ -820,6 +826,10 @@ export default function Memories({
                           <input
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitSuggestedRename();
+                            }}
+                            onBlur={commitSuggestedRename}
                             aria-label={t(language, 'renameGroup')}
                             className="w-36 rounded-lg border border-teal bg-canvas px-2 py-0.5 text-[12px] font-bold outline-none"
                           />
@@ -866,7 +876,7 @@ export default function Memories({
                           type="button"
                           disabled={selectedIds.length === 0}
                           onClick={() => {
-                            void onAcceptTagGroup(group, selectedIds, isRenaming ? currentLabel : undefined);
+                            void onAcceptTagGroup(group, selectedIds);
                             setRenamingId(null);
                           }}
                           className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-teal py-1.5 text-[11px] font-bold text-white disabled:opacity-40"

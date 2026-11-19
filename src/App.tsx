@@ -90,6 +90,7 @@ export default function App() {
   const [askNonce, setAskNonce] = useState(0);
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
+  const [renamedTagGroups, setRenamedTagGroups] = useState<Record<string, string>>({});
   const [tagGroups, setTagGroups] = useState<TagGroupProposal[]>([]);
   const [memoryGroups, setMemoryGroups] = useState<MemoryGroup[]>([]);
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -112,9 +113,27 @@ export default function App() {
     setMemoryGroups(next);
   };
 
-  const syncTagSuggestions = async (currentCaptures: CaptureRecord[], dismissed: string[]) => {
+  const syncTagSuggestions = async (
+    currentCaptures: CaptureRecord[],
+    dismissed: string[],
+    renamed: Record<string, string> = renamedTagGroups,
+  ) => {
     const { groups, suggestedByCapture } = computeTagGroups(currentCaptures, settings, dismissed);
-    setTagGroups(groups);
+    const overridesByOriginal = new Map<string, string>();
+    const overridden = groups.map((group) => {
+      const label = renamed[group.fingerprint]?.trim() || group.label;
+      if (label !== group.label) overridesByOriginal.set(group.label, label);
+      return label === group.label ? group : { ...group, label };
+    });
+    if (overridesByOriginal.size) {
+      for (const [captureId, labels] of suggestedByCapture) {
+        suggestedByCapture.set(
+          captureId,
+          labels.map((label) => overridesByOriginal.get(label) || label),
+        );
+      }
+    }
+    setTagGroups(overridden);
     const updatedCaptures: CaptureRecord[] = [];
     for (const capture of currentCaptures) {
       const nextSuggested = suggestedByCapture.get(capture.id) || [];
@@ -174,6 +193,7 @@ export default function App() {
       savedOnboarding,
       probedNano,
       savedDismissed,
+      savedRenamed,
     ] = await Promise.all([
       getCaptures(uid),
       getProposals(uid),
@@ -182,6 +202,7 @@ export default function App() {
       getUserMeta<boolean>(uid, 'onboardingDone', false),
       probeNanoAvailability(),
       getUserMeta<string[]>(uid, 'dismissedTagGroups', []),
+      getUserMeta<Record<string, string>>(uid, 'renamedTagGroups', {}),
     ]);
 
     const syncUid = activeSession.mode === 'google' ? uid : undefined;
@@ -215,6 +236,7 @@ export default function App() {
     setOnboardingDone(savedOnboarding);
     setNanoStatus(probedNano);
     setDismissedTagGroups(savedDismissed);
+    setRenamedTagGroups(savedRenamed);
 
     const fresh = scanForProposals(migratedCaptures, settings.duplicateThreshold, currentProposals).map((p) => ({
       ...p,
@@ -223,7 +245,7 @@ export default function App() {
     for (const proposal of fresh) await saveProposal(proposal);
     if (fresh.length) setProposals([...currentProposals, ...fresh]);
 
-    await syncTagSuggestions(migratedCaptures, savedDismissed);
+    await syncTagSuggestions(migratedCaptures, savedDismissed, savedRenamed);
     if (purged.length) {
       setToast({ message: t(savedLang, 'purgedExpiredCount', { n: purged.length }) });
     }
@@ -301,6 +323,8 @@ export default function App() {
     setProposals([]);
     setHudEvents([]);
     setTagGroups([]);
+    setDismissedTagGroups([]);
+    setRenamedTagGroups({});
     setMemoryGroups([]);
     setActiveTag(null);
     activeUidRef.current = undefined;
@@ -623,6 +647,20 @@ export default function App() {
     await syncTagSuggestions(captures, nextDismissed);
   };
 
+  const handleRenameTagGroup = async (group: TagGroupProposal, label: string) => {
+    const clean = label.trim().replace(/^#+/, '');
+    if (!clean || clean === group.label) return;
+    const nextRenamed = { ...renamedTagGroups, [group.fingerprint]: clean };
+    setRenamedTagGroups(nextRenamed);
+    setTagGroups((prev) => prev.map((g) => (g.id === group.id ? { ...g, label: clean } : g)));
+    if (session?.uid) {
+      await setUserMeta(session.uid, 'renamedTagGroups', nextRenamed).catch((err) =>
+        console.warn('[store] save renamedTagGroups failed', err),
+      );
+    }
+    await syncTagSuggestions(captures, dismissedTagGroups, nextRenamed);
+  };
+
   const handleSplitGroup = async (group: MemoryGroup, selectedIds: string[], name: string) => {
     const result = splitGroup(group, selectedIds, name, session?.uid);
     if (!result) return;
@@ -850,6 +888,7 @@ export default function App() {
             tagGroups={tagGroups}
             onAcceptTagGroup={handleAcceptTagGroup}
             onDismissTagGroup={handleDismissTagGroup}
+            onRenameTagGroup={handleRenameTagGroup}
             onRefreshTagGroups={() => {
               void syncTagSuggestions(captures, dismissedTagGroups);
             }}
