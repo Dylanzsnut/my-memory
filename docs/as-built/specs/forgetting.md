@@ -25,9 +25,9 @@
 ## 3. Manual deletion & purge at HEAD
 
 - **AI never deletes on its own.** Proposal generation remains advisory (`INV-201`..`INV-204`).
-- Owners can manually delete one capture at a time from `Memories` or `DetailSheet` (confirmation dialog; stronger warning if `protectedReason` is set), moving it to the 30-day `Trash` screen (`trashSource: 'manual'`), closing pending proposals, and showing a 5-second undo toast.
-- `DetailSheet` offers **Delete permanently now** behind a two-step confirmation (explicit exception to `REQ-005` recoverable window, logged distinctly).
-- **Dedicated `Trash` screen** (`src/components/Trash.tsx`) lists days remaining, allows **Restore**, and supports **Delete permanently** (removes blobs from IndexedDB and deletes Firestore metadata when sync is enabled).
+- Owners can manually delete one capture at a time from `Memories` (card `⋮` menu) or `DetailSheet` (confirmation dialog; stronger warning if `protectedReason` is set), moving it to the 30-day `Trash` screen (`trashSource: 'manual'`), closing pending proposals, and showing a 5-second undo toast.
+- **Unified Delete (`REQ-005`):** neither `Memories` nor `DetailSheet` offers immediate permanent deletion; every delete enters the 30-day recoverable `Trash` first.
+- **Dedicated `Trash` screen** (`src/components/Trash.tsx`) lists days remaining, allows **Restore**, and is the only surface that supports **Delete permanently** (with confirmation; removes blobs from IndexedDB and deletes Firestore metadata when sync is enabled).
 - **App-open purge (explicit exception):** On app open, `purgeExpiredTrash()` removes trashed captures whose `purgeAt <= now`, and shows a toast summary if items were purged.
 
 ## 4. Failure behavior

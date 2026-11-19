@@ -30,12 +30,11 @@ is not logged here as tasks.
   "no automatic or bulk purge" rule.
 - **Protected captures:** still manually deletable, with a stronger
   confirmation. Auto-proposals continue to exclude them.
-- **Immediate permanent delete:** `DetailSheet` also offers "Delete permanently
-  now" behind a stronger confirmation (second confirm, distinct from trash).
-  It is an owner-initiated permanent removal, recorded as a distinct decision
-  type (not "proposal approved", not "trashed"), and is the explicit documented
-  exception to the 30-day recoverable window owned by `REQ-005`. It never
-  bypasses a confirmation and is never offered for bulk use.
+- **Immediate permanent delete (superseded 2026-11-19):** removed from
+  `DetailSheet` to keep a single, safe mental model — every delete in
+  `Memories` or `DetailSheet` moves the capture to the 30-day Trash with a 5s
+  undo toast; permanent deletion lives **only** inside the Trash screen (with
+  confirmation). Restores full alignment with `REQ-005`.
 - **Photo capture:** a single **Photo** action opens the platform picker
   (camera or gallery/file) with multi-select. `capturedAt` comes from EXIF
   `DateTimeOriginal` when present,
@@ -408,6 +407,43 @@ tag-bearing evidence cards in answers.
       back to the filtered memory list.
 
       Note (2026-11-19): shared `activeTag` lifted to `App`; Ask derives tag chips from live tags and keeps the five example chips, scopes `buildAnswer` to the active tag (including pinned-capture path), and evidence cards show clickable `#tags` that return to the filtered Memories list. EN/VI strings added. 18/18 tests pass (new tag-only retrieval test); typecheck/lint/build pass. Manual browser check of the full flow still pending.
+
+## UX streamlining: tagging, grouping & deletion
+
+Scope: owner review (2026-11-19) — current Memories/DetailSheet chrome is
+crowded and blurs Groups vs Tags vs Delete paths. Target: one clear mental
+model: **Group** = soft folder (plain name, no `#`), **Tag** = `#label` for
+search/Ask, **Delete** = Move to Trash everywhere except inside Trash.
+
+- [x] Distinct visual language: remove `#` prefix from Group headers in
+      `Memories.tsx` (plain folder name + folder icon, `Auto`/`Custom` badge);
+      reserve `#` exclusively for user `tags`.
+- [x] Compact filter bar (`Memories.tsx`): merge date filter chips and tag
+      filter chips into a single clean horizontal filter strip so the first
+      capture appears higher on mobile viewports.
+- [x] Suggested tags pill + review sheet (`Memories.tsx`): replace the large
+      inline `tagGroups` block with a compact pill (`{n} suggested tags ·
+      Review`) that opens a modal/sheet for Accept / Rename / Dismiss.
+- [x] Group header `⋮` menu (`Memories.tsx`): replace the 3 inline buttons
+      (Rename / Split / Delete) + hint text with a single `⋮` menu (Rename,
+      Split…, Delete group — keeps captures).
+- [x] In-place Split flow (`Memories.tsx`): entering Split mode shows
+      checkboxes directly on the real capture cards in that group (no duplicate
+      list) plus a sticky bottom bar (`{n} selected` + new group name input +
+      Create / Cancel).
+- [x] Card `⋮` menu (`Memories.tsx`): remove the inline `Move to…` dropdown and
+      inline trash icon from every card; place Move to group… (inline picker in
+      sheet/popover) and Move to Trash behind a single card `⋮` button so cards
+      stay scannable.
+- [x] Unified Delete (`DetailSheet.tsx`, `App.tsx`): remove "Delete permanently
+      now" from `DetailSheet` so Memories and DetailSheet have one safe action
+      (Move to Trash, 30-day recovery + 5s undo toast); permanent delete lives
+      exclusively in `Trash.tsx`.
+- [x] i18n EN/VI (`src/lib/i18n.ts`), docs (`docs/as-built/DESIGN.md`,
+      `docs/DATA.md` §3, `docs/as-built/specs/forgetting.md`), and verification:
+      `npm run typecheck && npm run lint && npm test && npm run build`.
+      Note (2026-11-19): all 8 UX streamlining tasks verified via typecheck,
+      lint, 18/18 tests, and production build.
 
 ## P1 — product quality
 

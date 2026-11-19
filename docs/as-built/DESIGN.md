@@ -37,12 +37,22 @@ returns to UI-002 with that tag selected. Example chips remain as a secondary
 row; real tag chips come from non-trashed captures.
 
 UI-002 primary axis is now local-only **embedding groups** (`ENT-005`): each
-group shows an Auto/Custom badge, rename / split / delete-group actions, and a
-per-card "Move to…" selector. Today/Yesterday/Older are date *filter chips*,
-not group buckets; captures outside all groups appear under "Ungrouped".
-Deleting a group never deletes its captures (Verified: unit tests in
-`tests/core.test.ts`). Auto re-clustering skips manual groups and captures with
-`manualGroupLock`, so user edits survive recompute.
+group header renders with a folder icon, plain folder name (no `#` prefix — `#`
+is reserved for user `tags`), an Auto/Custom badge, and a single `⋮` menu
+(Rename / Split… / Delete group — keeps captures). Each capture card also uses
+a single `⋮` menu for Move to group… and Move to Trash. Split mode places
+checkboxes directly on the real cards with an inline bar (`{n} selected` + new
+group name + Create/Cancel). Date filter chips (`All dates / Today / Yesterday /
+Older`) and tag filter chips share one horizontal strip, and suggested tag
+proposals collapse into a single pill (`{n} suggested tags · Review`) that opens
+a review sheet. Captures outside all groups appear under "Ungrouped". Deleting
+a group never deletes its captures (Verified: unit tests in `tests/core.test.ts`).
+Auto re-clustering skips manual groups and captures with `manualGroupLock`, so
+user edits survive recompute.
+
+UI-002 and UI-005 expose a single safe delete action (**Move to Trash** —
+30-day recovery + 5s undo toast); permanent deletion lives exclusively in the
+dedicated `Trash` screen (`REQ-005`).
 
 Auto-dismiss for UI-007 is a known limit at HEAD; see `Known Limits` below.
 

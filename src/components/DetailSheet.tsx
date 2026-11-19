@@ -12,7 +12,6 @@ interface Props {
   onAskAbout: (capture: CaptureRecord, question?: string) => void;
   onUpdateTags?: (capture: CaptureRecord, nextTags: string[]) => Promise<void> | void;
   onManualTrash?: (capture: CaptureRecord) => Promise<void> | void;
-  onPermanentDelete?: (capture: CaptureRecord) => Promise<void> | void;
   trashDays?: number;
 }
 
@@ -23,12 +22,11 @@ export default function DetailSheet({
   onAskAbout,
   onUpdateTags,
   onManualTrash,
-  onPermanentDelete,
   trashDays = 30,
 }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
-  const [deleteStep, setDeleteStep] = useState<'none' | 'trash' | 'perm1' | 'perm2'>('none');
+  const [confirmTrash, setConfirmTrash] = useState(false);
 
   const userTags = capture.tags || [];
 
@@ -240,7 +238,7 @@ export default function DetailSheet({
         </div>
 
         <div className="shrink-0 space-y-2 border-t border-line bg-canvas/95 p-4">
-          {deleteStep === 'trash' && onManualTrash && (
+          {confirmTrash && onManualTrash && (
             <div className="rounded-xl border border-danger/30 bg-danger-soft/50 p-3">
               <p className="text-[11.5px] font-semibold text-ink">
                 {capture.protectedReason
@@ -253,7 +251,7 @@ export default function DetailSheet({
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setDeleteStep('none')}
+                  onClick={() => setConfirmTrash(false)}
                   className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
                 >
                   {t(language, 'cancel')}
@@ -261,7 +259,7 @@ export default function DetailSheet({
                 <button
                   type="button"
                   onClick={() => {
-                    setDeleteStep('none');
+                    setConfirmTrash(false);
                     void onManualTrash(capture);
                     onClose();
                   }}
@@ -269,44 +267,6 @@ export default function DetailSheet({
                 >
                   {t(language, 'confirmMoveToTrash')}
                 </button>
-              </div>
-            </div>
-          )}
-
-          {(deleteStep === 'perm1' || deleteStep === 'perm2') && onPermanentDelete && (
-            <div className="rounded-xl border border-danger bg-danger-soft p-3">
-              <p className="text-[11.5px] font-bold text-danger">
-                {deleteStep === 'perm1' ? t(language, 'deletePermNow') : t(language, 'deletePermStep2')}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeleteStep('none')}
-                  className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2"
-                >
-                  {t(language, 'cancel')}
-                </button>
-                {deleteStep === 'perm1' ? (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteStep('perm2')}
-                    className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
-                  >
-                    {t(language, 'continue')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteStep('none');
-                      void onPermanentDelete(capture);
-                      onClose();
-                    }}
-                    className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
-                  >
-                    {t(language, 'deletePerm')}
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -319,27 +279,14 @@ export default function DetailSheet({
             {t(language, 'askAbout')} <ArrowUpRight size={16} />
           </button>
 
-          {(onManualTrash || onPermanentDelete) && deleteStep === 'none' && (
-            <div className="flex gap-2">
-              {onManualTrash && (
-                <button
-                  type="button"
-                  onClick={() => setDeleteStep('trash')}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-line bg-surface2 py-2 text-[11.5px] font-bold text-ink2 hover:border-danger hover:text-danger"
-                >
-                  <Trash2 size={13} /> {t(language, 'confirmMoveToTrash')}
-                </button>
-              )}
-              {onPermanentDelete && (
-                <button
-                  type="button"
-                  onClick={() => setDeleteStep('perm1')}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-danger/30 bg-danger-soft/60 py-2 text-[11.5px] font-bold text-danger"
-                >
-                  {t(language, 'deletePermNow')}
-                </button>
-              )}
-            </div>
+          {onManualTrash && !confirmTrash && (
+            <button
+              type="button"
+              onClick={() => setConfirmTrash(true)}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface2 py-2 text-[11.5px] font-bold text-ink2 hover:border-danger hover:text-danger"
+            >
+              <Trash2 size={13} /> {t(language, 'confirmMoveToTrash')}
+            </button>
           )}
 
           <p className="flex items-center justify-center gap-1 text-[10px] text-ink3">

@@ -926,7 +926,6 @@ export default function App() {
           onAskAbout={askAbout}
           onUpdateTags={handleUpdateTags}
           onManualTrash={handleManualTrash}
-          onPermanentDelete={handlePermanentDelete}
           trashDays={settings.trashRetentionDays}
         />
       )}

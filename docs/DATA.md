@@ -148,8 +148,7 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 | active → trashed (manual delete) | delete action | human | confirmation; recorded via `trashSource: 'manual'`, not *proposal approved* |
 | any → protected | `protectedReason` set | deterministic rule | never proposed regardless of score (`F4`, `INV-003`) |
 | trashed → active | restore | human | before `purgeAt` |
-| trashed → purged | `purgeAt` reached | app open, user-visible (`purgeExpiredTrash`) | documented exception to "no background deletion"; still human-scheduled |
-| active → purged (delete permanently now) | `DetailSheet` action | human | stronger second confirmation; recorded as a distinct decision; explicit documented exception to the `REQ-005` recoverable window; never offered in bulk |
+| trashed → purged | `purgeAt` reached or "Delete permanently" in `Trash` | app open (`purgeExpiredTrash`) or human in `Trash` | permanent deletion happens only from `trashed` (`REQ-005`) |
 
 Invariant `F5`: every transition to `trashed` requires a recorded human decision
 and stays recoverable for the `REQ-005` window. There is no auto-delete path,
