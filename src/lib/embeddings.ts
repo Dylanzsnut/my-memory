@@ -14,6 +14,9 @@ export const STOPWORDS = new Set([
   'how', 'i', 'in', 'is', 'it', 'its', 'my', 'of', 'on', 'or', 'that', 'the', 'this',
   'to', 'was', 'were', 'what', 'when', 'where', 'which', 'who', 'why', 'will', 'with',
   'you', 'your',
+  // Question boilerplate: carries no retrieval signal and dilutes tag questions.
+  'have', 'has', 'had', 'about', 'anything', 'something', 'show', 'find', 'tell',
+  'remember', 'please', 'any', 'got', 'get', 'can', 'could', 'would', 'give', 'list',
   'la', 'cua', 'va', 'nhung', 'cac', 'cho', 'voi', 'trong', 'o', 'tai', 'khi', 'nao',
   'dau', 'gi', 'ai', 'sao', 'bao', 'co', 'khong', 'duoc', 'bi', 'da', 'se', 'dang',
   'thi', 'ma', 'nay', 'do', 'kia', 'toi', 'minh', 'ban', 'anh', 'em',

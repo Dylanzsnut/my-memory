@@ -258,19 +258,25 @@ function redactSensitiveText(text: string): string {
   return text.replace(SENSITIVE_INLINE_RE, '$1$2[REDACTED]');
 }
 
-function contextFrom(captures: CaptureRecord[], allowSensitiveCloud = false): string {
+function contextFrom(
+  captures: CaptureRecord[],
+  allowSensitiveCloud = false,
+  includeTags = false,
+): string {
   return captures
     .map((c) => {
       const summary = allowSensitiveCloud ? c.summary : redactSensitiveText(c.summary);
       const entities = c.entities.map((e) =>
         allowSensitiveCloud || !isSensitiveEntity(e, c) ? e : '[REDACTED]',
       );
-      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}\n  expiryDate: ${c.expiryDate ?? 'null'}`;
+      // User tags are only ever shown to the on-device model; they never go to the cloud.
+      const tagLine = includeTags && c.tags?.length ? `\n  tags: ${c.tags.join(', ')}` : '';
+      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}${tagLine}\n  expiryDate: ${c.expiryDate ?? 'null'}`;
     })
     .join('\n');
 }
 
-function citeSummary(capture: CaptureRecord): string {
+export function citeSummary(capture: CaptureRecord): string {
   const trimmed = capture.summary.trim();
   if (!trimmed) return '';
   return trimmed
@@ -319,6 +325,52 @@ function simulatedAnswer(question: string, captures: CaptureRecord[], intent: 's
   return citeSummary(top) || 'NOT_FOUND';
 }
 
+const SHORT_ON_DEVICE_TIMEOUT_MS = 8_000;
+const LONG_CLOUD_TIMEOUT_MS = 12_000;
+
+export function withTimeout<T>(promise: Promise<T>, ms: number, label = 'AI call'): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+/** A second model attempt only helps for transient failures. Auth, App Check,
+ * permission, quota and connectivity errors would fail again, so they degrade
+ * straight to the labelled local fallback. */
+export function isTransientAiError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (/403|401|permission|app.?check|unauthori[sz]ed|forbidden|quota|429|offline|network|failed to fetch|timed out|not.?found.*model|api key/.test(message)) {
+    return false;
+  }
+  return /500|502|503|504|unavailable|overloaded|internal|model/.test(message);
+}
+
+function localAnswer(
+  question: string,
+  captures: CaptureRecord[],
+  intent: 'short' | 'long',
+  started: number,
+  error?: string,
+): Omit<AnswerResult, 'claims' | 'sources' | 'notFound'> {
+  return {
+    text: simulatedAnswer(question, captures, intent),
+    inferenceSource: 'SIMULATED',
+    latencyMs: Math.round(performance.now() - started),
+    intent,
+    ...(error ? { error: error.slice(0, 200) } : {}),
+  };
+}
+
+/**
+ * Short questions never leave the device: the answer is a deterministic local
+ * lookup, optionally phrased by Gemini Nano (`ONLY_ON_DEVICE`) when Nano is
+ * ready. Only long cross-capture synthesis (`ONLY_IN_CLOUD`) may use the cloud,
+ * and it receives summaries only — never tags, originals or embeddings.
+ */
 export async function answerQuestion(
   question: string,
   captures: CaptureRecord[],
@@ -337,24 +389,21 @@ export async function answerQuestion(
     };
   }
   const { ai } = getServices();
-  if (!ai) {
-    return {
-      text: simulatedAnswer(question, captures, intent),
-      inferenceSource: 'SIMULATED',
-      latencyMs: Math.round(performance.now() - started),
-      intent,
-    };
+  if (!ai) return localAnswer(question, captures, intent, started);
+
+  // Short intent: skip the model entirely unless Nano is ready on this device.
+  if (intent === 'short' && (await probeNanoAvailability()) !== 'readily') {
+    return localAnswer(question, captures, intent, started);
   }
 
   try {
     const { getGenerativeModel, InferenceMode, InferenceSource: SdkInferenceSource } = await loadAiSdk();
-    const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.PREFER_ON_DEVICE;
-    const cloudModelName = settings.cloudModel;
+    const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.ONLY_ON_DEVICE;
     const buildModel = (cloudModel: string) =>
       getGenerativeModel(ai, {
         mode,
-        inCloudParams: { model: cloudModel },
-        ...(mode === InferenceMode.PREFER_ON_DEVICE
+        ...(mode === InferenceMode.ONLY_IN_CLOUD ? { inCloudParams: { model: cloudModel } } : {}),
+        ...(mode === InferenceMode.ONLY_ON_DEVICE
           ? {
               onDeviceParams: {
                 createOptions: { expectedInputs: [{ type: 'text', languages: ['en'] }] },
@@ -362,7 +411,6 @@ export async function answerQuestion(
             }
           : {}),
       });
-    let model: GenerativeModel = buildModel(cloudModelName);
     const prompt = [
       'Answer the question using ONLY the numbered captures below.',
       'Cite every factual claim inline with its capture id in square brackets, e.g. [cap_123].',
@@ -372,18 +420,26 @@ export async function answerQuestion(
       `Question: ${question}`,
       '',
       'Captures:',
-      contextFrom(captures, options?.allowSensitiveCloud ?? false),
+      contextFrom(captures, options?.allowSensitiveCloud ?? false, intent === 'short'),
     ].join('\n');
+    const timeoutMs = intent === 'long' ? LONG_CLOUD_TIMEOUT_MS : SHORT_ON_DEVICE_TIMEOUT_MS;
+    let model: GenerativeModel = buildModel(settings.cloudModel);
     let result;
     try {
-      result = await model.generateContent(prompt);
+      result = await withTimeout(model.generateContent(prompt), timeoutMs, 'Answer generation');
     } catch (primaryError) {
-      // Retry once with the documented fallback cloud model before degrading
-      // to the local simulated answer.
-      if (cloudModelName === FALLBACK_CLOUD_MODEL) throw primaryError;
+      // Only long cloud synthesis has a fallback model, and only transient
+      // failures are worth a second attempt.
+      if (
+        intent !== 'long' ||
+        settings.cloudModel === FALLBACK_CLOUD_MODEL ||
+        !isTransientAiError(primaryError)
+      ) {
+        throw primaryError;
+      }
       console.warn('[ai] primary cloud model failed; retrying with fallback', primaryError);
       model = buildModel(FALLBACK_CLOUD_MODEL);
-      result = await model.generateContent(prompt);
+      result = await withTimeout(model.generateContent(prompt), timeoutMs, 'Fallback generation');
     }
     const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
     const source = toSdkSource(sdkSource, SdkInferenceSource);
@@ -407,12 +463,6 @@ export async function answerQuestion(
         error: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
       };
     }
-    return {
-      text: simulatedAnswer(question, captures, intent),
-      inferenceSource: 'SIMULATED',
-      latencyMs: Math.round(performance.now() - started),
-      intent,
-      error: message.slice(0, 200),
-    };
+    return localAnswer(question, captures, intent, started, message);
   }
 }

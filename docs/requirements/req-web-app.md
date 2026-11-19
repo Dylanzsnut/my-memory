@@ -16,7 +16,7 @@
 - Statement: Every factual answer carries a capture id that resolves locally; otherwise the app says "Not found".
 - Type: functional · Priority: must
 - Source: OUT-2, CON-2
-- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`). The tag selected in Memories is shared with Ask: Ask shows tag chips from real tags, scopes retrieval to the active `#tag`, and renders `#tags` on each evidence card.
+- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`). Tag-browse questions ("What do I have about {tag}?") are answered locally and cite every tagged capture, including tags added after capture. The tag selected in Memories is shared with Ask: Ask shows tag chips from real tags, scopes retrieval to the active `#tag`, and renders `#tags` on each evidence card.
 - Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`, `src/lib/tags.ts`, `src/components/Ask.tsx`, `src/App.tsx`
 - Verified by: Verified (unit) for tag-only query retrieval in `tests/core.test.ts`; manual UI check of shared tag scope pending.
 
@@ -61,6 +61,6 @@
 - Statement: Firebase AI Logic is called at runtime with explicit inference modes and provenance labels.
 - Type: non-functional · Priority: must
 - Source: CON-1, CON-3
-- Acceptance: `ONLY_ON_DEVICE` extraction, `PREFER_ON_DEVICE` short answer, `ONLY_IN_CLOUD` synthesis; `InferenceSource` comes from the SDK or is `SIMULATED`.
+- Acceptance: `ONLY_ON_DEVICE` extraction, short answers fully local (`ONLY_ON_DEVICE` only when Nano is ready, never cloud), `ONLY_IN_CLOUD` long synthesis; `InferenceSource` comes from the SDK or is `SIMULATED`.
 - Implemented by: `src/lib/ai.ts`, `src/lib/firebase.ts`
 - Verified by: UNVERIFIED — no live smoke-test log yet

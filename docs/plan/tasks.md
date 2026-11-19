@@ -563,6 +563,84 @@ offline awareness across `Memories`, `Ask`, and `DetailSheet`.
 
       Note (2026-11-19): all 8 polish tasks verified via typecheck, lint, 18/18 tests and production build (`index-DDtft9Zj.js`). New `src/lib/useOnlineStatus.ts` hook drives both pills; sticky split bar uses `animate-toast`; group header toggle renders a plain div during inline rename to avoid nested interactive elements.
 
+## Search & Ask: local-first reliability + speed
+
+Scope: owner reports (2026-11-19) — Ask is slow, and Ask by tag fails for newly
+added tags (`#Casanos`, `#sdasda`, `#UI`). **Owner decision (option A):** short
+Ask runs entirely on the device; only long cross-capture synthesis
+(`total` / `compare` / `summarize`) may use the cloud.
+
+Diagnosed root causes: (1) short Ask used `PREFER_ON_DEVICE` with
+`inCloudParams`, so any machine without Nano silently went to the cloud, minted
+an App Check token and could retry a second model with no timeout; (2)
+`have`/`about` are not stopwords, so `What do I have about {tag}?` scores 0.197
+(< 0.35); (3) `contextFrom()` never included `capture.tags`; (4) an explicit
+`#tag` scope still applied the 0.35 threshold; (5) `Ask.submit` returned while
+`busy`, so clicking another tag during a slow call was ignored.
+
+Design (privacy and provenance preserved):
+- **Tag-browse questions** (`What do I have about {tag}?`, `#tag`, a bare tag):
+  answered by a deterministic local lookup of captures carrying that tag, no
+  model call, every sentence cited and passed through `verifyClaim`.
+- **Short questions:** local retrieval, then `ONLY_ON_DEVICE` only when Nano is
+  `readily` (timeout, no cloud fallback); otherwise the deterministic local
+  answer. Never `IN_CLOUD`. Local answers keep `inferenceSource: 'SIMULATED'`
+  (invariant 5); the badge text becomes "Local lookup" so it is not mistaken for
+  a demo or a model run.
+- **Long synthesis:** unchanged `ONLY_IN_CLOUD` with summaries only, plus a
+  timeout and no fallback-model retry on non-transient errors. `tags` are never
+  put in the cloud context (tags never leave the device).
+- On-device context includes `tags` so newly added tags are visible to Nano.
+
+### Implementation
+- [x] `STOPWORDS` (`src/lib/embeddings.ts`): add question boilerplate (`have`,
+      `about`, `anything`, `something`, `show`, `find`, `tell`, `remember`,
+      `please`, `any`, `much`, `many`, `got`, `get`, `all`, `me`…) — careful that
+      `me` is a Vietnamese synonym key, so only English-safe words are added.
+- [x] `src/lib/search.ts`: add `tagBrowseTarget(query, tags)`; give an exact tag
+      hit a real boost; rebalance lexical vs vector so a synonym-only hit
+      (receipt ↔ bill) clears the threshold while out-of-corpus probes stay
+      `NOT_FOUND` (G3).
+- [x] `src/lib/answer.ts`: tag-browse path — local deterministic answer from all
+      tagged captures (up to 10), cited, verified, no model call.
+- [x] `src/lib/ai.ts`: short intent never uses cloud (`ONLY_ON_DEVICE` only when
+      Nano is `readily`, timeout, else local); add `withTimeout` and
+      `isTransientAiError`; long intent gets a timeout and retries the fallback
+      model only for transient errors; `contextFrom` adds tags only for
+      on-device calls.
+- [x] `src/App.tsx` / `src/components/Ask.tsx`: when a tag is active, scope the
+      corpus and pass `threshold` 0 only for tag-browse questions (other
+      questions keep the normal threshold inside the scope); persist
+      `sourceMatch` in the background; drop the `busy` gate in `Ask.submit` and
+      use a request sequence id so the latest click wins.
+- [x] `src/lib/i18n.ts`: rename the SIMULATED badge to "Local lookup" /
+      "Tra cứu local" (EN/VI); keep the data value `SIMULATED`.
+
+### Test plan
+- [x] Unit (`tests/core.test.ts`): a brand-new tag not present in summary or
+      entities (`Casanos`, `UI`, `sdasda`) → `searchCaptures` and `buildAnswer`
+      for `What do I have about {tag}?` return `notFound: false` citing the
+      tagged capture, and an unrelated capture is not returned.
+- [x] Unit: tag-browse never touches the model path and returns only captures
+      carrying the tag; a non-browse question inside a tag scope still honours
+      the retrieval threshold; `verifyClaim` still rejects fabricated numbers.
+- [x] Unit: synonym query (`lunch receipt` vs `bill`) clears the threshold; the
+      existing 5 out-of-corpus probes still return Not found.
+- [x] Unit: `isTransientAiError` (403 / App Check / permission / offline are not
+      transient) and `withTimeout` (rejects after the deadline).
+- [x] Unit: local `searchCaptures` + `buildAnswer` over a 50-capture corpus
+      completes well under 250 ms with no network.
+- [ ] Manual browser checklist: add `#Casanos` in `DetailSheet` → Ask → tap the
+      chip → instant cited answer; tap `#restaurant` then `#UI` immediately →
+      second click is honoured; out-of-corpus question → fast Not found; Network
+      tab shows no AI Logic request for short questions and no `tags` in any
+      request body.
+- [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`;
+      update `docs/as-built/specs/inference-boundaries.md`, `ARCHITECTURE.md` §4
+      call-site table, `REQ-002`/`REQ-007` and `VERIFICATION.md`.
+
+      Note (2026-11-19): implemented per option A. 24/24 tests (6 new) plus typecheck/lint/build pass. Measured: `What do I have about {tag}?` for a tag absent from summary/entities now clears retrieval and tag-browse answers locally; synonym `lunch receipt` ↔ `bill` clears 0.35; three out-of-corpus probes still return Not found. The manual browser checklist needs a live check.
+
 ## P1 — product quality
 
 - [x] Automatic F4 protection (health/medicine entities, blurry images, photos

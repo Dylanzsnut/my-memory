@@ -1,6 +1,6 @@
 import type { AnswerResult, CaptureRecord, Claim, Language } from '../types';
-import { answerQuestion, hasSensitiveEntities } from './ai';
-import { contentWords, rawWords, tokenize } from './embeddings';
+import { answerQuestion, citeSummary, hasSensitiveEntities } from './ai';
+import { contentWords, normalize, rawWords, tokenize } from './embeddings';
 import { t } from './i18n';
 import { isLongSynthesisQuestion, searchCaptures } from './search';
 
@@ -100,6 +100,62 @@ export interface BuildAnswerOptions {
   language?: Language;
   allowSensitiveCloud?: boolean;
   onSensitiveCloudConfirm?: (captures: CaptureRecord[]) => Promise<boolean>;
+  /** Tag being browsed (see `tagBrowseTarget`). Answered locally with no model call. */
+  browseTag?: string;
+}
+
+const BROWSE_LIMIT = 10;
+
+/** Deterministic local answer for a tag-browse question: every capture that
+ * carries the tag, cited and verified like any other answer. */
+function buildTagBrowseAnswer(
+  tag: string,
+  captures: CaptureRecord[],
+  language: Language,
+): AnswerResult {
+  const started = performance.now();
+  const normTag = normalize(tag);
+  const tagged = captures
+    .filter(
+      (c) => c.retentionState !== 'trashed' && (c.tags || []).some((item) => normalize(item) === normTag),
+    )
+    .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))
+    .slice(0, BROWSE_LIMIT)
+    .map((c) => ({ ...c, sourceMatch: { score: 1, captureId: c.id } }));
+  const notFoundResult = (): AnswerResult => ({
+    text: t(language, 'notFoundMessage'),
+    claims: [],
+    sources: [],
+    inferenceSource: 'SIMULATED',
+    latencyMs: Math.round(performance.now() - started),
+    intent: 'short',
+    notFound: true,
+  });
+  if (!tagged.length) return notFoundResult();
+  const claims = parseClaims(tagged.map(citeSummary).filter(Boolean).join(' '), tagged).filter(
+    (c) => c.verified,
+  );
+  if (!claims.length) return notFoundResult();
+  const text = claims
+    .map((c) =>
+      c.text
+        .replace(/\[cap_[^\]]+\]/g, '')
+        .replace(/\s+([.,!?;:])/g, '$1')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join(' ');
+  const citedIds = new Set(claims.map((c) => c.captureId));
+  return {
+    text,
+    claims,
+    sources: tagged.filter((c) => citedIds.has(c.id)),
+    inferenceSource: 'SIMULATED',
+    latencyMs: Math.round(performance.now() - started),
+    intent: 'short',
+    notFound: false,
+  };
 }
 
 export async function buildAnswer(
@@ -109,6 +165,7 @@ export async function buildAnswer(
   options?: BuildAnswerOptions,
 ): Promise<AnswerResult> {
   const language = options?.language || 'en';
+  if (options?.browseTag) return buildTagBrowseAnswer(options.browseTag, captures, language);
   const intent = isLongSynthesisQuestion(question) ? 'long' : 'short';
   const results = await searchCaptures(question, captures, threshold);
   if (!results.length || !question.trim()) {

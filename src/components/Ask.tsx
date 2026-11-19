@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, Cloud, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import type { AnswerResult, CaptureRecord, Language } from '../types';
 import type { NanoAvailability } from '../lib/ai';
@@ -11,7 +11,7 @@ interface Props {
   nanoStatus: NanoAvailability;
   onAsk: (question: string, captureId?: string, tag?: string | null) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
-  busy: boolean;
+  busy?: boolean;
   tags?: string[];
   activeTag?: string | null;
   onActiveTagChange?: (tag: string | null) => void;
@@ -34,7 +34,6 @@ export default function Ask({
   nanoStatus,
   onAsk,
   onOpenDetail,
-  busy,
   tags = [],
   activeTag = null,
   onActiveTagChange,
@@ -48,6 +47,8 @@ export default function Ask({
   const [asked, setAsked] = useState('');
   const [error, setError] = useState<string | null>(null);
   const online = useOnlineStatus();
+  const [pending, setPending] = useState(false);
+  const requestSeq = useRef(0);
 
   useEffect(() => {
     if (seedQuestion) {
@@ -59,16 +60,23 @@ export default function Ask({
   }, [seedQuestion, seedCaptureId]);
 
   const submit = async (question: string, captureId?: string, tag?: string | null) => {
-    if (!question.trim() || busy) return;
+    if (!question.trim()) return;
+    // The latest request wins: an older, slower answer must never overwrite it,
+    // and a new click is never ignored because a previous one is still running.
+    const seq = ++requestSeq.current;
     setError(null);
+    setPending(true);
+    setAsked(question);
     try {
       const result = await onAsk(question, captureId, tag !== undefined ? tag : activeTag);
-      setAsked(question);
+      if (seq !== requestSeq.current) return;
       setAnswer(result);
     } catch (err) {
-      setAsked(question);
+      if (seq !== requestSeq.current) return;
       setAnswer(null);
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      if (seq === requestSeq.current) setPending(false);
     }
   };
 
@@ -96,7 +104,7 @@ export default function Ask({
         />
         <button
           type="submit"
-          disabled={busy || !query.trim()}
+          disabled={!query.trim()}
           aria-label={t(language, 'search')}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
         >
@@ -186,7 +194,7 @@ export default function Ask({
         </div>
       )}
 
-      {busy && (
+      {pending && (
         <div
           role="status"
           aria-live="polite"
@@ -202,7 +210,7 @@ export default function Ask({
         </div>
       )}
 
-      {answer ? (
+      {pending ? null : answer ? (
         <article className="animate-sheet overflow-hidden rounded-2xl border border-line bg-canvas shadow-sm">
           <div className="flex items-center justify-between bg-teal px-4 py-2.5 text-white">
             <div className="flex items-center gap-1.5">

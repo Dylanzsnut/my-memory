@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CaptureRecord, MemoryGroup } from '../src/types';
 import { embed, contentWords } from '../src/lib/embeddings';
-import { isLongSynthesisQuestion, searchCaptures } from '../src/lib/search';
+import { isLongSynthesisQuestion, searchCaptures, tagBrowseTarget } from '../src/lib/search';
 import { buildAnswer, extractNumberTokens, verifyClaim } from '../src/lib/answer';
-import { hasSensitiveEntities, isSensitiveEntity } from '../src/lib/ai';
+import { hasSensitiveEntities, isSensitiveEntity, isTransientAiError, withTimeout } from '../src/lib/ai';
 import {
   applyDecision,
   moveToTrash,
@@ -483,5 +483,75 @@ describe('editable embedding groups', () => {
     assert.equal(moved.find((g) => g.id === 'g2')?.source, 'manual');
     const ungrouped = moveCaptureToGroup(moved, 'a', null);
     assert.deepEqual(ungrouped.find((g) => g.id === 'g2')?.captureIds, ['c']);
+  });
+});
+
+describe('local-first Ask: tags, synonyms and speed', () => {
+  const makeTagged = async () => [
+    await makeCapture({ id: 'cap_t1', type: 'photo', summary: 'Dinner bill 45.000 VND', tags: ['Casanos'] }),
+    await makeCapture({ id: 'cap_t2', type: 'note', summary: 'Booked table for Friday', tags: ['Casanos', 'UI'] }),
+    await makeCapture({ id: 'cap_t3', type: 'note', summary: 'Wifi password songhong2024', entities: ['wifi'] }),
+  ];
+
+  it('detects tag-browse questions in EN and VI and ignores ordinary ones', () => {
+    const tags = ['Casanos', 'UI', 'sdasda'];
+    assert.equal(tagBrowseTarget('What do I have about Casanos?', tags), 'Casanos');
+    assert.equal(tagBrowseTarget('#UI', tags), 'UI');
+    assert.equal(tagBrowseTarget('Tôi có gì trong sdasda?', tags), 'sdasda');
+    assert.equal(tagBrowseTarget('wifi password', tags), null);
+    assert.equal(tagBrowseTarget('When is the Casanos booking?', tags), null);
+  });
+
+  it('answers a brand-new tag locally with citations and no unrelated captures', async () => {
+    const corpus = await makeTagged();
+    const result = await buildAnswer('What do I have about Casanos?', corpus, 0, {
+      browseTag: 'Casanos',
+    });
+    assert.equal(result.notFound, false);
+    assert.equal(result.inferenceSource, 'SIMULATED');
+    assert.deepEqual(result.sources.map((c) => c.id).sort(), ['cap_t1', 'cap_t2']);
+    assert.ok(result.claims.every((c) => c.verified));
+    const none = await buildAnswer('x', corpus, 0, { browseTag: 'nonexistent' });
+    assert.equal(none.notFound, true);
+  });
+
+  it('finds a tag added after capture through ordinary search', async () => {
+    const corpus = await makeTagged();
+    const hits = await searchCaptures('What do I have about Casanos?', corpus, 0.35);
+    assert.deepEqual(hits.slice(0, 2).map((h) => h.capture.id).sort(), ['cap_t1', 'cap_t2']);
+    assert.ok(!hits.some((h) => h.capture.id === 'cap_t3'));
+  });
+
+  it('clears the threshold on a synonym-only hit but still refuses out-of-corpus probes', async () => {
+    const corpus = await makeTagged();
+    const synonym = await searchCaptures('lunch receipt', [corpus[0]], 0.35);
+    assert.equal(synonym.length, 1);
+    for (const probe of ['passport number', 'blood pressure reading', 'flight to Tokyo']) {
+      const miss = await buildAnswer(probe, corpus, 0.35);
+      assert.equal(miss.notFound, true, probe);
+    }
+  });
+
+  it('classifies AI errors and enforces timeouts', async () => {
+    assert.equal(isTransientAiError(new Error('403 PERMISSION_DENIED: enforce App Check')), false);
+    assert.equal(isTransientAiError(new Error('Failed to fetch')), false);
+    assert.equal(isTransientAiError(new Error('503 Service Unavailable')), true);
+    await assert.rejects(withTimeout(new Promise(() => undefined), 20, 'test call'), /timed out/);
+    assert.equal(await withTimeout(Promise.resolve(7), 50), 7);
+  });
+
+  it('searches and answers a 50-capture corpus locally in well under a second', async () => {
+    const corpus = await Promise.all(
+      Array.from({ length: 50 }, (_, i) =>
+        makeCapture({ id: `cap_bulk_${i}`, type: 'note', summary: `Bulk note ${i} about topic${i}` }),
+      ),
+    );
+    const started = performance.now();
+    const hits = await searchCaptures('topic7', corpus, 0.35);
+    const answer = await buildAnswer('topic7', corpus, 0.35);
+    const elapsed = performance.now() - started;
+    assert.ok(hits.length >= 1);
+    assert.equal(answer.notFound, false);
+    assert.ok(elapsed < 250, `took ${elapsed.toFixed(0)} ms`);
   });
 });

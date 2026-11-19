@@ -87,7 +87,7 @@ The SDK exposes four modes; the mode is chosen per call site, not globally.
 |---|---|---|---|
 | Ingest extraction | original image or transcript | `ONLY_ON_DEVICE` | A cloud fallback would forward a private original (ADR-009) |
 | Voice transcript extraction | transcript text | `ONLY_ON_DEVICE` | Derived from a private original |
-| Short cited answer | query + summaries/entities | `PREFER_ON_DEVICE` | Text-only payload; fallback is labelled through `inferenceSource` |
+| Short cited answer | query + local captures (incl. user tags) | local lookup; `ONLY_ON_DEVICE` when Nano is ready | Never leaves the device; no cloud fallback; local answers are labelled `SIMULATED` |
 | Long synthesis | JSON summaries of selected captures | `ONLY_IN_CLOUD` | Explicit escalation; failure means the app says a connection is needed |
 | Availability probe | none | feature / category check | Decides which call sites are reachable; drives graceful degradation |
 

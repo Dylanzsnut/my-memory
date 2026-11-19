@@ -45,6 +45,7 @@ import {
   setUserMeta,
 } from './lib/store';
 import { buildAnswer } from './lib/answer';
+import { tagBrowseTarget } from './lib/search';
 import { applyDecision, moveToTrash, purgeExpiredTrash, scanForProposals } from './lib/forget';
 import { computeTagGroups, rebuildSearchText } from './lib/tags';
 import {
@@ -413,41 +414,47 @@ export default function App() {
   };
 
   const handleAsk = async (question: string, captureId?: string, tagOverride?: string | null) => {
-    setBusy(true);
-    try {
-      const scopeTag = tagOverride !== undefined ? tagOverride : activeTag;
-      const normScope = scopeTag ? normalize(scopeTag) : null;
-      const inScope = (capture: CaptureRecord) =>
-        !normScope || (capture.tags || []).some((tag) => normalize(tag) === normScope);
-      const targetCapture = captureId
-        ? captures.find(
-            (c) => c.id === captureId && c.retentionState !== 'trashed' && inScope(c),
-          )
-        : undefined;
-      const scopedCaptures = normScope ? captures.filter(inScope) : captures;
-      const answerOptions = {
-        language,
-        onSensitiveCloudConfirm: getServices().ai
-          ? async () => window.confirm(t(language, 'sensitiveCloudPrompt'))
-          : undefined,
-      };
-      const result = captureId
-        ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0, answerOptions)
+    const scopeTag = tagOverride !== undefined ? tagOverride : activeTag;
+    const normScope = scopeTag ? normalize(scopeTag) : null;
+    const inScope = (capture: CaptureRecord) =>
+      !normScope || (capture.tags || []).some((tag) => normalize(tag) === normScope);
+    const targetCapture = captureId
+      ? captures.find((c) => c.id === captureId && c.retentionState !== 'trashed' && inScope(c))
+      : undefined;
+    const scopedCaptures = normScope ? captures.filter(inScope) : captures;
+    const answerOptions = {
+      language,
+      onSensitiveCloudConfirm: getServices().ai
+        ? async () => window.confirm(t(language, 'sensitiveCloudPrompt'))
+        : undefined,
+    };
+    // A question that only names a tag ("What do I have about Casanos?") is a
+    // local lookup of that tag: no retrieval threshold, no model call.
+    const knownTags = Array.from(
+      new Set(captures.filter((c) => c.retentionState !== 'trashed').flatMap((c) => c.tags || [])),
+    );
+    const browseTag = captureId ? null : tagBrowseTarget(question, knownTags);
+    const result = captureId
+      ? await buildAnswer(question, targetCapture ? [targetCapture] : [], 0, answerOptions)
+      : browseTag
+        ? await buildAnswer(question, captures, 0, { ...answerOptions, browseTag })
         : await buildAnswer(question, scopedCaptures, settings.retrievalThreshold, answerOptions);
-      if (result.sources.length) {
-        for (const source of result.sources) await saveCapture(source);
-        setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));
-      }
-      log(
-        t(language, 'answered'),
-        result.inferenceSource,
-        result.latencyMs,
-        result.error ? `${question.slice(0, 40)} — ${result.error}` : question.slice(0, 60),
+    if (result.sources.length) {
+      // Persist match provenance in the background; the answer must not wait on IndexedDB.
+      void Promise.all(
+        result.sources.map((source) =>
+          saveCapture(source).catch((err) => console.warn('[store] save sourceMatch failed', err)),
+        ),
       );
-      return result;
-    } finally {
-      setBusy(false);
+      setCaptures((prev) => prev.map((c) => result.sources.find((s) => s.id === c.id) || c));
     }
+    log(
+      t(language, 'answered'),
+      result.inferenceSource,
+      result.latencyMs,
+      result.error ? `${question.slice(0, 40)} — ${result.error}` : question.slice(0, 60),
+    );
+    return result;
   };
 
   const syncUid = session?.mode === 'google' ? session.uid : undefined;
