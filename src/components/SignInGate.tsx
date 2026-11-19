@@ -45,12 +45,19 @@ export default function SignInGate({ language, onLanguageChange, onAuthenticated
   const handleDemo = async () => {
     if (loading) return;
     setError(null);
-    await onAuthenticated({
-      mode: 'demo',
-      uid: DEMO_UID,
-      email: null,
-      displayName: t(language, 'demoBadge'),
-    });
+    setLoading(true);
+    try {
+      await onAuthenticated({
+        mode: 'demo',
+        uid: DEMO_UID,
+        email: null,
+        displayName: t(language, 'demoBadge'),
+      });
+    } catch (err) {
+      setError(t(language, 'authFailed', { msg: (err instanceof Error ? err.message : String(err)).slice(0, 120) }));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

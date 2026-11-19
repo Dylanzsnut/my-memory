@@ -161,7 +161,7 @@ created → (target deleted manually) → proposal closed (`decided: 'manual'`) 
 
 ### 4.1 IndexedDB (device, `src/lib/store.ts`)
 
-Database `my-memory`, version `1`, single writer (`Claimed`, `INV-301`).
+Database `my-memory`, version `2`, single writer (`Claimed`, `INV-301`). Version 2 is retained after the `groups` store was retired — IndexedDB versions must never be lowered.
 
 | Object store | Key | Key path | Index | Value | Notes |
 |---|---|---|---|---|---|
@@ -308,9 +308,9 @@ proposes, the human disposes (`F5`).
 
 ## 11. Schema evolution and migration policy
 
-Current state: IndexedDB version `1`. A former v2 `groups` store was removed
-when grouping moved onto `CaptureRecord.tags`; old IndexedDB databases keep an
-unused `groups` store until cleared, which no code reads or writes.
+Current state: IndexedDB version `2`. The former `groups` store is no longer
+read or written by the app; it may still exist in browsers that opened an older
+build. Version 2 is never lowered to 1 (that would throw `VersionError`).
 
 Rules for future version bumps (design intent, `Claimed`):
 

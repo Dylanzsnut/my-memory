@@ -682,6 +682,20 @@ and delete, and a distinct style for suggested tags.
 
       Note (2026-11-19): removed `src/lib/groups.ts`, the `groups` store and v2 migration; `Memories` is one timeline again with date+tag+Untagged filters and a "Group by tag" view. `DetailSheet` renames/deletes a tag on a single capture; suggested tags use a dashed accent style. 21/21 tests pass plus typecheck/lint/build. Manual browser check still recommended.
 
+## Demo login fix (IndexedDB version)
+
+Scope: owner report (2026-11-19) — Demo mode button did nothing. Root cause:
+`store.ts` requested IndexedDB version 1 after the `Tag = group` refactor while
+existing browsers already held a v2 database → `openDB` threw `VersionError`,
+`seedDemoCaptures` rejected, and `SignInGate.handleDemo` had no error handler.
+- [x] Keep IndexedDB version 2 (never downgrade) with an idempotent `upgrade`
+      that creates only the stores still in use; leave any legacy `groups` store
+      untouched.
+- [x] Wrap `handleDemo` in try/catch so any storage error is shown in the gate
+      instead of failing silently.
+- [x] Verification: typecheck, lint, 21/21 tests and production build pass.
+      Manual browser check needed on a profile that previously opened v2.
+
 ## P1 — product quality
 
 - [x] Automatic F4 protection (health/medicine entities, blurry images, photos

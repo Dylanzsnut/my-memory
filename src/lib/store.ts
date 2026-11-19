@@ -14,12 +14,23 @@ let dbPromise: Promise<IDBPDatabase<MemoryDB>> | null = null;
 
 function db(): Promise<IDBPDatabase<MemoryDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<MemoryDB>('my-memory', 1, {
+    // Never lower an IndexedDB version: browsers that already opened v2 (from
+    // the former `groups` store) throw a VersionError if we request v1.
+    // Version 2 is kept; the obsolete `groups` store is simply unused.
+    dbPromise = openDB<MemoryDB>('my-memory', 2, {
       upgrade(database) {
-        database.createObjectStore('captures', { keyPath: 'id' }).createIndex('by-date', 'capturedAt');
-        database.createObjectStore('proposals', { keyPath: 'id' });
-        database.createObjectStore('hud', { keyPath: 'id' });
-        database.createObjectStore('meta', { keyPath: 'key' });
+        if (!database.objectStoreNames.contains('captures')) {
+          database.createObjectStore('captures', { keyPath: 'id' }).createIndex('by-date', 'capturedAt');
+        }
+        if (!database.objectStoreNames.contains('proposals')) {
+          database.createObjectStore('proposals', { keyPath: 'id' });
+        }
+        if (!database.objectStoreNames.contains('hud')) {
+          database.createObjectStore('hud', { keyPath: 'id' });
+        }
+        if (!database.objectStoreNames.contains('meta')) {
+          database.createObjectStore('meta', { keyPath: 'key' });
+        }
       },
     });
   }

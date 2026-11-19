@@ -73,6 +73,7 @@ personal-corpus size and has no vector index at HEAD.
 
 - Trash retention target belongs to REQ-005; see `docs/as-built/specs/forgetting.md`.
 - HUD events are trimmed above 60 entries in IndexedDB.
-- IndexedDB version is `1` again: the former `groups` store is obsolete (a view
+- IndexedDB version stays `2`: the former `groups` store is obsolete (a view
   over `tags` now supplies grouping) and is never read or written by the app.
+  Downgrading to v1 would throw `VersionError` in existing browsers.
 - PII: demo seed values are synthetic, tagged `demo: true`, and partitioned in `ownerUid: 'demo'`. Google sign-in runs a one-time cleanup (`cleanupDemoRecordsForUser`) removing any unowned or stray `demo: true` records, proposals, and HUD events before loading memory, and never calls `seedDemoCaptures()`. Real capture content stays local at HEAD.
