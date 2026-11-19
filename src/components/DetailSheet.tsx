@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Tag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Sparkles, Tag, Trash2, X } from 'lucide-react';
 import type { CaptureRecord, Language } from '../types';
 import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
@@ -28,7 +28,10 @@ export default function DetailSheet({
   const [tagInput, setTagInput] = useState('');
   const [confirmTrash, setConfirmTrash] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [tagEditValue, setTagEditValue] = useState('');
 
+  const suggestedTags = capture.suggestedTags || [];
   const userTags = capture.tags || [];
 
   const addTag = () => {
@@ -50,6 +53,16 @@ export default function DetailSheet({
       capture,
       userTags.filter((existing) => normalize(existing) !== normTarget),
     );
+  };
+
+  // Rename is deliberately scoped to THIS capture only: other captures sharing
+  // the old tag are left untouched.
+  const commitTagRename = (target: string) => {
+    const next = tagEditValue.trim().replace(/^#+/, '');
+    setEditingTag(null);
+    if (!onUpdateTags || !next || normalize(next) === normalize(target)) return;
+    if (userTags.some((t) => normalize(t) === normalize(next))) return;
+    void onUpdateTags(capture, userTags.map((t) => (t === target ? next : t)));
   };
 
   useEffect(() => {
@@ -178,21 +191,55 @@ export default function DetailSheet({
             {userTags.length > 0 && (
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {userTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2.5 py-1 text-[11px] font-bold text-teal"
-                  >
-                    #{tag}
-                    {onUpdateTags && (
+                  editingTag === tag ? (
+                    <input
+                      key={tag}
+                      autoFocus
+                      value={tagEditValue}
+                      onChange={(e) => setTagEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitTagRename(tag); }}
+                      onBlur={() => commitTagRename(tag)}
+                      aria-label={`Rename tag ${tag}`}
+                      className="min-h-11 w-32 rounded-full border border-teal bg-canvas px-2.5 text-[11px] font-bold outline-none"
+                    />
+                  ) : (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2.5 py-1 text-[11px] font-bold text-teal"
+                    >
                       <button
                         type="button"
-                        onClick={() => removeTag(tag)}
-                        aria-label={`Remove tag ${tag}`}
-                        className="rounded-full p-0.5 hover:bg-teal/15"
+                        onClick={() => { setEditingTag(tag); setTagEditValue(tag); }}
+                        aria-label={`Rename tag ${tag}`}
+                        title={t(language, 'renameTagHint')}
+                        className="min-h-11"
                       >
-                        <X size={11} />
+                        #{tag}
                       </button>
-                    )}
+                      {onUpdateTags && (
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          aria-label={`Remove tag ${tag}`}
+                          className="rounded-full p-0.5 hover:bg-teal/15"
+                        >
+                          <X size={11} />
+                        </button>
+                      )}
+                    </span>
+                  )
+                ))}
+              </div>
+            )}
+            {suggestedTags.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10.5px] font-bold text-accent">{t(language, 'suggestedTagLabel')}:</span>
+                {suggestedTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-accent bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent"
+                  >
+                    <Sparkles size={10} /> #{tag}
                   </span>
                 ))}
               </div>

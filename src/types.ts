@@ -53,19 +53,6 @@ export interface CaptureRecord {
   demo?: boolean;
   /** Owning user UID (or 'demo' for local demo sandbox) to partition IndexedDB. */
   ownerUid?: string;
-  /** Set when the user has manually assigned this capture to a group; auto-reconcile skips it. */
-  manualGroupLock?: boolean;
-}
-
-/** Local-only, user-editable embedding group (never synced to Firestore). */
-export interface MemoryGroup {
-  id: string;
-  name: string;
-  captureIds: string[];
-  source: 'auto' | 'manual';
-  createdAt: string;
-  updatedAt: string;
-  ownerUid?: string;
 }
 
 export interface TagGroupProposal {

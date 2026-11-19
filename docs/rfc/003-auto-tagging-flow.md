@@ -18,6 +18,12 @@ Everything below is `Claimed` design intent. Implementation truth will live in
 > delete-group-keeps-captures); manual overrides survive auto re-clustering.
 > This is an extension of the agreed design, not a silent body edit.
 
+> **Dated amendment — 2026-11-19 (second):** the `MemoryGroup` model is
+> retired entirely. Grouping is now a *view* over `tags` (each capture appears
+> once, under its first tag; an `Untagged` view covers captures with no tags).
+> Renaming or deleting a tag is per-capture, never a mass edit. This supersedes
+> the earlier editable-embedding-group amendment.
+
 - Owner: Duy
 - Created: 2026-11-18
 - Task group: `docs/plan/tasks.md` § Tags & suggested groups

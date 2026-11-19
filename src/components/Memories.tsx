@@ -1,32 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Check,
-  CheckCircle2,
-  ChevronDown,
-  EllipsisVertical,
-  Folder,
-  FolderInput,
   Image,
-  Lock,
   Mic,
   NotepadText,
   Pencil,
   RefreshCw,
-  Scissors,
   ShieldCheck,
   Sparkles,
   Tag,
   Trash2,
   X,
 } from 'lucide-react';
-import type {
-  CaptureRecord,
-  CaptureType,
-  ExtractionRequest,
-  Language,
-  MemoryGroup,
-  TagGroupProposal,
-} from '../types';
+import type { CaptureRecord, CaptureType, ExtractionRequest, Language, TagGroupProposal } from '../types';
 import { extractPhotoCapturedAt } from '../lib/exif';
 import { t } from '../lib/i18n';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
@@ -46,11 +32,6 @@ interface Props {
   onManualTrash?: (capture: CaptureRecord) => Promise<void> | void;
   onOpenTrash?: () => void;
   trashDays?: number;
-  memoryGroups?: MemoryGroup[];
-  onSplitGroup?: (group: MemoryGroup, selectedIds: string[], name: string) => Promise<void> | void;
-  onRenameGroup?: (group: MemoryGroup, name: string) => Promise<void> | void;
-  onDeleteGroup?: (group: MemoryGroup) => Promise<void> | void;
-  onMoveCaptureToGroup?: (captureId: string, targetGroupId: string | null) => Promise<void> | void;
   activeTag?: string | null;
   onActiveTagChange?: (tag: string | null) => void;
 }
@@ -116,11 +97,6 @@ export default function Memories({
   onManualTrash,
   onOpenTrash,
   trashDays = 30,
-  memoryGroups = [],
-  onSplitGroup,
-  onRenameGroup,
-  onDeleteGroup,
-  onMoveCaptureToGroup,
   activeTag: sharedActiveTag = null,
   onActiveTagChange,
 }: Props) {
@@ -148,16 +124,10 @@ export default function Memories({
   const [renameValue, setRenameValue] = useState('');
   const [confirmTrash, setConfirmTrash] = useState<CaptureRecord | null>(null);
   const [activeDateFilter, setActiveDateFilter] = useState<DateFilter>('all');
-  const [splittingGroupId, setSplittingGroupId] = useState<string | null>(null);
-  const [splitSelection, setSplitSelection] = useState<string[]>([]);
-  const [splitName, setSplitName] = useState('');
-  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
-  const [renameGroupValue, setRenameGroupValue] = useState('');
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [groupMenuTarget, setGroupMenuTarget] = useState<MemoryGroup | null>(null);
-  const [cardMenuTarget, setCardMenuTarget] = useState<{ capture: CaptureRecord; groupId: string | null } | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [groupByTag, setGroupByTag] = useState(false);
   const online = useOnlineStatus();
+  const UNTAGGED = '__untagged__';
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -201,13 +171,10 @@ export default function Memories({
         await onCapture({ type: 'photo', imageDataUrl, capturedAt });
       } catch (err) {
         console.warn('[memories] photo capture failed', err);
-        if (mountedRef.current) {
-          setImportProgress({ active: false, done: 1, total: 1, failed: 1 });
-        }
+        if (mountedRef.current) setImportProgress({ active: false, done: 1, total: 1, failed: 1 });
       }
       return;
     }
-
     let failed = 0;
     setImportProgress({ active: true, done: 0, total: queue.length, failed: 0 });
     for (let i = 0; i < queue.length; i++) {
@@ -225,40 +192,27 @@ export default function Memories({
         setImportProgress({ active: i + 1 < queue.length, done: i + 1, total: queue.length, failed });
       }
     }
-    if (mountedRef.current && failed === 0) {
-      setImportProgress(null);
-    }
+    if (mountedRef.current && failed === 0) setImportProgress(null);
   };
 
   const toggleRecording = async () => {
     if (recording) {
-      if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-        recorderRef.current.stop();
-      } else {
-        stopTracks();
-        setRecording(false);
-      }
+      if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+      else { stopTracks(); setRecording(false); }
       return;
     }
-
     if (recordingPendingRef.current || busy) return;
     recordingPendingRef.current = true;
-
     clearDraft();
     setNoteOpen(false);
-
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       recordingPendingRef.current = false;
       setVoiceDraft({ error: t(language, 'voiceUnavailable') });
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!mountedRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
+      if (!mountedRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
       streamRef.current = stream;
       chunksRef.current = [];
       const preferredMime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((mime) =>
@@ -266,7 +220,6 @@ export default function Memories({
       );
       const recorder = preferredMime ? new MediaRecorder(stream, { mimeType: preferredMime }) : new MediaRecorder(stream);
       recorderRef.current = recorder;
-
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
       };
@@ -282,7 +235,6 @@ export default function Memories({
         setRecording(false);
         setVoiceDraft({ blob, mimeType, url });
       };
-
       recorder.start();
       setRecording(true);
     } catch {
@@ -301,129 +253,101 @@ export default function Memories({
   const allTags = Array.from(new Set(visibleCaptures.flatMap((c) => c.tags || []))).sort((a, b) =>
     a.localeCompare(b),
   );
-  const selectedTag = activeTag && allTags.includes(activeTag) ? activeTag : null;
-  const filteredCaptures = selectedTag
-    ? visibleCaptures.filter((c) => (c.tags || []).includes(selectedTag))
-    : visibleCaptures;
-
+  const hasUntagged = visibleCaptures.some((c) => !(c.tags || []).length);
+  const selectedTag = activeTag && (activeTag === UNTAGGED || allTags.includes(activeTag)) ? activeTag : null;
+  const filteredCaptures = !selectedTag
+    ? visibleCaptures
+    : selectedTag === UNTAGGED
+      ? visibleCaptures.filter((c) => !(c.tags || []).length)
+      : visibleCaptures.filter((c) => (c.tags || []).includes(selectedTag));
   const dateFiltered = filteredCaptures.filter((c) => matchesDateFilter(c.capturedAt, activeDateFilter));
-  const groupedIds = new Set(memoryGroups.flatMap((g) => g.captureIds));
-  const ungrouped = dateFiltered.filter((c) => !groupedIds.has(c.id));
-  const visibleGroups = memoryGroups
-    .map((group) => ({
-      group,
-      members: group.captureIds
-        .map((id) => dateFiltered.find((c) => c.id === id))
-        .filter((c): c is CaptureRecord => Boolean(c)),
-    }))
-    .filter((entry) => entry.members.length > 0);
 
-  const commitGroupRename = (group: MemoryGroup) => {
-    const value = renameGroupValue.trim();
-    if (value && onRenameGroup) void onRenameGroup(group, value);
-    setRenamingGroupId(null);
-  };
-
-  const renderCaptureCard = (
-    capture: CaptureRecord,
-    groupId: string | null | undefined,
-    isSplitCandidate = false,
-  ) => {
-    const isChecked = isSplitCandidate && splitSelection.includes(capture.id);
-    const toggleSplitCheck = () => {
-      setSplitSelection((prev) =>
-        prev.includes(capture.id) ? prev.filter((id) => id !== capture.id) : [...prev, capture.id],
+  // Group-by-tag is a view only: each capture appears once, under its first tag.
+  const tagSections: { tag: string; items: CaptureRecord[] }[] = [];
+  if (groupByTag) {
+    for (const tag of [...allTags, ...(hasUntagged ? [UNTAGGED] : [])]) {
+      const items = dateFiltered.filter((c) =>
+        tag === UNTAGGED ? !(c.tags || []).length : (c.tags || [])[0] === tag,
       );
-    };
-    const showCardMenuButton = !isSplitCandidate && (Boolean(onManualTrash) || (Boolean(onMoveCaptureToGroup) && groupId !== undefined));
+      if (items.length) tagSections.push({ tag, items });
+    }
+  }
 
-    return (
-      <div
-        key={capture.id}
-        className={`w-full rounded-2xl border bg-canvas p-3.5 text-left shadow-sm transition-all ${
-          isChecked ? 'border-accent ring-1 ring-accent/40' : 'border-line hover:border-line2'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {isSplitCandidate && (
-              <input
-                type="checkbox"
-                checked={isChecked}
-                onChange={toggleSplitCheck}
-                aria-label={capture.summary}
-                className="h-4 w-4 accent-accent"
-              />
-            )}
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TYPE_STYLE[capture.type]}`}>
-              {typeLabel(language, capture.type)}
-            </span>
-            {capture.protectedReason && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
-                <ShieldCheck size={11} /> {language === 'vi' ? 'Được bảo vệ' : 'Protected'}
-              </span>
-            )}
-            {capture.demo && (
-              <span className="rounded-full bg-surface2 px-2 py-0.5 text-[9px] font-semibold text-ink3">
-                {t(language, 'demoData')}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            {showCardMenuButton && (
-              <button
-                type="button"
-                onClick={() => setCardMenuTarget({ capture, groupId: groupId ?? null })}
-                aria-label={t(language, 'cardActions')}
-                className="grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-ink3 transition-colors hover:bg-surface2 hover:text-ink"
-              >
-                <EllipsisVertical size={15} />
-              </button>
-            )}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => (isSplitCandidate ? toggleSplitCheck() : onOpenDetail(capture))}
-          className="mt-2.5 flex w-full items-start gap-3 text-left"
-        >
-          {capture.originalRef && capture.type === 'photo' ? (
-            <img src={capture.originalRef} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" />
-          ) : (
-            <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-xl ${TYPE_STYLE[capture.type]}`}>
-              {capture.type === 'voice' ? <Mic size={24} /> : capture.type === 'note' ? <NotepadText size={24} /> : <Image size={24} />}
+  const renderCaptureCard = (capture: CaptureRecord) => (
+    <div key={capture.id} className="w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TYPE_STYLE[capture.type]}`}>
+            {typeLabel(language, capture.type)}
+          </span>
+          {capture.protectedReason && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
+              <ShieldCheck size={11} /> {language === 'vi' ? 'Được bảo vệ' : 'Protected'}
             </span>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13.5px] font-bold leading-snug">{capture.summary}</p>
-            {capture.derivedText && (
-              <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink2">{capture.derivedText}</p>
-            )}
-            {capture.tags && capture.tags.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {capture.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="mt-2 flex items-center gap-2">
-              <SourceBadge source={capture.inferenceSource} language={language} />
-              <span className="text-[10px] text-ink3">
-                {new Date(capture.capturedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          </div>
-        </button>
+          {capture.demo && (
+            <span className="rounded-full bg-surface2 px-2 py-0.5 text-[9px] font-semibold text-ink3">
+              {t(language, 'demoData')}
+            </span>
+          )}
+        </div>
+        {onManualTrash && (
+          <button
+            type="button"
+            onClick={() => setConfirmTrash(capture)}
+            aria-label={t(language, 'deleteMemory')}
+            className="grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-ink3 transition-colors hover:bg-danger-soft hover:text-danger"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
-    );
-  };
+      <button type="button" onClick={() => onOpenDetail(capture)} className="mt-2.5 flex w-full items-start gap-3 text-left">
+        {capture.originalRef && capture.type === 'photo' ? (
+          <img src={capture.originalRef} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" />
+        ) : (
+          <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-xl ${TYPE_STYLE[capture.type]}`}>
+            {capture.type === 'voice' ? <Mic size={24} /> : capture.type === 'note' ? <NotepadText size={24} /> : <Image size={24} />}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13.5px] font-bold leading-snug">{capture.summary}</p>
+          {capture.derivedText && (
+            <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink2">{capture.derivedText}</p>
+          )}
+          {capture.tags && capture.tags.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {capture.tags.map((tag) => (
+                <span key={tag} className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            <SourceBadge source={capture.inferenceSource} language={language} />
+            <span className="text-[10px] text-ink3">
+              {new Date(capture.capturedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US', {
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+              })}
+            </span>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+
+  const renderSection = (title: string, items: CaptureRecord[], badge?: string) => (
+    <section key={title} className="space-y-2.5">
+      <div className="flex items-center justify-between px-0.5">
+        <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
+        <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
+          {badge || `${items.length} ${t(language, 'groupEntries')}`}
+        </span>
+      </div>
+      {items.map(renderCaptureCard)}
+    </section>
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -448,15 +372,27 @@ export default function Memories({
             {t(language, online ? 'onlineLive' : 'offlineLive')}
           </span>
         </div>
-        {onOpenTrash && trashedCount > 0 && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onOpenTrash}
-            className="inline-flex items-center gap-1 rounded-full border border-line2 bg-canvas px-3 py-1 text-[11px] font-bold text-ink2 hover:border-accent"
+            onClick={() => setGroupByTag(!groupByTag)}
+            aria-pressed={groupByTag}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+              groupByTag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+            }`}
           >
-            <Trash2 size={12} /> {t(language, 'openTrash', { n: trashedCount })}
+            <Tag size={12} /> {t(language, 'groupByTag')}
           </button>
-        )}
+          {onOpenTrash && trashedCount > 0 && (
+            <button
+              type="button"
+              onClick={onOpenTrash}
+              className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line2 bg-canvas px-3 py-1 text-[11px] font-bold text-ink2 hover:border-accent"
+            >
+              <Trash2 size={12} /> {t(language, 'openTrash', { n: trashedCount })}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-1.5 rounded-2xl border border-line bg-canvas p-1.5 shadow-sm">
@@ -480,10 +416,7 @@ export default function Memories({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (!noteOpen) clearDraft();
-            setNoteOpen(!noteOpen);
-          }}
+          onClick={() => { if (!noteOpen) clearDraft(); setNoteOpen(!noteOpen); }}
           className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold-soft px-2 py-2.5 text-[11.5px] font-bold text-gold active:scale-95"
         >
           <NotepadText size={15} /> {t(language, 'note')}
@@ -494,10 +427,7 @@ export default function Memories({
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => {
-            void handlePhotoBatch(e.target.files);
-            e.target.value = '';
-          }}
+          onChange={(e) => { void handlePhotoBatch(e.target.files); e.target.value = ''; }}
         />
       </div>
 
@@ -509,12 +439,7 @@ export default function Memories({
               : t(language, 'importFailed', { n: importProgress.failed })}
           </span>
           {!importProgress.active && (
-            <button
-              type="button"
-              onClick={() => setImportProgress(null)}
-              aria-label={t(language, 'cancel')}
-              className="text-ink3 hover:text-ink"
-            >
+            <button type="button" onClick={() => setImportProgress(null)} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
               <X size={14} />
             </button>
           )}
@@ -537,51 +462,32 @@ export default function Memories({
             </button>
           </div>
           {voiceDraft.error ? (
-            <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-[11.5px] leading-snug text-accent">
-              {voiceDraft.error}
-            </p>
+            <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-[11.5px] leading-snug text-accent">{voiceDraft.error}</p>
           ) : (
-            <p className="mt-1.5 text-[11px] text-ink2">{t(language, 'voiceRecordHint')}</p>
+            <>
+              <p className="mt-1.5 text-[11px] text-ink2">{t(language, 'voiceRecordHint')}</p>
+              {voiceDraft.url && <audio controls src={voiceDraft.url} className="mt-2 w-full" />}
+              <textarea
+                value={voiceText}
+                onChange={(e) => setVoiceText(e.target.value)}
+                placeholder={t(language, 'voiceMemoPlaceholder')}
+                className="mt-2 min-h-16 w-full rounded-xl border border-line bg-surface2 p-2 text-[11.5px] outline-none"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  try {
+                    await onCapture({ type: 'voice', audioBlob: voiceDraft.blob, audioMimeType: voiceDraft.mimeType, text: voiceText.trim() });
+                    clearDraft();
+                  } catch (err) { console.warn('[memories] voice capture failed', err); }
+                }}
+                className="mt-2 w-full rounded-full bg-accent py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+              >
+                {t(language, 'save')}
+              </button>
+            </>
           )}
-          {voiceDraft.url && (
-            <audio controls src={voiceDraft.url} preload="metadata" className="mt-2 w-full" />
-          )}
-          <textarea
-            value={voiceText}
-            onChange={(e) => setVoiceText(e.target.value)}
-            placeholder={t(language, 'voiceMemoPlaceholder')}
-            rows={2}
-            className="mt-2 w-full resize-none rounded-xl border border-line bg-surface2 p-3 text-[13px] outline-none focus:border-accent"
-          />
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={clearDraft}
-              className="flex-1 rounded-full border border-line2 bg-canvas py-2.5 text-[12.5px] font-bold text-ink2"
-            >
-              {t(language, 'cancel')}
-            </button>
-            <button
-              type="button"
-              disabled={(!voiceDraft.blob && !voiceText.trim()) || busy}
-              onClick={async () => {
-                try {
-                  await onCapture({
-                    type: 'voice',
-                    text: voiceText.trim() || undefined,
-                    audioBlob: voiceDraft.blob,
-                    audioMimeType: voiceDraft.mimeType,
-                  });
-                  clearDraft();
-                } catch (err) {
-                  console.warn('[memories] voice capture failed', err);
-                }
-              }}
-              className="flex-1 rounded-full bg-accent py-2.5 text-[12.5px] font-bold text-white disabled:opacity-40"
-            >
-              {t(language, 'save')}
-            </button>
-          </div>
         </div>
       )}
 
@@ -597,20 +503,17 @@ export default function Memories({
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder={t(language, 'notePlaceholder')}
-            rows={3}
-            className="mt-2 w-full resize-none rounded-xl border border-line bg-surface2 p-3 text-[13px] outline-none focus:border-accent"
+            className="mt-2 min-h-20 w-full rounded-xl border border-line bg-surface2 p-2 text-[11.5px] outline-none"
           />
           <button
             type="button"
-            disabled={!noteText.trim() || busy}
+            disabled={busy || !noteText.trim()}
             onClick={async () => {
               try {
                 await onCapture({ type: 'note', text: noteText.trim() });
                 setNoteText('');
                 setNoteOpen(false);
-              } catch (err) {
-                console.warn('[memories] note capture failed', err);
-              }
+              } catch (err) { console.warn('[memories] note capture failed', err); }
             }}
             className="mt-2 w-full rounded-full bg-accent py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
@@ -620,45 +523,56 @@ export default function Memories({
       )}
 
       <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-0.5">
-        {(
-          [
-            ['all', 'allDates'],
-            ['today', 'today'],
-            ['yesterday', 'yesterday'],
-            ['older', 'older'],
-          ] as const
-        ).map(([value, labelKey]) => (
+        {([['all', 'allDates'], ['today', 'today'], ['yesterday', 'yesterday'], ['older', 'older']] as const).map(([value, labelKey]) => (
           <button
             key={value}
             type="button"
             onClick={() => setActiveDateFilter(value)}
             aria-pressed={activeDateFilter === value}
             className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
-              activeDateFilter === value
-                ? 'border-teal bg-teal text-white'
-                : 'border-line bg-canvas text-ink2'
+              activeDateFilter === value ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
             }`}
           >
             {t(language, labelKey)}
           </button>
         ))}
+        {(allTags.length > 0 || hasUntagged) && <span aria-hidden="true" className="mx-0.5 h-3.5 w-px shrink-0 bg-line2" />}
         {allTags.length > 0 && (
-          <>
-            <span aria-hidden="true" className="mx-0.5 h-3.5 w-px shrink-0 bg-line2" />
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setActiveTag(selectedTag === tag ? null : tag)}
-                aria-pressed={selectedTag === tag}
-                className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
-                  selectedTag === tag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
-                }`}
-              >
-                #{tag}
-              </button>
-            ))}
-          </>
+          <button
+            type="button"
+            onClick={() => setActiveTag(null)}
+            aria-pressed={!selectedTag}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold ${
+              !selectedTag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+            }`}
+          >
+            {t(language, 'allTags')}
+          </button>
+        )}
+        {allTags.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => setActiveTag(selectedTag === tag ? null : tag)}
+            aria-pressed={selectedTag === tag}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+              selectedTag === tag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+            }`}
+          >
+            #{tag}
+          </button>
+        ))}
+        {hasUntagged && (
+          <button
+            type="button"
+            onClick={() => setActiveTag(selectedTag === UNTAGGED ? null : UNTAGGED)}
+            aria-pressed={selectedTag === UNTAGGED}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+              selectedTag === UNTAGGED ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
+            }`}
+          >
+            {t(language, 'untagged')}
+          </button>
         )}
       </div>
 
@@ -672,20 +586,11 @@ export default function Memories({
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {onRefreshTagGroups && (
-              <button
-                type="button"
-                onClick={onRefreshTagGroups}
-                aria-label={t(language, 'refreshGroups')}
-                className="grid min-h-11 min-w-11 place-items-center rounded-full border border-line bg-canvas text-ink2 hover:border-accent"
-              >
+              <button type="button" onClick={onRefreshTagGroups} aria-label={t(language, 'refreshGroups')} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-line bg-canvas text-ink2 hover:border-accent">
                 <RefreshCw size={12} />
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setSuggestionsOpen(true)}
-              className="inline-flex min-h-11 items-center gap-1 rounded-full bg-accent px-3.5 text-[11px] font-bold text-white"
-            >
+            <button type="button" onClick={() => setSuggestionsOpen(true)} className="inline-flex min-h-11 items-center gap-1 rounded-full bg-accent px-3.5 text-[11px] font-bold text-white">
               {t(language, 'reviewSuggestions')} →
             </button>
           </div>
@@ -695,29 +600,15 @@ export default function Memories({
       {visibleCaptures.length === 0 && (
         <div className="rounded-2xl border border-dashed border-line2 bg-canvas/60 px-5 py-8 text-center">
           <p className="font-serif text-[17px] font-bold">{t(language, 'emptyMemoryTitle')}</p>
-          <p className="mx-auto mt-1 max-w-xs text-[11.5px] leading-snug text-ink2">
-            {t(language, 'emptyMemoryBody')}
-          </p>
+          <p className="mx-auto mt-1 max-w-xs text-[11.5px] leading-snug text-ink2">{t(language, 'emptyMemoryBody')}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[11.5px] font-bold text-white"
-            >
+            <button type="button" onClick={() => photoInputRef.current?.click()} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[11.5px] font-bold text-white">
               <Image size={13} /> {t(language, 'photo')}
             </button>
-            <button
-              type="button"
-              onClick={toggleRecording}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2"
-            >
+            <button type="button" onClick={toggleRecording} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2">
               <Mic size={13} /> {t(language, 'record')}
             </button>
-            <button
-              type="button"
-              onClick={() => setNoteOpen(true)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2"
-            >
+            <button type="button" onClick={() => setNoteOpen(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2">
               <NotepadText size={13} /> {t(language, 'note')}
             </button>
           </div>
@@ -730,10 +621,7 @@ export default function Memories({
           <p className="mt-1 text-[11.5px] text-ink2">{t(language, 'emptyFilterBody')}</p>
           <button
             type="button"
-            onClick={() => {
-              setActiveTag(null);
-              setActiveDateFilter('all');
-            }}
+            onClick={() => { setActiveTag(null); setActiveDateFilter('all'); }}
             className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent-soft px-4 text-[11.5px] font-bold text-accent"
           >
             {t(language, 'clearFilters')}
@@ -741,151 +629,24 @@ export default function Memories({
         </div>
       )}
 
-      {visibleGroups.map(({ group, members }) => {
-        const isSplitting = splittingGroupId === group.id;
-        const isRenaming = renamingGroupId === group.id;
-        const isCollapsed = !isSplitting && !isRenaming && collapsedGroups[group.id] === true;
-        const hasGroupActions = Boolean(onRenameGroup || (onSplitGroup && members.length >= 2) || onDeleteGroup);
-        return (
-          <section key={group.id} className="space-y-2.5">
-            <div className="flex items-center justify-between gap-2 px-0.5">
-              {isRenaming ? (
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <Folder size={15} className="shrink-0 text-accent" />
-                  <input
-                    value={renameGroupValue}
-                    onChange={(e) => setRenameGroupValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitGroupRename(group);
-                    }}
-                    onBlur={() => commitGroupRename(group)}
-                    aria-label={t(language, 'renameGroup')}
-                    className="min-h-11 rounded-lg border border-teal bg-surface2 px-2 text-[13px] font-bold outline-none"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCollapsedGroups((prev) => ({ ...prev, [group.id]: !isCollapsed }))
-                  }
-                  disabled={isSplitting}
-                  aria-expanded={!isCollapsed}
-                  aria-label={group.name}
-                  className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left disabled:opacity-100"
-                >
-                  <ChevronDown
-                    size={15}
-                    className={`shrink-0 text-ink3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
-                  />
-                  <Folder size={15} className="shrink-0 text-accent" />
-                  <h2 className="truncate text-[15px] font-bold tracking-tight">{group.name}</h2>
-                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-bold text-ink3">
-                    {group.source === 'auto' ? t(language, 'groupAuto') : t(language, 'groupCustom')}
-                  </span>
-                  <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
-                    {members.length} {t(language, 'groupEntries')}
-                  </span>
-                </button>
-              )}
-              {hasGroupActions && (
-                <button
-                  type="button"
-                  onClick={() => setGroupMenuTarget(group)}
-                  aria-label={t(language, 'groupActions')}
-                  className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full border border-line bg-canvas text-ink2 hover:border-line2"
-                >
-                  <EllipsisVertical size={15} />
-                </button>
-              )}
-            </div>
-            {!isCollapsed && members.map((member) => renderCaptureCard(member, group.id, isSplitting))}
-          </section>
-        );
-      })}
-
-      {ungrouped.length > 0 && (
-        <section className="space-y-2.5">
-          <div className="flex items-center justify-between px-0.5">
-            <h2 className="text-[15px] font-bold tracking-tight">{t(language, 'ungrouped')}</h2>
-            <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
-              {ungrouped.length} {t(language, 'groupEntries')}
-            </span>
-          </div>
-          {ungrouped.map((capture) => renderCaptureCard(capture, null))}
-        </section>
-      )}
-
-      {splittingGroupId &&
-        (() => {
-          const splitTarget = memoryGroups.find((g) => g.id === splittingGroupId);
-          if (!splitTarget) return null;
-          const splitCount = splitTarget.captureIds.filter((id) => splitSelection.includes(id)).length;
-          return (
-            <div className="animate-toast fixed bottom-20 left-1/2 z-40 flex w-[min(94vw,520px)] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl border border-accent/30 bg-canvas p-2.5 shadow-xl">
-              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">
-                {t(language, 'splitSelectedCount', { n: splitCount })}
-              </span>
-              <input
-                value={splitName}
-                onChange={(e) => setSplitName(e.target.value)}
-                placeholder={t(language, 'groupSplitName')}
-                aria-label={t(language, 'groupSplitName')}
-                className="min-h-11 min-w-[130px] flex-1 rounded-xl border border-line bg-surface2 px-3 text-[11.5px] font-semibold outline-none"
-              />
-              <button
-                type="button"
-                disabled={!splitName.trim() || splitCount === 0 || splitCount === splitTarget.captureIds.length}
-                onClick={() => {
-                  void onSplitGroup?.(splitTarget, splitSelection, splitName);
-                  setSplittingGroupId(null);
-                }}
-                className="min-h-11 rounded-full bg-accent px-4 text-[11px] font-bold text-white disabled:opacity-40"
-              >
-                {t(language, 'groupSplitConfirm')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSplittingGroupId(null)}
-                aria-label={t(language, 'cancel')}
-                className="min-h-11 rounded-full border border-line bg-surface2 px-3 text-[11px] font-bold text-ink2"
-              >
-                {t(language, 'cancel')}
-              </button>
-            </div>
-          );
-        })()}
+      {groupByTag
+        ? tagSections.map(({ tag, items }) => renderSection(tag === UNTAGGED ? t(language, 'untagged') : `#${tag}`, items))
+        : renderSection(t(language, 'allTags'), dateFiltered)}
 
       {suggestionsOpen && tagGroups.length > 0 && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4"
-          onClick={() => setSuggestionsOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t(language, 'groupsTitle')}
-            className="animate-sheet flex max-h-[82vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4" onClick={() => setSuggestionsOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label={t(language, 'groupsTitle')} className="animate-sheet flex max-h-[82vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2">
               <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
                 <Sparkles size={14} className="text-accent" /> {t(language, 'groupsTitle')}
               </h2>
-              <button
-                type="button"
-                onClick={() => setSuggestionsOpen(false)}
-                aria-label={t(language, 'cancel')}
-                className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3 hover:text-ink"
-              >
+              <button type="button" onClick={() => setSuggestionsOpen(false)} aria-label={t(language, 'cancel')} className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3 hover:text-ink">
                 <X size={16} />
               </button>
             </div>
             <div className="space-y-2.5 overflow-y-auto pr-0.5">
               {tagGroups.map((group) => {
-                const members = group.captureIds
-                  .map((id) => visibleCaptures.find((c) => c.id === id))
-                  .filter(Boolean) as CaptureRecord[];
+                const members = group.captureIds.map((id) => visibleCaptures.find((c) => c.id === id)).filter(Boolean) as CaptureRecord[];
                 if (members.length < 2) return null;
                 const selectedIds = groupSelections[group.id] ?? members.map((m) => m.id);
                 const isRenaming = renamingId === group.id;
@@ -894,48 +655,38 @@ export default function Memories({
                   setRenamingId(null);
                   if (next && next !== group.label) onRenameTagGroup?.(group, next);
                 };
-
                 return (
                   <div key={group.id} className="rounded-xl border border-line bg-surface2 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <Tag size={13} className="text-teal" />
+                        <Sparkles size={13} className="text-accent" />
                         {isRenaming ? (
                           <input
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') commitSuggestedRename();
-                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') commitSuggestedRename(); }}
                             onBlur={commitSuggestedRename}
                             aria-label={t(language, 'renameGroup')}
-                            className="w-36 rounded-lg border border-teal bg-canvas px-2 py-0.5 text-[12px] font-bold outline-none"
+                            className="w-36 rounded-lg border border-accent bg-canvas px-2 py-0.5 text-[12px] font-bold outline-none"
                           />
                         ) : (
-                          <span className="rounded-full bg-teal-soft px-2.5 py-0.5 text-[11px] font-bold text-teal">
+                          <span className="rounded-full border border-dashed border-accent bg-accent-soft px-2.5 py-0.5 text-[11px] font-bold text-accent">
                             #{group.label}
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] font-semibold text-ink3">
-                        {t(language, 'match')} {group.meanSimilarity.toFixed(2)}
-                      </span>
+                      <span className="text-[10px] font-semibold text-ink3">{t(language, 'match')} {group.meanSimilarity.toFixed(2)}</span>
                     </div>
                     <div className="mt-2.5 space-y-1.5">
                       {members.map((member) => {
                         const checked = selectedIds.includes(member.id);
                         return (
-                          <label
-                            key={member.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-[11.5px]"
-                          >
+                          <label key={member.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-[11.5px]">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => {
-                                const next = checked
-                                  ? selectedIds.filter((id) => id !== member.id)
-                                  : [...selectedIds, member.id];
+                                const next = checked ? selectedIds.filter((id) => id !== member.id) : [...selectedIds, member.id];
                                 setGroupSelections((prev) => ({ ...prev, [group.id]: next }));
                               }}
                               className="accent-teal"
@@ -953,10 +704,7 @@ export default function Memories({
                         <button
                           type="button"
                           disabled={selectedIds.length === 0}
-                          onClick={() => {
-                            void onAcceptTagGroup(group, selectedIds);
-                            setRenamingId(null);
-                          }}
+                          onClick={() => { void onAcceptTagGroup(group, selectedIds); setRenamingId(null); }}
                           className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-teal py-1.5 text-[11px] font-bold text-white disabled:opacity-40"
                         >
                           <Check size={13} /> {t(language, 'acceptGroup')}
@@ -965,12 +713,8 @@ export default function Memories({
                       <button
                         type="button"
                         onClick={() => {
-                          if (isRenaming) {
-                            setRenamingId(null);
-                          } else {
-                            setRenamingId(group.id);
-                            setRenameValue(group.label);
-                          }
+                          if (isRenaming) setRenamingId(null);
+                          else { setRenamingId(group.id); setRenameValue(group.label); }
                         }}
                         className="inline-flex min-h-11 items-center justify-center gap-1 rounded-full border border-line bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
                       >
@@ -979,10 +723,7 @@ export default function Memories({
                       {onDismissTagGroup && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setRenamingId(null);
-                            void onDismissTagGroup(group);
-                          }}
+                          onClick={() => { setRenamingId(null); void onDismissTagGroup(group); }}
                           className="inline-flex min-h-11 items-center justify-center gap-1 rounded-full border border-line bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink3 hover:text-ink"
                         >
                           {t(language, 'dismissGroup')}
@@ -997,200 +738,24 @@ export default function Memories({
         </div>
       )}
 
-      {groupMenuTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4"
-          onClick={() => setGroupMenuTarget(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t(language, 'groupActions')}
-            className="animate-sheet w-full max-w-sm space-y-2 rounded-t-3xl border border-line bg-canvas p-4 shadow-xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 truncate text-[13.5px] font-bold">
-                <Folder size={14} className="text-accent" /> {groupMenuTarget.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => setGroupMenuTarget(null)}
-                aria-label={t(language, 'cancel')}
-                className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {onRenameGroup && (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = groupMenuTarget;
-                  setGroupMenuTarget(null);
-                  setRenamingGroupId(target.id);
-                  setRenameGroupValue(target.name);
-                }}
-                className="flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3.5 text-left text-[12px] font-bold text-ink"
-              >
-                <Pencil size={14} /> {t(language, 'renameGroup')}
-              </button>
-            )}
-            {onSplitGroup && groupMenuTarget.captureIds.length >= 2 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = groupMenuTarget;
-                  setGroupMenuTarget(null);
-                  setSplittingGroupId(target.id);
-                  setSplitSelection([]);
-                  setSplitName('');
-                }}
-                className="flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3.5 text-left text-[12px] font-bold text-ink"
-              >
-                <Scissors size={14} /> {t(language, 'groupSplit')}
-              </button>
-            )}
-            {onDeleteGroup && (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = groupMenuTarget;
-                  setGroupMenuTarget(null);
-                  if (splittingGroupId === target.id) setSplittingGroupId(null);
-                  void onDeleteGroup(target);
-                }}
-                className="flex min-h-11 w-full items-center justify-between rounded-xl border border-danger/30 bg-danger-soft/50 px-3.5 text-left text-[12px] font-bold text-danger"
-              >
-                <span className="flex items-center gap-2.5">
-                  <Trash2 size={14} /> {t(language, 'groupDelete')}
-                </span>
-                <span className="text-[10.5px] font-normal text-ink3">{t(language, 'groupDeleteHint')}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {cardMenuTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4"
-          onClick={() => setCardMenuTarget(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t(language, 'cardActions')}
-            className="animate-sheet w-full max-w-sm space-y-2.5 rounded-t-3xl border border-line bg-canvas p-4 shadow-xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-[13px] font-bold">{cardMenuTarget.capture.summary}</span>
-              <button
-                type="button"
-                onClick={() => setCardMenuTarget(null)}
-                aria-label={t(language, 'cancel')}
-                className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full text-ink3"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {onMoveCaptureToGroup && (
-              <div className="space-y-1.5">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink3">
-                  <FolderInput size={13} /> {t(language, 'moveToGroupTitle')}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    disabled={cardMenuTarget.groupId === null}
-                    onClick={() => {
-                      const id = cardMenuTarget.capture.id;
-                      setCardMenuTarget(null);
-                      void onMoveCaptureToGroup(id, null);
-                    }}
-                    className="min-h-11 rounded-full border border-line bg-surface2 px-3 text-[11.5px] font-bold text-ink2 disabled:opacity-40"
-                  >
-                    {t(language, 'groupMoveUngrouped')}
-                  </button>
-                  {memoryGroups
-                    .filter((g) => g.id !== cardMenuTarget.groupId)
-                    .map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => {
-                          const id = cardMenuTarget.capture.id;
-                          setCardMenuTarget(null);
-                          void onMoveCaptureToGroup(id, g.id);
-                        }}
-                        className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-surface2 px-3 text-[11.5px] font-bold text-ink"
-                      >
-                        <Folder size={12} className="text-accent" /> {g.name}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-            {onManualTrash && (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = cardMenuTarget.capture;
-                  setCardMenuTarget(null);
-                  setConfirmTrash(target);
-                }}
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-danger/30 bg-danger-soft/50 px-3.5 text-left text-[12px] font-bold text-danger"
-              >
-                <Trash2 size={14} /> {t(language, 'confirmMoveToTrash')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {confirmTrash && onManualTrash && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
-          onClick={() => setConfirmTrash(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t(language, 'deleteConfirmTitle')}
-            className="animate-sheet w-full max-w-sm rounded-2xl border border-line bg-canvas p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setConfirmTrash(null)}>
+          <div role="dialog" aria-modal="true" aria-label={t(language, 'deleteConfirmTitle')} className="animate-sheet w-full max-w-sm rounded-2xl border border-line bg-canvas p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-[14px] font-bold text-ink">{t(language, 'deleteConfirmTitle')}</h2>
             <p className="mt-1 truncate text-[12px] font-semibold text-ink2">{confirmTrash.summary}</p>
-            <p
-              className={`mt-2 rounded-xl p-2.5 text-[11.5px] leading-snug ${
-                confirmTrash.protectedReason ? 'bg-danger-soft text-danger font-semibold' : 'bg-surface2 text-ink2'
-              }`}
-            >
+            <p className={`mt-2 rounded-xl p-2.5 text-[11.5px] leading-snug ${confirmTrash.protectedReason ? 'bg-danger-soft text-danger font-semibold' : 'bg-surface2 text-ink2'}`}>
               {confirmTrash.protectedReason
-                ? t(language, 'deleteConfirmProtected', {
-                    reason: confirmTrash.protectedReason,
-                    days: trashDays,
-                  })
+                ? t(language, 'deleteConfirmProtected', { reason: confirmTrash.protectedReason, days: trashDays })
                 : t(language, 'deleteConfirmBody', { days: trashDays })}
             </p>
             <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmTrash(null)}
-                className="flex-1 rounded-full border border-line bg-canvas py-2 text-[12px] font-bold text-ink2"
-              >
+              <button type="button" onClick={() => setConfirmTrash(null)} className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1.5 text-[11.5px] font-bold text-ink2">
                 {t(language, 'cancel')}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const target = confirmTrash;
-                  setConfirmTrash(null);
-                  void onManualTrash(target);
-                }}
-                className="flex-1 rounded-full bg-danger py-2 text-[12px] font-bold text-white"
+                onClick={() => { const target = confirmTrash; setConfirmTrash(null); void onManualTrash(target); }}
+                className="min-h-11 flex-1 rounded-full bg-danger py-1.5 text-[11.5px] font-bold text-white"
               >
                 {t(language, 'confirmMoveToTrash')}
               </button>
@@ -1198,11 +763,6 @@ export default function Memories({
           </div>
         </div>
       )}
-
-      <p className="flex items-center justify-center gap-1.5 pb-2 text-[10.5px] text-ink3">
-        <Lock size={12} /> {t(language, 'zeroDeletions')}
-        <CheckCircle2 size={12} className="text-teal" />
-      </p>
     </div>
   );
 }

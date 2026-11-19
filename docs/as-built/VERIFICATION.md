@@ -1,7 +1,7 @@
 # Verification
 
 - Owner: Duy · Last verified: 2026-11-18
-- Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`24` tests across `6` suites in `tests/core.test.ts`), `npm run build`
+- Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`21` tests across `5` suites in `tests/core.test.ts`), `npm run build`
 - Live device / Console caveats: Automated unit and corpus tests verify local search, fail-closed claim verification, offline synthesis refusal, sensitive-entity detection, F1/F2/F4 forgetting + trash purge, auto-tagging, JPEG EXIF parsing, and editable embedding groups (reconcile/split/rename/move/remove). Physical Chrome 139+ Nano 4 hardware behavior, mobile gallery import, and Firebase Console configuration remain manual external checks.
 
 | Requirement | Component | Entity / Flow | Surface | Verified by |

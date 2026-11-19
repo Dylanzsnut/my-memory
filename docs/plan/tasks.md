@@ -18,12 +18,14 @@ of Idea) are in scope; submission text, video and disclosure are not.
   P2 code are complete). Console/live-verification items run in parallel when
   Firebase Console or a mobile Chrome device is available. Change here if
   priorities shift.
-- **Groups:** embedding groups replace the fixed Today/Yesterday/Older buckets
-  as the primary axis of `Memories`; date becomes a filter/sort, not a group key.
-  Groups are local-only (never synced) and user-editable: **Split** means select
-  captures → new named group. Auto-generated membership must survive recompute
-  once the user has edited it. This extends the Groups section in
-  `docs/rfc/003-auto-tagging-flow.md` (dated amendment there, not a silent edit).
+- **Tag = group (supersedes 2026-11-19 `MemoryGroup` model):** the only grouping
+  concept is a user-authored `#tag`. `Memories` keeps one timeline plus a filter
+  bar (`#tag` / `Untagged`); an optional "Group by tag" view groups the timeline
+  without duplicating a capture (first tag wins). Renaming/removing a tag is
+  per-capture (`DetailSheet`), never a mass edit; an untagged capture is simply
+  one with no tags. Embedding grouping is used only to *suggest* tags (Accepted
+  before written), and suggested tags render in a distinct color/style. No
+  `MemoryGroup`, no `groups` store, no migration v2, no Split/Merge/Move group.
 - **Manual delete:** deleting a memory from Memories or the detail sheet moves it
   to the 30-day trash. From the trash the user can restore it or permanently
   delete it with a confirmation. A manual delete is recorded separately from a
@@ -640,6 +642,45 @@ Design (privacy and provenance preserved):
       call-site table, `REQ-002`/`REQ-007` and `VERIFICATION.md`.
 
       Note (2026-11-19): implemented per option A. 24/24 tests (6 new) plus typecheck/lint/build pass. Measured: `What do I have about {tag}?` for a tag absent from summary/entities now clears retrieval and tag-browse answers locally; synonym `lunch receipt` ↔ `bill` clears 0.35; three out-of-corpus probes still return Not found. The manual browser checklist needs a live check.
+
+## Tag = group refactor (supersedes MemoryGroup)
+
+Scope: owner clarification (2026-11-19) — "đánh tag là group thôi". The
+`MemoryGroup`/`groups` store added earlier is a second, redundant model. Target:
+one concept (`tags` on `CaptureRecord`), a `Untagged` filter, per-capture rename
+and delete, and a distinct style for suggested tags.
+
+- [x] Remove the `MemoryGroup` layer: delete `src/lib/groups.ts`, the `groups`
+      store and v2 migration from `src/lib/store.ts` (back to version `1`),
+      `MemoryGroup` from `src/types.ts`, and group handlers from `App.tsx`.
+      Confirm no Firestore path ever touched groups.
+- [x] `Memories.tsx`: drop group headers, folder icons, Auto/Custom badges,
+      collapse/expand, Split flow, sticky split bar, group/card `⋮` menus,
+      Move-to-group and Delete-group actions; return to one scannable timeline
+      with a single filter bar.
+- [x] `Memories.tsx` + `i18n.ts`: add an `Untagged` chip to the tag filter row —
+      shows captures with `tags` empty/absent; keep date chips and existing tags.
+- [x] `Memories.tsx`: add a "Group by tag" toggle. When on, render one section
+      per tag; each capture appears once under its first tag; an `Untagged`
+      section holds captures with no tags. No duplication.
+- [x] `DetailSheet.tsx`: rename a tag on **this capture only** (edit chip inline
+      or via input) and delete a tag from **this capture only** → capture becomes
+      untagged. Never mass-edit other captures sharing the tag.
+- [x] `DetailSheet.tsx` + `i18n.ts`: render `suggestedTags` in a distinct style
+      (dashed border, accent-soft background, ✨ icon) vs real `#tag` chips;
+      keep Accept/Rename/Dismiss on the review path, never auto-apply.
+- [x] `tests/core.test.ts`: cover per-capture rename/delete helpers, `Untagged`
+      selection, first-tag grouping (no duplicate capture), and suggested-tag
+      style/separation; remove obsolete MemoryGroup tests.
+- [x] Docs: update `docs/DATA.md` (remove ENT-005/groups store/v2),
+      `docs/as-built/DATA.md`, `docs/ARCHITECTURE.md`, `docs/requirements/req-web-app.md`,
+      `docs/as-built/VERIFICATION.md`, and add a dated amendment to
+      `docs/rfc/003-auto-tagging-flow.md` (no silent body edit).
+- [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`
+      pass; manual check that switching tabs keeps tag scope and that no group
+      data appears in Firestore writes.
+
+      Note (2026-11-19): removed `src/lib/groups.ts`, the `groups` store and v2 migration; `Memories` is one timeline again with date+tag+Untagged filters and a "Group by tag" view. `DetailSheet` renames/deletes a tag on a single capture; suggested tags use a dashed accent style. 21/21 tests pass plus typecheck/lint/build. Manual browser check still recommended.
 
 ## P1 — product quality
 

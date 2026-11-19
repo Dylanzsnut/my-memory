@@ -59,13 +59,10 @@ alone — they are excluded from the Firestore write path in
 | ENT-002 ForgetProposal | `id` | `src/lib/store.ts` | mutable state | created → decided(`approve` \| `keep`) |
 | ENT-003 HudEvent | `id` | `src/lib/store.ts` | append-only, capped | created → retained (max 60) → deleted |
 | ENT-004 Settings | `key` | `src/lib/store.ts` | mutable state | language / onboardingDone / auth mode / meta |
-| ENT-005 MemoryGroup | `id` | `src/lib/store.ts` | user-editable, local-only | auto-created → (rename/split/move → manual) → deleted (captures kept) |
 
-ENT-001…005 are the complete set at HEAD. Identity is carried by `ownerUid` on
-records rather than a separate user entity (see §6). `MemoryGroup` fields:
-`id`, `name`, `captureIds`, `source: 'auto' \| 'manual'`, `createdAt`,
-`updatedAt`, `ownerUid?`. A capture with `manualGroupLock` is skipped by auto
-reconciliation.
+ENT-001…004 are the complete set at HEAD. Identity is carried by `ownerUid` on
+records rather than a separate user entity (see §6). Grouping is a view over
+`CaptureRecord.tags` (see §9.1) — there is no separate group entity.
 
 ## 2.1 Attribute dictionary — ENT-001 Capture
 
@@ -164,7 +161,7 @@ created → (target deleted manually) → proposal closed (`decided: 'manual'`) 
 
 ### 4.1 IndexedDB (device, `src/lib/store.ts`)
 
-Database `my-memory`, version `2`, single writer (`Claimed`, `INV-301`).
+Database `my-memory`, version `1`, single writer (`Claimed`, `INV-301`).
 
 | Object store | Key | Key path | Index | Value | Notes |
 |---|---|---|---|---|---|
@@ -172,7 +169,6 @@ Database `my-memory`, version `2`, single writer (`Claimed`, `INV-301`).
 | `proposals` | `id` | `id` | — | `ForgetProposal` | |
 | `hud` | `id` | `id` | — | `HudEvent` | trimmed above 60 entries |
 | `meta` | `key` | `key` | — | `{key, value}` | `language`, `onboardingDone`, `activeAuthSession`, `${uid}::*` settings |
-| `groups` | `id` | `id` | — | `MemoryGroup` | local-only; never synced to Firestore |
 
 Design consequences (all `Claimed`):
 
@@ -312,8 +308,9 @@ proposes, the human disposes (`F5`).
 
 ## 11. Schema evolution and migration policy
 
-Current state: IndexedDB version `2` (v2 added the `groups` store additively;
-v1 records are untouched). `manualGroupLock` on captures defaults to absent.
+Current state: IndexedDB version `1`. A former v2 `groups` store was removed
+when grouping moved onto `CaptureRecord.tags`; old IndexedDB databases keep an
+unused `groups` store until cleared, which no code reads or writes.
 
 Rules for future version bumps (design intent, `Claimed`):
 

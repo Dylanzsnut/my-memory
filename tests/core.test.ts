@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { CaptureRecord, MemoryGroup } from '../src/types';
+import type { CaptureRecord } from '../src/types';
 import { embed, contentWords } from '../src/lib/embeddings';
 import { isLongSynthesisQuestion, searchCaptures, tagBrowseTarget } from '../src/lib/search';
 import { buildAnswer, extractNumberTokens, verifyClaim } from '../src/lib/answer';
@@ -12,14 +12,7 @@ import {
   scanForProposals,
 } from '../src/lib/forget';
 import { detectTextProtection } from '../src/lib/protection';
-import { computeTagGroups, isSensitiveLabelToken, pairGroupThreshold } from '../src/lib/tags';
-import {
-  moveCaptureToGroup,
-  reconcileAutoGroups,
-  removeGroup,
-  renameGroup,
-  splitGroup,
-} from '../src/lib/groups';
+import { computeTagGroups, isSensitiveLabelToken } from '../src/lib/tags';
 import { parseExifDateTimeOriginal } from '../src/lib/exif';
 import { settings } from '../src/lib/config';
 
@@ -398,91 +391,31 @@ describe('auto-tagging and JPEG EXIF parser', () => {
   });
 });
 
-describe('editable embedding groups', () => {
-  const thresholds = {
-    groupThresholdPhoto: 0.5,
-    groupThresholdVoice: 0.5,
-    groupThresholdNote: 0.5,
-  };
-
-  const makeGroup = (overrides: Partial<MemoryGroup> & Pick<MemoryGroup, 'id' | 'name' | 'captureIds'>): MemoryGroup => ({
-    source: 'manual',
-    createdAt: '2026-11-19T00:00:00.000Z',
-    updatedAt: '2026-11-19T00:00:00.000Z',
-    ...overrides,
-  });
-
-  it('uses the higher threshold for a cross-type pair', () => {
-    assert.equal(pairGroupThreshold('photo', 'voice', {
-      groupThresholdPhoto: 0.9,
-      groupThresholdVoice: 0.2,
-      groupThresholdNote: 0.5,
-    }), 0.9);
-  });
-
-  it('reconciles auto groups, excludes trashed captures and keeps manual overrides', async () => {
-    const captures = await Promise.all([
-      makeCapture({ id: 'a', type: 'photo', summary: 'Lunch receipt coffee' }),
-      makeCapture({ id: 'b', type: 'photo', summary: 'Lunch receipt coffee' }),
-      makeCapture({ id: 'c', type: 'note', summary: 'Completely different topic astronomy' }),
-      makeCapture({
-        id: 'd',
-        type: 'photo',
-        summary: 'Lunch receipt coffee',
-        retentionState: 'trashed',
-      }),
+describe('tag = group (local-only, per-capture)', () => {
+  it('selects untagged captures and lets a newly added tag group them', async () => {
+    const corpus = await Promise.all([
+      makeCapture({ id: 'c1', type: 'note', summary: 'Plain note', tags: undefined }),
+      makeCapture({ id: 'c2', type: 'note', summary: 'Casanos booking', tags: ['Casanos'] }),
+      makeCapture({ id: 'c3', type: 'photo', summary: 'Casanos bill', tags: ['Casanos', 'receipt'] }),
     ]);
-    const manual = makeGroup({ id: 'm1', name: 'Favourites', captureIds: ['c'] });
-    const first = reconcileAutoGroups(captures, [manual], thresholds, 'u1');
-    assert.deepEqual(first.find((g) => g.id === 'm1')?.captureIds, ['c']);
-    assert.equal(first.find((g) => g.id === 'm1')?.source, 'manual');
-    const auto = first.filter((g) => g.source === 'auto');
-    assert.equal(auto.length, 1);
-    assert.ok(auto[0].captureIds.includes('a') && auto[0].captureIds.includes('b'));
-    assert.ok(!auto[0].captureIds.includes('c'));
-    assert.ok(!auto[0].captureIds.includes('d'), 'trashed capture must not be grouped');
-
-    // Recompute preserves the manual group and a locked capture.
-    const locked = captures.map((c) => (c.id === 'a' ? { ...c, manualGroupLock: true } : c));
-    const second = reconcileAutoGroups(locked, first, thresholds, 'u1');
-    assert.equal(second.find((g) => g.id === 'm1')?.name, 'Favourites');
-    assert.equal(second.filter((g) => g.source === 'auto').length, 0);
+    assert.deepEqual(corpus.filter((c) => !(c.tags || []).length).map((c) => c.id), ['c1']);
+    const firstTagGroup = (tag: string) =>
+      corpus.filter((c) => (c.tags || [])[0] === tag).map((c) => c.id);
+    assert.deepEqual(firstTagGroup('Casanos'), ['c2', 'c3']);
+    assert.deepEqual(firstTagGroup('receipt'), [], 'a capture appears under its first tag only');
   });
 
-  it('splits only a subset into a new manual group', () => {
-    const group = makeGroup({ id: 'g1', name: 'Coffee', captureIds: ['a', 'b', 'c'] });
-    assert.equal(splitGroup(group, [], 'New', 'u1'), null);
-    assert.equal(splitGroup(group, ['a', 'b', 'c'], 'New', 'u1'), null);
-    const result = splitGroup(group, ['a', 'b'], 'Receipts', 'u1');
-    assert.ok(result);
-    assert.deepEqual(result!.source.captureIds, ['c']);
-    assert.deepEqual(result!.split.captureIds, ['a', 'b']);
-    assert.equal(result!.split.source, 'manual');
-    assert.equal(result!.split.ownerUid, 'u1');
-  });
-
-  it('renaming an auto group promotes it to manual; removing a group keeps captures', () => {
-    const auto = makeGroup({ id: 'g2', name: 'Auto', captureIds: ['a', 'b'], source: 'auto' });
-    const renamed = renameGroup(auto, 'My group');
-    assert.equal(renamed?.name, 'My group');
-    assert.equal(renamed?.source, 'manual');
-    assert.equal(renameGroup(auto, '  '), null);
-    assert.deepEqual(renamed?.captureIds, ['a', 'b'], 'renaming must not drop captures');
-    const other = makeGroup({ id: 'g3', name: 'Other', captureIds: ['c'] });
-    const afterRemoval = removeGroup([auto, other], 'g2');
-    assert.deepEqual(afterRemoval.map((g) => g.id), ['g3']);
-    assert.deepEqual(afterRemoval[0].captureIds, ['c'], 'removing a group must not touch other captures');
-  });
-
-  it('moves a capture between groups and back to ungrouped', () => {
-    const g1 = makeGroup({ id: 'g1', name: 'One', captureIds: ['a', 'b'] });
-    const g2 = makeGroup({ id: 'g2', name: 'Two', captureIds: ['c'] });
-    const moved = moveCaptureToGroup([g1, g2], 'a', 'g2');
-    assert.deepEqual(moved.find((g) => g.id === 'g1')?.captureIds, ['b']);
-    assert.deepEqual(moved.find((g) => g.id === 'g2')?.captureIds, ['c', 'a']);
-    assert.equal(moved.find((g) => g.id === 'g2')?.source, 'manual');
-    const ungrouped = moveCaptureToGroup(moved, 'a', null);
-    assert.deepEqual(ungrouped.find((g) => g.id === 'g2')?.captureIds, ['c']);
+  it('renames/removes a tag on one capture without touching the others', async () => {
+    const [a, b] = await Promise.all([
+      makeCapture({ id: 'a', type: 'note', summary: 'One', tags: ['old'] }),
+      makeCapture({ id: 'b', type: 'note', summary: 'Two', tags: ['old'] }),
+    ]);
+    const renamed = { ...a, tags: ['new'] };
+    assert.deepEqual(renamed.tags, ['new']);
+    assert.deepEqual(b.tags, ['old']);
+    const untagged = { ...b, tags: [] };
+    assert.deepEqual(untagged.tags, []);
+    assert.deepEqual(b.tags, ['old']);
   });
 });
 
