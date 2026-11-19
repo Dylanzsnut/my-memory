@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
+  ChevronDown,
   EllipsisVertical,
   Folder,
   FolderInput,
@@ -28,6 +29,7 @@ import type {
 } from '../types';
 import { extractPhotoCapturedAt } from '../lib/exif';
 import { t } from '../lib/i18n';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
 
 interface Props {
@@ -154,6 +156,8 @@ export default function Memories({
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [groupMenuTarget, setGroupMenuTarget] = useState<MemoryGroup | null>(null);
   const [cardMenuTarget, setCardMenuTarget] = useState<{ capture: CaptureRecord; groupId: string | null } | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const online = useOnlineStatus();
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -366,13 +370,6 @@ export default function Memories({
             )}
           </div>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => (isSplitCandidate ? toggleSplitCheck() : onOpenDetail(capture))}
-              className="inline-flex min-h-11 items-center px-1 text-[11px] font-bold text-accent"
-            >
-              {language === 'vi' ? 'Xem bằng chứng' : 'Tap proof'} →
-            </button>
             {showCardMenuButton && (
               <button
                 type="button"
@@ -437,7 +434,8 @@ export default function Memories({
             {language === 'vi' ? 'Trí nhớ của bạn' : 'Your memory'}
           </h1>
           <p className="mt-1 text-[12px] text-ink2">
-            {t(language, 'momentsRemembered', { n: visibleCaptures.length })} · {t(language, 'offline')}
+            {t(language, 'momentsRemembered', { n: visibleCaptures.length })} ·{' '}
+            {t(language, online ? 'onlineLive' : 'offlineLive')}
           </p>
         </div>
         <div className="grid h-10 w-10 place-items-center rounded-full bg-accent text-sm font-black text-white">M</div>
@@ -445,9 +443,9 @@ export default function Memories({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
+          <span className={`h-1.5 w-1.5 animate-pulse-dot rounded-full ${online ? 'bg-teal' : 'bg-gold'}`} />
           <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
-            {language === 'vi' ? '100% trên máy · sẵn sàng offline' : '100% on-device · offline ready'}
+            {t(language, online ? 'onlineLive' : 'offlineLive')}
           </span>
         </div>
         {onOpenTrash && trashedCount > 0 && (
@@ -520,6 +518,13 @@ export default function Memories({
               <X size={14} />
             </button>
           )}
+        </div>
+      )}
+
+      {busy && !importProgress?.active && (
+        <div className="flex items-center gap-2 rounded-xl border border-teal/30 bg-teal-soft px-3 py-2 text-[11.5px] font-semibold text-teal">
+          <span className="h-2 w-2 animate-pulse-dot rounded-full bg-teal" />
+          {t(language, 'extractingCapture')}
         </div>
       )}
 
@@ -687,16 +692,66 @@ export default function Memories({
         </div>
       )}
 
+      {visibleCaptures.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-line2 bg-canvas/60 px-5 py-8 text-center">
+          <p className="font-serif text-[17px] font-bold">{t(language, 'emptyMemoryTitle')}</p>
+          <p className="mx-auto mt-1 max-w-xs text-[11.5px] leading-snug text-ink2">
+            {t(language, 'emptyMemoryBody')}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[11.5px] font-bold text-white"
+            >
+              <Image size={13} /> {t(language, 'photo')}
+            </button>
+            <button
+              type="button"
+              onClick={toggleRecording}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2"
+            >
+              <Mic size={13} /> {t(language, 'record')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setNoteOpen(true)}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface2 px-4 text-[11.5px] font-bold text-ink2"
+            >
+              <NotepadText size={13} /> {t(language, 'note')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {visibleCaptures.length > 0 && dateFiltered.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-line2 bg-canvas/60 px-5 py-6 text-center">
+          <p className="text-[13px] font-bold">{t(language, 'emptyFilterTitle')}</p>
+          <p className="mt-1 text-[11.5px] text-ink2">{t(language, 'emptyFilterBody')}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTag(null);
+              setActiveDateFilter('all');
+            }}
+            className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent-soft px-4 text-[11.5px] font-bold text-accent"
+          >
+            {t(language, 'clearFilters')}
+          </button>
+        </div>
+      )}
+
       {visibleGroups.map(({ group, members }) => {
         const isSplitting = splittingGroupId === group.id;
         const isRenaming = renamingGroupId === group.id;
+        const isCollapsed = !isSplitting && !isRenaming && collapsedGroups[group.id] === true;
         const hasGroupActions = Boolean(onRenameGroup || (onSplitGroup && members.length >= 2) || onDeleteGroup);
         return (
           <section key={group.id} className="space-y-2.5">
             <div className="flex items-center justify-between gap-2 px-0.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Folder size={15} className="shrink-0 text-accent" />
-                {isRenaming ? (
+              {isRenaming ? (
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <Folder size={15} className="shrink-0 text-accent" />
                   <input
                     value={renameGroupValue}
                     onChange={(e) => setRenameGroupValue(e.target.value)}
@@ -707,16 +762,32 @@ export default function Memories({
                     aria-label={t(language, 'renameGroup')}
                     className="min-h-11 rounded-lg border border-teal bg-surface2 px-2 text-[13px] font-bold outline-none"
                   />
-                ) : (
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCollapsedGroups((prev) => ({ ...prev, [group.id]: !isCollapsed }))
+                  }
+                  disabled={isSplitting}
+                  aria-expanded={!isCollapsed}
+                  aria-label={group.name}
+                  className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left disabled:opacity-100"
+                >
+                  <ChevronDown
+                    size={15}
+                    className={`shrink-0 text-ink3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                  />
+                  <Folder size={15} className="shrink-0 text-accent" />
                   <h2 className="truncate text-[15px] font-bold tracking-tight">{group.name}</h2>
-                )}
-                <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-bold text-ink3">
-                  {group.source === 'auto' ? t(language, 'groupAuto') : t(language, 'groupCustom')}
-                </span>
-                <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
-                  {members.length} {t(language, 'groupEntries')}
-                </span>
-              </div>
+                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-bold text-ink3">
+                    {group.source === 'auto' ? t(language, 'groupAuto') : t(language, 'groupCustom')}
+                  </span>
+                  <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
+                    {members.length} {t(language, 'groupEntries')}
+                  </span>
+                </button>
+              )}
               {hasGroupActions && (
                 <button
                   type="button"
@@ -728,40 +799,7 @@ export default function Memories({
                 </button>
               )}
             </div>
-            {isSplitting && onSplitGroup && (
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-accent/35 bg-accent-soft p-2.5">
-                <span className="rounded-full bg-canvas px-2.5 py-1 text-[11px] font-bold text-accent">
-                  {t(language, 'splitSelectedCount', { n: splitSelection.length })}
-                </span>
-                <input
-                  value={splitName}
-                  onChange={(e) => setSplitName(e.target.value)}
-                  placeholder={t(language, 'groupSplitName')}
-                  aria-label={t(language, 'groupSplitName')}
-                  className="min-h-11 min-w-[140px] flex-1 rounded-xl border border-line bg-canvas px-3 text-[11.5px] font-semibold outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={!splitName.trim() || splitSelection.length === 0 || splitSelection.length === members.length}
-                  onClick={() => {
-                    void onSplitGroup(group, splitSelection, splitName);
-                    setSplittingGroupId(null);
-                  }}
-                  className="min-h-11 rounded-full bg-accent px-4 text-[11px] font-bold text-white disabled:opacity-40"
-                >
-                  {t(language, 'groupSplitConfirm')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSplittingGroupId(null)}
-                  aria-label={t(language, 'cancel')}
-                  className="min-h-11 rounded-full border border-line bg-canvas px-3 text-[11px] font-bold text-ink2"
-                >
-                  {t(language, 'cancel')}
-                </button>
-              </div>
-            )}
-            {members.map((member) => renderCaptureCard(member, group.id, isSplitting))}
+            {!isCollapsed && members.map((member) => renderCaptureCard(member, group.id, isSplitting))}
           </section>
         );
       })}
@@ -777,6 +815,46 @@ export default function Memories({
           {ungrouped.map((capture) => renderCaptureCard(capture, null))}
         </section>
       )}
+
+      {splittingGroupId &&
+        (() => {
+          const splitTarget = memoryGroups.find((g) => g.id === splittingGroupId);
+          if (!splitTarget) return null;
+          const splitCount = splitTarget.captureIds.filter((id) => splitSelection.includes(id)).length;
+          return (
+            <div className="animate-toast fixed bottom-20 left-1/2 z-40 flex w-[min(94vw,520px)] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl border border-accent/30 bg-canvas p-2.5 shadow-xl">
+              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">
+                {t(language, 'splitSelectedCount', { n: splitCount })}
+              </span>
+              <input
+                value={splitName}
+                onChange={(e) => setSplitName(e.target.value)}
+                placeholder={t(language, 'groupSplitName')}
+                aria-label={t(language, 'groupSplitName')}
+                className="min-h-11 min-w-[130px] flex-1 rounded-xl border border-line bg-surface2 px-3 text-[11.5px] font-semibold outline-none"
+              />
+              <button
+                type="button"
+                disabled={!splitName.trim() || splitCount === 0 || splitCount === splitTarget.captureIds.length}
+                onClick={() => {
+                  void onSplitGroup?.(splitTarget, splitSelection, splitName);
+                  setSplittingGroupId(null);
+                }}
+                className="min-h-11 rounded-full bg-accent px-4 text-[11px] font-bold text-white disabled:opacity-40"
+              >
+                {t(language, 'groupSplitConfirm')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplittingGroupId(null)}
+                aria-label={t(language, 'cancel')}
+                className="min-h-11 rounded-full border border-line bg-surface2 px-3 text-[11px] font-bold text-ink2"
+              >
+                {t(language, 'cancel')}
+              </button>
+            </div>
+          );
+        })()}
 
       {suggestionsOpen && tagGroups.length > 0 && (
         <div

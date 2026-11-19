@@ -27,6 +27,7 @@ export default function DetailSheet({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [confirmTrash, setConfirmTrash] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const userTags = capture.tags || [];
 
@@ -108,8 +109,15 @@ export default function DetailSheet({
 
           {capture.originalRef && capture.type === 'photo' ? (
             <div className="relative overflow-hidden rounded-2xl border border-line">
-              <img src={capture.originalRef} alt="Original capture" className="w-full object-cover" />
-              <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-canvas/90 px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm">
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                aria-label="Open full-screen original"
+                className="block w-full"
+              >
+                <img src={capture.originalRef} alt="Original capture" className="w-full object-cover" />
+              </button>
+              <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-canvas/90 px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm">
                 <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> Original proof · on-device
               </span>
             </div>
@@ -294,6 +302,28 @@ export default function DetailSheet({
           </p>
         </div>
       </div>
+
+      {lightboxOpen && capture.originalRef && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(false)}
+            aria-label={t(language, 'cancel')}
+            className="absolute right-4 top-4 grid min-h-11 min-w-11 place-items-center rounded-full bg-canvas/90 text-ink"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={capture.originalRef}
+            alt="Original capture — full screen"
+            className="max-h-full max-w-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

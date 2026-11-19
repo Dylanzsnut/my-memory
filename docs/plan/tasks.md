@@ -7,7 +7,9 @@ suggestions — design in `docs/rfc/003-auto-tagging-flow.md`) are in scope and
 tracked in their own sections below. All hackathon submission tasks (Android
 scope, demo video, judge instructions, disclosure text, submission copy) are
 intentionally out of scope. Housekeeping — git commit/push and similar chores —
-is not logged here as tasks.
+is not logged here as tasks. App enhancements that strengthen the four Stage Two
+rubric criteria (Technological Implementation, Design, Potential Impact, Quality
+of Idea) are in scope; submission text, video and disclosure are not.
 
 ## Design decisions (defaults — change before implementation if needed)
 
@@ -464,6 +466,102 @@ unless the user clicks Accept, so the rename appears to do nothing on screen.
 - [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`.
 
       Note (2026-11-19): rename commits on Enter/blur and persists a fingerprint→label override in `renamedTagGroups` user meta; overrides are applied in `syncTagSuggestions` to both group labels and suggested tag lists. Accept now writes the displayed label. 18/18 tests + typecheck/lint/build pass.
+
+## App enhancements for hackathon rubric (Stage Two)
+
+Scope: app-side improvements mapped to the four equally weighted judging
+criteria quoted in `docs/rfc/001-my-memory-csd.md` §13 (frozen reference only —
+do not edit the RFC). No submission text, video or disclosure work here.
+
+### Technological Implementation (25%)
+- [ ] HUD per-call-mode log (`src/App.tsx`, `src/components/Hud.tsx`): attach the
+      actual call-site mode to each event (`ONLY_ON_DEVICE` extraction,
+      `PREFER_ON_DEVICE` short answer, `ONLY_IN_CLOUD` synthesis) and show it as
+      the event detail, so runtime hybrid inference is visible, not just claimed.
+- [ ] Embedder provenance readout (`Hud.tsx`, `src/lib/i18n.ts`): show in the HUD
+      that this build uses the local lexical fallback while the pinned production
+      embedder is EmbeddingGemma 2 — honest provenance, never a silent switch.
+- [ ] In-app local self-check (`src/lib/selfcheck.ts`, new UI in `Ask` or HUD):
+      run the existing 5 in-corpus + 5 out-of-corpus questions against the
+      current captures with no network/model call; show grounded / Not-found
+      counts so M-04/M-05 are observable inside the app.
+- [ ] Reason-specific Nano state (`Onboarding.tsx`, `Ask.tsx`, `i18n.ts`): turn
+      `after-download` / `downloading` / `unsupported` into concrete next steps
+      (enable Chrome 139+ flag, wait for download), not one generic Flow 7 text.
+
+### Design (25%)
+- [ ] Guided four-loop walkthrough in Demo mode (`SignInGate`/`App`): a compact
+      checklist — Capture → Ask (offline) → Forget (approve/keep) → Trash
+      (restore) — that jumps to each tab and highlights the relevant control;
+      keeps the product coherent beyond isolated features.
+- [ ] Persistent safety counter (`Hud.tsx`, `Forget.tsx`): surface
+      "0 deletions without approval" and kept-decision count in the HUD summary
+      so the standing safety boundary is perceivable in every tab.
+- [ ] Evidence-first Not-found UX (`Ask.tsx`, `src/lib/i18n.ts`): when retrieval
+      returns Not found, explain that nothing cleared the threshold and offer
+      next steps (try a `#tag`, check spelling) instead of a bare message.
+- [ ] Mobile viewport pass at 375px for the new ⋮ menus, review sheet and split
+      bar; verify `min-h-11` / `aria-label` on every new control.
+
+### Potential Impact (25%)
+- [ ] Persona framing in onboarding (`Onboarding.tsx`, EN/VI): concise, real
+      scenarios (caregiver: medicine expiry; commuter: plate/receipt;
+      privacy-conscious: local-only) so the problem is specific, not abstract.
+- [ ] Privacy boundary proof UI (`Onboarding`/`Hud`): one plain-language line
+      stating originals/transcripts/embeddings never leave the device and only
+      a metadata allowlist may sync — matching the docs word for word.
+
+### Quality of Idea (25%)
+- [ ] Cost-asymmetry explainer in `Forget.tsx`: short standing copy — "A wrong
+      deletion is permanent; a wrong keep is just clutter" — next to the proposal
+      queue, making the human-in-the-loop rule legible.
+- [ ] Curator feedback readout (`Forget.tsx`, `src/App.tsx`): count proposals
+      decided `keep` and show "Kept N — those suggestions won't repeat"
+      (kept proposals are already suppressed by `scanForProposals`).
+- [ ] Protected-capture explanation (`DetailSheet.tsx`, `i18n.ts`): tapping the
+      Protected badge explains why it is excluded from proposals and that the
+      owner can still delete it manually.
+
+### Verification
+- [ ] `npm run typecheck && npm run lint && npm test && npm run build`; add unit
+      tests for the self-check helper and the kept/protected counts; update
+      `docs/as-built/DESIGN.md`, `docs/requirements/req-web-app.md` and
+      `docs/as-built/VERIFICATION.md`.
+
+## UI/UX polish
+
+Scope: visual clarity, empty/loading states, evidence inspection, and real-time
+offline awareness across `Memories`, `Ask`, and `DetailSheet`.
+
+- [x] Cleaner capture cards (`src/components/Memories.tsx`): remove the
+      redundant `"Tap proof →"` link from every card (the card body already
+      opens `DetailSheet`), leaving only badges and the single `⋮` menu.
+- [x] Collapsible groups (`src/components/Memories.tsx`): tapping a group
+      header toggles collapsed/expanded state with a chevron indicator so long
+      libraries stay scannable (auto-expanded while in Split or Rename mode).
+- [x] Sticky Split bar (`src/components/Memories.tsx`): pin the active Split
+      controls (`{n} selected`, new group name, Create / Cancel) above
+      `BottomNav` (`fixed bottom-20`) so they stay reachable while scrolling.
+- [x] Empty states (`src/components/Memories.tsx`, `src/lib/i18n.ts`): add a
+      welcoming empty state when a user has 0 captures (Google sign-in starts
+      empty) with quick Photo/Voice/Note CTAs, and a filter-empty state with a
+      one-tap "Clear filters" button when date/tag filters match 0 items.
+- [x] Loading / thinking feedback (`src/components/Ask.tsx`,
+      `src/components/Memories.tsx`, `src/lib/i18n.ts`): show a calm shimmer /
+      "Searching your memory…" skeleton card in `Ask` while `busy`, and an
+      extracting status banner in `Memories` while a capture is being processed.
+- [x] Full-screen photo lightbox (`src/components/DetailSheet.tsx`): tapping
+      the original photo proof opens a full-screen dark viewer (with close
+      button and backdrop dismiss) so fine print on receipts or medicine boxes
+      is readable.
+- [x] Live online/offline badge (`src/lib/useOnlineStatus.ts` or hook in
+      `App.tsx`, `Memories.tsx`, `Ask.tsx`, `i18n.ts`): listen to `online` /
+      `offline` window events so the status pill reflects `navigator.onLine`
+      in real time (*Online · local-first* vs *Offline · local mode active*).
+- [x] Verify: `npm run typecheck && npm run lint && npm test && npm run build`,
+      plus update `docs/as-built/DESIGN.md`.
+
+      Note (2026-11-19): all 8 polish tasks verified via typecheck, lint, 18/18 tests and production build (`index-DDtft9Zj.js`). New `src/lib/useOnlineStatus.ts` hook drives both pills; sticky split bar uses `animate-toast`; group header toggle renders a plain div during inline rename to avoid nested interactive elements.
 
 ## P1 — product quality
 

@@ -29,6 +29,17 @@
 | UI-006 | `—` | n/a | latency + source counters | SIMULATED counter shown separately | shows error detail |
 | UI-007 | n/a | n/a | auto-dismiss planned | n/a | n/a |
 
+UI-002 capture cards are scannable: no redundant "Tap proof" link (the card
+body opens UI-005), a single `⋮` menu, and collapsible group headers with a
+chevron (auto-expanded during Split/Rename). While splitting, the control bar is
+fixed above the bottom nav so it stays reachable. New accounts see a welcoming
+empty state; when a date/tag filter matches nothing, a one-tap "Clear filters"
+button appears. In-flight work is visible: an extracting banner in UI-002 and a
+shimmer "Searching your memory…" card in UI-003. The connectivity pill now
+reflects `navigator.onLine` live (*Online · local-first* / *Offline · local mode
+active*). UI-005 opens the original photo in a full-screen lightbox for reading
+fine print.
+
 The selected tag is shared state in `App.tsx`: choosing `#tag` in UI-002 filters
 the memory list, and switching to UI-003 keeps that scope — Ask shows a
 "Scoped to #tag" banner and grounds the answer only in captures carrying that

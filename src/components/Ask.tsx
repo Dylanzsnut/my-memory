@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, Cloud, Search, Shi
 import type { AnswerResult, CaptureRecord, Language } from '../types';
 import type { NanoAvailability } from '../lib/ai';
 import { t } from '../lib/i18n';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
 
 interface Props {
@@ -46,6 +47,7 @@ export default function Ask({
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [asked, setAsked] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     if (seedQuestion) {
@@ -161,9 +163,9 @@ export default function Ask({
       )}
 
       <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
-        <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" />
+        <span className={`h-1.5 w-1.5 animate-pulse-dot rounded-full ${online ? 'bg-teal' : 'bg-gold'}`} />
         <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
-          {t(language, 'offline')}
+          {t(language, online ? 'onlineLive' : 'offlineLive')}
         </span>
       </div>
 
@@ -181,6 +183,22 @@ export default function Ask({
         <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft p-3 text-[12px] text-danger">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           <p>{error}</p>
+        </div>
+      )}
+
+      {busy && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="animate-pulse rounded-2xl border border-line bg-canvas p-4 shadow-sm"
+        >
+          <div className="flex items-center gap-2 text-[11.5px] font-bold text-ink2">
+            <span className="h-2 w-2 animate-pulse-dot rounded-full bg-teal" />
+            {t(language, 'searchingMemory')}
+          </div>
+          <div className="mt-3 h-3 w-3/4 rounded-full bg-surface2" />
+          <div className="mt-2 h-3 w-1/2 rounded-full bg-surface2" />
+          <div className="mt-3 h-10 rounded-xl bg-surface2" />
         </div>
       )}
 
