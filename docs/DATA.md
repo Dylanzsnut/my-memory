@@ -44,7 +44,7 @@ value may live and whether it may leave the device (`REQ-003`, `ADR-004`).
 | C5 | Configuration and state | `meta` keys, `AppSettings`, Remote Config values | IndexedDB `meta` + remote | No | `src/lib/config.ts` |
 | C6 | Provenance labels | `inferenceSource` (`ON_DEVICE` / `IN_CLOUD` / `SIMULATED`) | with the record | Label syncs with C3 | `ADR-008`, `INV-104` |
 | C7 | Human decisions | `ForgetProposal.decided`, `trashedAt`, `purgeAt` | IndexedDB | `retentionState` syncs, decision detail does not | `REQ-004`, `REQ-005` |
-| C8 | User-authored labels *(planned)* | `tags` | IndexedDB `captures` | **Never** — explicitly excluded from the sync allowlist | plan § Tags & suggested groups |
+| C8 | User-authored labels | `tags` | IndexedDB `captures` | **Never** — explicitly excluded from the sync allowlist (`INV-401`) | `src/lib/tags.ts`, `docs/as-built/specs/auto-tagging.md` |
 
 Boundary summary (`Claimed`, see `docs/ARCHITECTURE.md` §3): originals,
 transcripts and embeddings are device-resident by construction, not by policy
@@ -71,7 +71,7 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 |---|---|---|---|---|---|---|
 | `id` | string | C3 | immutable | store | yes | citation target |
 | `type` | `photo \| voice \| note` | C3 | immutable | capture time | yes | `REQ-001` |
-| `capturedAt` | ISO string | C3 | immutable | capture time; EXIF `DateTimeOriginal` for imported photos, fallback `file.lastModified` → import time *(Claimed — manual mobile check pending)* | yes | index `by-date` |
+| `capturedAt` | ISO string | C3 | immutable | capture time; EXIF `DateTimeOriginal` (`0x9003`) for imported photos, fallback `file.lastModified` → import time | yes | index `by-date` (`INV-304`) |
 | `summary` | string | C3 | mutable via re-extraction | model extraction | yes | index only, never replaces original |
 | `entities` | string[] | C3 | mutable via re-extraction | model extraction | yes | sensitive values need consent before cloud use (P1) |
 | `expiryDate` | string \| null | C3 | mutable via re-extraction | captured content only | yes | `F2`: never inferred |
@@ -88,8 +88,8 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 | `trashedAt` | ISO string | C7 | set on trash | human decision | no (state only) | transition timestamp |
 | `purgeAt` | ISO string | C7 | derived from `trashedAt` | `trashRetentionDays` | no (state only) | end of recoverable window (`REQ-005`) |
 | `demo` | boolean | C3 | immutable | seeding | **no** (skipped) | `INV-302`; demo data is never real user data |
-| `tags` | string[] | C8 | mutable, user-authored | the user | **no** | *(planned)* survives re-extraction; joins the search index |
-| `suggestedTags` | string[] | C2 | accept / rename / dismiss | embedding grouping | **no** | *(planned)* proposals only; never written without Accept |
+| `tags` | string[] | C8 | mutable, user-authored | the user | **no** | survives re-extraction; joins the search index (`INV-401`) |
+| `suggestedTags` | string[] | C2 | accept / rename / dismiss | embedding grouping | **no** | proposals only; never written without Accept (`INV-402`) |
 
 ## 2.2 Attribute dictionary — ENT-002 / ENT-003 / ENT-004
 
@@ -141,11 +141,11 @@ Semantics table; `src/types.ts` (`CaptureRecord`) is the executable shape.
 | active → proposed | `scanForProposals` | code, **proposal only** | `F1`/`F2` evidence required (`INV-201`) |
 | proposed → active | keep | human | recorded decision, feeds curator |
 | proposed → trashed | approve | human | recorded decision (`INV-204`) |
-| active → trashed (manual delete) | delete action | human | confirmation; recorded as *manual delete*, not *proposal approved* (planned) |
+| active → trashed (manual delete) | delete action | human | confirmation; recorded via `trashSource: 'manual'`, not *proposal approved* |
 | any → protected | `protectedReason` set | deterministic rule | never proposed regardless of score (`F4`, `INV-003`) |
 | trashed → active | restore | human | before `purgeAt` |
-| trashed → purged | `purgeAt` reached | app open, user-visible (planned) | documented exception to "no background deletion"; still human-scheduled |
-| active → purged (delete permanently now) | `DetailSheet` action | human | stronger second confirmation; recorded as a distinct decision type; *(planned)* the explicit documented exception to the `REQ-005` recoverable window; never offered in bulk |
+| trashed → purged | `purgeAt` reached | app open, user-visible (`purgeExpiredTrash`) | documented exception to "no background deletion"; still human-scheduled |
+| active → purged (delete permanently now) | `DetailSheet` action | human | stronger second confirmation; recorded as a distinct decision; explicit documented exception to the `REQ-005` recoverable window; never offered in bulk |
 
 Invariant `F5`: every transition to `trashed` requires a recorded human decision
 and stays recoverable for the `REQ-005` window. There is no auto-delete path,
@@ -155,7 +155,7 @@ no bulk approval and no background job that bypasses a decision.
 
 created → decided(`approve`) → capture moves to `trashed`
 created → decided(`keep`) → capture stays `active`, score is feedback
-created → (target deleted manually) → proposal closed (planned)
+created → (target deleted manually) → proposal closed (`decided: 'manual'`) or deleted on purge
 
 ## 4. Physical storage design
 
@@ -256,10 +256,10 @@ local captures (`REQ-007`, `INV-103`).
 |---|---|---|
 | C1/C2 capture data | until a human deletes it | no automatic expiry (`F5`) |
 | Trashed capture | `trashRetentionDays` (default 30, `REQ-005`) | `purgeAt = trashedAt + window`; restore before then |
-| Purged capture | removed from IndexedDB | planned: on app open, user-visible exception (plan § Manual memory deletion) |
+| Purged capture | removed from IndexedDB | on app open (`purgeExpiredTrash`), user-visible exception, or explicit permanent delete |
 | `HudEvent` | last 60 | trimmed on write |
-| Proposal | until decided | closed when its target is deleted (planned) |
-| Firestore metadata | until permanent deletion | document deleted when the capture is purged (planned) |
+| Proposal | until decided | closed (`decided: 'manual'`) or deleted when target is deleted |
+| Firestore metadata | until permanent deletion | document deleted via `deleteCaptureMetadata` when capture is purged |
 
 Protected captures are still deletable, but only with a stronger confirmation;
 `F4` protects them from *proposals*, not from their owner.
@@ -271,7 +271,7 @@ Protected captures are still deletable, but only with a stronger confirmation;
 | IDX-001 | captures | `by-date` on `capturedAt` | reverse-chronological feed | one index write per capture |
 
 Retrieval runs over `embedding` cosine similarity plus lexical match on
-`summary` + `entities` + `derivedText` (+ user `tags`, planned), with bilingual
+`summary` + `entities` + `tags` + `derivedText`, with bilingual
 EN/VI synonyms (`ADR-007`). Thresholds are configuration, never rules: `retrievalThreshold`
 gates whether an answer may be shown at all (`G3`: below threshold returns
 "Not found" and the threshold is never silently lowered), and
@@ -280,10 +280,10 @@ gates whether an answer may be shown at all (`G3`: below threshold returns
 Deleted (trashed) captures are excluded from search and answer sources
 (`INV-002`) and are never sent to the cloud.
 
-### 9.1 Tagging, grouping and suggestions (planned)
+### 9.1 Tagging, grouping and suggestions
 
-Flow design and open questions: `docs/rfc/003-auto-tagging-flow.md` (AGREED
-2026-11-18). Three layers with distinct ownership (plan § Tags & suggested groups):
+Implemented in `src/lib/tags.ts` (spec `docs/rfc/003-auto-tagging-flow.md`,
+as-built `docs/as-built/specs/auto-tagging.md`). Three layers with distinct ownership:
 
 | Layer | Owner | Written when | Re-extraction |
 |---|---|---|---|
@@ -355,6 +355,7 @@ them so nothing is defined twice.
 | Unknown provenance → `SIMULATED` | `INV-104` | UNVERIFIED |
 | Demo data never synced | `INV-302` | UNVERIFIED |
 | Sync failure never blocks capture | `INV-303` | UNVERIFIED |
+| EXIF reads `DateTimeOriginal` only (no GPS/device tags) | `INV-304` | UNVERIFIED |
 
 No automated test suite exists at HEAD; every row is `UNVERIFIED` until a run
 is recorded. The plan's search/answer test set and the CSD's 20-question set

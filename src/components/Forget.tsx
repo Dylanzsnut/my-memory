@@ -7,14 +7,13 @@ interface Props {
   captures: CaptureRecord[];
   language: Language;
   onDecide: (proposal: ForgetProposal, decision: Decision) => void;
-  onRestore: (capture: CaptureRecord) => void;
+  onOpenTrash: () => void;
   trashDays: number;
 }
 
-export default function Forget({ proposals, captures, language, onDecide, onRestore, trashDays }: Props) {
+export default function Forget({ proposals, captures, language, onDecide, onOpenTrash, trashDays }: Props) {
   const pending = proposals.filter((p) => !p.decided);
   const kept = proposals.filter((p) => p.decided === 'keep').length;
-  const trashed = proposals.filter((p) => p.decided === 'approve').length;
   const trashedCaptures = captures.filter((c) => c.retentionState === 'trashed');
   const protectedCaptures = captures.filter((c) => c.retentionState === 'protected');
 
@@ -34,7 +33,7 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
         {[
           { value: pending.length, label: t(language, 'toReview'), cls: 'bg-accent-soft text-accent' },
           { value: kept, label: t(language, 'keptSafe'), cls: 'bg-teal-soft text-teal' },
-          { value: trashed, label: t(language, 'inTrash'), cls: 'bg-surface2 text-ink2' },
+          { value: trashedCaptures.length, label: t(language, 'inTrash'), cls: 'bg-surface2 text-ink2' },
         ].map((stat) => (
           <div key={stat.label} className={`rounded-xl p-3 shadow-sm ${stat.cls}`}>
             <span className="block text-[22px] font-black leading-none">{stat.value}</span>
@@ -67,9 +66,17 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
                 <div className="min-w-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink3">
                     {proposal.reason === 'duplicate'
-                      ? language === 'vi'
-                        ? 'Ảnh trùng lặp'
-                        : 'Duplicate photo'
+                      ? capture?.type === 'note'
+                        ? language === 'vi'
+                          ? 'Ghi chú trùng lặp'
+                          : 'Duplicate note'
+                        : capture?.type === 'voice'
+                          ? language === 'vi'
+                            ? 'Ghi âm trùng lặp'
+                            : 'Duplicate voice memo'
+                          : language === 'vi'
+                            ? 'Ảnh trùng lặp'
+                            : 'Duplicate photo'
                       : language === 'vi'
                         ? 'Đã hết hạn'
                         : 'Expired'}
@@ -91,14 +98,14 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'keep')}
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-line2 bg-canvas text-[12px] font-bold text-ink transition-colors hover:bg-surface2"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-line2 bg-canvas text-[12px] font-bold text-ink transition-colors hover:bg-surface2"
                 >
                   <CheckCircle2 size={15} className="text-teal" /> {t(language, 'keep')}
                 </button>
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'approve')}
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-accent-bright"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-accent-bright"
                 >
                   <Trash2 size={15} /> {t(language, 'moveToTrash')}
                 </button>
@@ -130,37 +137,26 @@ export default function Forget({ proposals, captures, language, onDecide, onRest
         </div>
       ))}
 
-      <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface2 p-3.5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-soft text-teal">
-          <Clock3 size={17} />
-        </span>
-        <div>
-          <p className="text-[12px] font-bold">{language === 'vi' ? `An toàn ${trashDays} ngày` : `${trashDays}-day safety net`}</p>
-          <p className="text-[11px] text-ink2">
-            {language === 'vi' ? 'Khôi phục bằng một chạm.' : 'Anything in trash can be restored with one tap.'}
-          </p>
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2 p-3.5">
+        <div className="flex items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-soft text-teal">
+            <Clock3 size={17} />
+          </span>
+          <div>
+            <p className="text-[12px] font-bold">{language === 'vi' ? `An toàn ${trashDays} ngày` : `${trashDays}-day safety net`}</p>
+            <p className="text-[11px] text-ink2">
+              {language === 'vi' ? 'Khôi phục hoặc xóa vĩnh viễn trong Thùng rác.' : 'Restore or permanently delete items in Trash.'}
+            </p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={onOpenTrash}
+          className="min-h-11 shrink-0 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
+        >
+          {t(language, 'openTrash', { n: trashedCaptures.length })}
+        </button>
       </div>
-
-      {trashedCaptures.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-[13px] font-bold">
-            {t(language, 'inTrash')} ({trashedCaptures.length})
-          </h2>
-          {trashedCaptures.map((capture) => (
-            <div key={capture.id} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-canvas p-3">
-              <span className="min-w-0 truncate text-[12px] font-semibold">{capture.summary}</span>
-              <button
-                type="button"
-                onClick={() => onRestore(capture)}
-                className="shrink-0 rounded-full bg-teal-soft px-3 py-1.5 text-[11px] font-bold text-teal"
-              >
-                {language === 'vi' ? 'Khôi phục' : 'Restore'}
-              </button>
-            </div>
-          ))}
-        </section>
-      )}
 
       <p className="flex items-center justify-center gap-1.5 pb-2 text-[10.5px] text-ink3">
         <ShieldCheck size={13} className="text-teal" /> {t(language, 'zeroDeletions')}

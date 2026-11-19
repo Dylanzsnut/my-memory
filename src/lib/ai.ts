@@ -1,10 +1,4 @@
-import {
-  getGenerativeModel,
-  InferenceMode,
-  InferenceSource as SdkInferenceSource,
-  Schema,
-  type GenerativeModel,
-} from 'firebase/ai';
+import type { GenerativeModel } from 'firebase/ai';
 import type {
   AnswerResult,
   CaptureRecord,
@@ -16,20 +10,67 @@ import { getServices } from './firebase';
 import { FALLBACK_CLOUD_MODEL, settings, ON_DEVICE_PROMPT_INSTRUCTIONS } from './config';
 import { normalize } from './embeddings';
 
-const extractionSchema = Schema.object({
-  properties: {
-    summary: Schema.string(),
-    entities: Schema.array({ items: Schema.string() }),
-    expiryDate: Schema.string(),
-  },
-  optionalProperties: ['expiryDate'],
-});
+let aiSdkPromise: Promise<typeof import('firebase/ai')> | null = null;
+let cachedExtractionJsonSchema: object | null = null;
 
-function toSdkSource(source: unknown): InferenceSource {
+function loadAiSdk() {
+  return (aiSdkPromise ??= import('firebase/ai'));
+}
+
+function getExtractionJsonSchema(Schema: (typeof import('firebase/ai'))['Schema']): object {
+  if (!cachedExtractionJsonSchema) {
+    const extractionSchema = Schema.object({
+      properties: {
+        summary: Schema.string(),
+        entities: Schema.array({ items: Schema.string() }),
+        expiryDate: Schema.string({ nullable: true }),
+      },
+      optionalProperties: ['expiryDate'],
+    });
+    cachedExtractionJsonSchema = JSON.parse(JSON.stringify(extractionSchema)) as object;
+  }
+  return cachedExtractionJsonSchema;
+}
+
+function isValidYearMonthDay(year: number, month: number, day?: number): boolean {
+  if (month < 1 || month > 12) return false;
+  if (day === undefined) return true;
+  const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day >= 1 && day <= maxDay;
+}
+
+function normalizeExpiryDate(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null') return null;
+  const iso = trimmed.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = iso[3] !== undefined ? Number(iso[3]) : undefined;
+    return isValidYearMonthDay(year, month, day) ? trimmed : null;
+  }
+  const slash = trimmed.match(/^(\d{2})\/(\d{4})$/);
+  if (slash) {
+    const month = Number(slash[1]);
+    const year = Number(slash[2]);
+    return isValidYearMonthDay(year, month) ? `${slash[2]}-${slash[1]}` : null;
+  }
+  return null;
+}
+
+function toSdkSource(
+  source: unknown,
+  sdkInferenceSource?: { IN_CLOUD: unknown; ON_DEVICE: unknown },
+): InferenceSource {
   // The SDK reports lowercase values ('in_cloud' / 'on_device'), not the
   // uppercase labels used by this app's UI and data model.
-  if (source === SdkInferenceSource.IN_CLOUD || source === 'IN_CLOUD') return 'IN_CLOUD';
-  if (source === SdkInferenceSource.ON_DEVICE || source === 'ON_DEVICE') return 'ON_DEVICE';
+  if (source === sdkInferenceSource?.IN_CLOUD || source === 'IN_CLOUD' || source === 'in_cloud') {
+    return 'IN_CLOUD';
+  }
+  if (source === sdkInferenceSource?.ON_DEVICE || source === 'ON_DEVICE' || source === 'on_device') {
+    return 'ON_DEVICE';
+  }
   return 'SIMULATED'; // unknown/missing provenance must never be shown as a real inference
 }
 
@@ -47,14 +88,20 @@ function simulatedExtraction(req: ExtractionRequest): ExtractionResult {
   const plates = text.match(/\b\d{2}[A-Z]-?\d+\.\d+\b/gi) || [];
   const entities = [...new Set([...amounts, ...dates, ...plates])];
   const expiryMatch = text.match(/\b(\d{2})\/(\d{4})\b/);
+  const trimmed = text.trim();
+  const firstSentence = trimmed.replace(/^[.!?\s]+/, '').split(/[.!?]/)[0]?.trim();
   const summary =
     req.type === 'photo'
       ? 'Photo capture (not extracted on this device)'
-      : req.type === 'voice' && !text.trim()
+      : req.type === 'voice' && !trimmed
         ? 'Voice memo (audio stored on device)'
-        : text.split(/[.!?]/)[0].slice(0, 80) || 'Untitled capture';
+        : (firstSentence || trimmed.slice(0, 80)).slice(0, 80) || 'Untitled capture';
   return {
-    extraction: { summary, entities, expiryDate: expiryMatch ? `${expiryMatch[2]}-${expiryMatch[1]}` : null },
+    extraction: {
+      summary,
+      entities,
+      expiryDate: expiryMatch ? normalizeExpiryDate(`${expiryMatch[2]}-${expiryMatch[1]}`) : null,
+    },
     source: 'SIMULATED',
     latencyMs: Math.round(performance.now() - started),
   };
@@ -71,19 +118,22 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
   if (!ai) return simulatedExtraction(req);
 
   try {
+    const { getGenerativeModel, InferenceMode, InferenceSource: SdkInferenceSource, Schema } =
+      await loadAiSdk();
+    const expectedInputs: { type: 'text' | 'image'; languages?: string[] }[] = [
+      { type: 'text', languages: ['en'] },
+      ...(req.imageDataUrl ? [{ type: 'image' as const }] : []),
+    ];
     const model: GenerativeModel = getGenerativeModel(ai, {
       mode: InferenceMode.ONLY_ON_DEVICE,
       onDeviceParams: {
         createOptions: {
-          expectedInputs: [
-            { type: 'text', languages: ['en'] },
-            { type: 'image' },
-          ],
+          expectedInputs,
           initialPrompts: [
             { role: 'system', content: [{ type: 'text', value: ON_DEVICE_PROMPT_INSTRUCTIONS }] },
           ],
         },
-        promptOptions: { responseConstraint: extractionSchema },
+        promptOptions: { responseConstraint: getExtractionJsonSchema(Schema) },
       },
     });
 
@@ -96,13 +146,14 @@ export async function extractCapture(req: ExtractionRequest): Promise<Extraction
     const raw = result.response.text().trim();
     const parsed = JSON.parse(raw) as { summary?: string; entities?: string[]; expiryDate?: string | null };
     if (!parsed.summary || !Array.isArray(parsed.entities)) throw new Error('Invalid extraction schema');
+    const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
     return {
       extraction: {
         summary: parsed.summary,
         entities: parsed.entities.filter((e) => typeof e === 'string'),
-        expiryDate: typeof parsed.expiryDate === 'string' ? parsed.expiryDate : null,
+        expiryDate: normalizeExpiryDate(parsed.expiryDate),
       },
-      source: 'ON_DEVICE',
+      source: toSdkSource(sdkSource, SdkInferenceSource),
       latencyMs: Math.round(performance.now() - started),
     };
   } catch (error) {
@@ -165,6 +216,7 @@ export async function initializeDeviceModel(onProgress?: (fraction: number) => v
   const { ai } = getServices();
   if (!ai) return false;
   try {
+    const { getGenerativeModel, InferenceMode } = await loadAiSdk();
     const model = getGenerativeModel(ai, { mode: InferenceMode.PREFER_ON_DEVICE });
     await model.initializeDeviceModel((value: number) => onProgress?.(Math.min(1, value)));
     return true;
@@ -174,44 +226,116 @@ export async function initializeDeviceModel(onProgress?: (fraction: number) => v
   }
 }
 
-function contextFrom(captures: CaptureRecord[]): string {
+const SENSITIVE_KEYWORD_RE =
+  /\b(password|passcode|passphrase|pwd|mat\s*khau|otp|verification\s*code|ma\s*xac\s*thuc|pin\s*code|cvv|secret|api\s*key|token|wifi\s*key)\b/i;
+
+const SENSITIVE_INLINE_RE =
+  /\b(password|passcode|passphrase|pwd|mat\s*khau|otp|verification\s*code|ma\s*xac\s*thuc|pin\s*code|cvv|secret|token)\b(\s*(?:is|la|:|=)?\s*)([^\s,;]+)/gi;
+
+const BENIGN_ENTITY_RE =
+  /^(?:\d{2}\/\d{4}|\d{4}-\d{2}|[\d.,]+\s*(?:vnd|₫|k)|\d{2}[a-z]-?\d+\.\d+|wifi|password|mat khau|receipt|medicine)$/i;
+
+export function isSensitiveEntity(
+  value: string,
+  capture?: Pick<CaptureRecord, 'summary' | 'derivedText'>,
+): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (SENSITIVE_KEYWORD_RE.test(trimmed)) return true;
+  if (BENIGN_ENTITY_RE.test(normalize(trimmed))) return false;
+  const captureText = normalize(`${capture?.summary || ''} ${capture?.derivedText || ''}`);
+  if (SENSITIVE_KEYWORD_RE.test(captureText)) {
+    return /^[a-z0-9!@#$%^&*_.-]{4,}$/i.test(trimmed) || /^\d{4,8}$/.test(trimmed);
+  }
+  return false;
+}
+
+export function hasSensitiveEntities(captures: CaptureRecord[]): boolean {
+  return captures.some((c) => c.entities.some((e) => isSensitiveEntity(e, c)));
+}
+
+function redactSensitiveText(text: string): string {
+  return text.replace(SENSITIVE_INLINE_RE, '$1$2[REDACTED]');
+}
+
+function contextFrom(captures: CaptureRecord[], allowSensitiveCloud = false): string {
   return captures
-    .map(
-      (c) =>
-        `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${c.summary}\n  entities: ${c.entities.join(', ')}\n  expiryDate: ${c.expiryDate ?? 'null'}`,
-    )
+    .map((c) => {
+      const summary = allowSensitiveCloud ? c.summary : redactSensitiveText(c.summary);
+      const entities = c.entities.map((e) =>
+        allowSensitiveCloud || !isSensitiveEntity(e, c) ? e : '[REDACTED]',
+      );
+      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}\n  expiryDate: ${c.expiryDate ?? 'null'}`;
+    })
     .join('\n');
+}
+
+function citeSummary(capture: CaptureRecord): string {
+  const trimmed = capture.summary.trim();
+  if (!trimmed) return '';
+  return trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => {
+      const clean = sentence.trim();
+      if (!clean) return '';
+      const punct = clean.match(/([.!?]+)$/)?.[1]?.[0] || '.';
+      const body = clean.replace(/[.!?]+$/, '').trim();
+      return body ? `${body} [${capture.id}]${punct}` : '';
+    })
+    .filter(Boolean)
+    .join(' ');
 }
 
 function simulatedAnswer(question: string, captures: CaptureRecord[], intent: 'short' | 'long'): string {
   if (!captures.length) return 'NOT_FOUND';
   const q = normalize(question);
   const top = captures[0];
-  if (/\bexpire|expiry|han dung|het han/.test(q) && top.expiryDate) {
-    const [year, month] = top.expiryDate.split('-');
-    return `In ${month}/${year}. This comes from the capture [${top.id}]${top.entities.includes('medicine') ? ' — the medicine box photographed earlier' : ''}.`;
+  if (/expir|han dung|het han/i.test(q)) {
+    const withExpiry = captures.find((c) => Boolean(c.expiryDate)) ?? top;
+    if (withExpiry.expiryDate) {
+      const parts = withExpiry.expiryDate.split('-');
+      const expiryLabel =
+        parts.length >= 3
+          ? `${parts[2]}/${parts[1]}/${parts[0]}`
+          : parts.length === 2
+            ? `${parts[1]}/${parts[0]}`
+            : withExpiry.expiryDate;
+      const prefix = parts.length >= 3 ? `On ${expiryLabel}` : `In ${expiryLabel}`;
+      const detail = withExpiry.entities.includes('medicine') ? ' — from the medicine box photographed earlier' : '';
+      return `${prefix} [${withExpiry.id}]${detail}.`;
+    }
   }
   if (/\bplate|bien so/.test(q)) {
-    const plate = top.entities.find((e) => /\d{2}[A-Z]-?\d+\.\d+/i.test(e)) || top.summary;
-    return `The plate is ${plate}. Source: [${top.id}].`;
+    const plate = top.entities.find((e) => /\d{2}[A-Z]-?\d+\.\d+/i.test(e));
+    if (plate) return `The plate is ${plate} [${top.id}].`;
+    return citeSummary(top) || 'NOT_FOUND';
   }
   if (/\bpassword|wifi|mat khau/.test(q)) {
-    return `${top.summary}. Source: [${top.id}].`;
+    return citeSummary(top) || 'NOT_FOUND';
   }
   if (intent === 'long') {
-    return captures
-      .map((c) => `${c.summary.replace(/[.!?]$/, '')} [${c.id}]`)
-      .join('; ') + '.';
+    return captures.map(citeSummary).filter(Boolean).join(' ') || 'NOT_FOUND';
   }
-  return `${top.summary}. Source: [${top.id}].`;
+  return citeSummary(top) || 'NOT_FOUND';
 }
 
 export async function answerQuestion(
   question: string,
   captures: CaptureRecord[],
   intent: 'short' | 'long',
+  options?: { allowSensitiveCloud?: boolean },
 ): Promise<Omit<AnswerResult, 'claims' | 'sources' | 'notFound'>> {
   const started = performance.now();
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (intent === 'long' && offline) {
+    return {
+      text: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+      inferenceSource: 'SIMULATED',
+      latencyMs: Math.round(performance.now() - started),
+      intent,
+      error: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+    };
+  }
   const { ai } = getServices();
   if (!ai) {
     return {
@@ -223,6 +347,7 @@ export async function answerQuestion(
   }
 
   try {
+    const { getGenerativeModel, InferenceMode, InferenceSource: SdkInferenceSource } = await loadAiSdk();
     const mode = intent === 'long' ? InferenceMode.ONLY_IN_CLOUD : InferenceMode.PREFER_ON_DEVICE;
     const cloudModelName = settings.cloudModel;
     const buildModel = (cloudModel: string) =>
@@ -247,7 +372,7 @@ export async function answerQuestion(
       `Question: ${question}`,
       '',
       'Captures:',
-      contextFrom(captures),
+      contextFrom(captures, options?.allowSensitiveCloud ?? false),
     ].join('\n');
     let result;
     try {
@@ -261,7 +386,7 @@ export async function answerQuestion(
       result = await model.generateContent(prompt);
     }
     const sdkSource = (result.response as unknown as { inferenceSource?: unknown }).inferenceSource;
-    const source = toSdkSource(sdkSource);
+    const source = toSdkSource(sdkSource, SdkInferenceSource);
     return {
       text: result.response.text().trim(),
       inferenceSource: source,
@@ -273,6 +398,15 @@ export async function answerQuestion(
     // reason is surfaced so the failure is never hidden behind a plausible answer.
     const message = error instanceof Error ? error.message : String(error);
     console.warn('[ai] live answer failed; using local fallback', message);
+    if (intent === 'long' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return {
+        text: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+        inferenceSource: 'SIMULATED',
+        latencyMs: Math.round(performance.now() - started),
+        intent,
+        error: 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION',
+      };
+    }
     return {
       text: simulatedAnswer(question, captures, intent),
       inferenceSource: 'SIMULATED',

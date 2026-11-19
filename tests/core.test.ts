@@ -1,0 +1,381 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import type { CaptureRecord } from '../src/types';
+import { embed, contentWords } from '../src/lib/embeddings';
+import { isLongSynthesisQuestion, searchCaptures } from '../src/lib/search';
+import { buildAnswer, extractNumberTokens, verifyClaim } from '../src/lib/answer';
+import { hasSensitiveEntities, isSensitiveEntity } from '../src/lib/ai';
+import {
+  applyDecision,
+  moveToTrash,
+  purgeExpiredTrash,
+  scanForProposals,
+} from '../src/lib/forget';
+import { detectTextProtection } from '../src/lib/protection';
+import { computeTagGroups, isSensitiveLabelToken } from '../src/lib/tags';
+import { parseExifDateTimeOriginal } from '../src/lib/exif';
+import { settings } from '../src/lib/config';
+
+async function makeCapture(
+  overrides: Partial<CaptureRecord> & Pick<CaptureRecord, 'id' | 'type' | 'summary'>,
+): Promise<CaptureRecord> {
+  const entities = overrides.entities || [];
+  const tags = overrides.tags || [];
+  const derivedText = overrides.derivedText;
+  const searchSource = [overrides.summary, ...entities, ...tags, derivedText || ''].join(' ');
+  return {
+    capturedAt: '2026-11-10T10:00:00.000Z',
+    entities,
+    expiryDate: null,
+    language: 'en',
+    inferenceSource: 'ON_DEVICE',
+    retentionState: 'active',
+    embedding: overrides.embedding || (await embed(searchSource)),
+    ...overrides,
+  };
+}
+
+async function createCorpus(): Promise<CaptureRecord[]> {
+  return Promise.all([
+    makeCapture({
+      id: 'cap_med',
+      type: 'photo',
+      summary: "Mum's medicine box — expires 08/2027",
+      entities: ['medicine', '08/2027'],
+      expiryDate: '2027-08',
+      protectedReason: 'Health or medicine record (F4 protected)',
+      retentionState: 'protected',
+      tags: ['health'],
+    }),
+    makeCapture({
+      id: 'cap_lunch1',
+      type: 'photo',
+      summary: 'Highlands Coffee lunch receipt — 45.000 VND',
+      entities: ['45.000 VND', 'Highlands Coffee'],
+      tags: ['receipts'],
+    }),
+    makeCapture({
+      id: 'cap_lunch2',
+      type: 'photo',
+      summary: 'Bun Cha lunch receipt — 65.000 VND',
+      entities: ['65.000 VND', 'Bun Cha'],
+      tags: ['receipts'],
+    }),
+    makeCapture({
+      id: 'cap_wifi',
+      type: 'note',
+      summary: 'Home Wi-Fi password: songhong2024',
+      entities: ['wifi', 'password', 'songhong2024'],
+    }),
+    makeCapture({
+      id: 'cap_plate',
+      type: 'photo',
+      summary: 'Parking lot motorbike license plate 51F-123.45',
+      entities: ['51F-123.45', 'plate'],
+    }),
+    makeCapture({
+      id: 'cap_expired',
+      type: 'note',
+      summary: 'Expired store voucher from 01/2025',
+      entities: ['voucher', '01/2025'],
+      expiryDate: '2025-01',
+    }),
+    makeCapture({
+      id: 'cap_trashed',
+      type: 'note',
+      summary: 'Secret alpha77 archive',
+      entities: ['alpha77'],
+      retentionState: 'trashed',
+      trashedAt: '2026-10-01T00:00:00.000Z',
+      purgeAt: '2026-10-31T00:00:00.000Z',
+    }),
+  ]);
+}
+
+describe('embeddings and search', () => {
+  it('filters EN and VI stopwords while preserving domain terms', () => {
+    const words = contentWords('When does mum medicine expire và của tôi');
+    assert.equal(words.includes('when'), false);
+    assert.equal(words.includes('does'), false);
+    assert.equal(words.includes('va'), false);
+    assert.equal(words.includes('cua'), false);
+    assert.equal(words.includes('medicine'), true);
+    assert.equal(words.includes('expire'), true);
+  });
+
+  it('matches bilingual EN/VI queries and excludes trashed captures', async () => {
+    const corpus = await createCorpus();
+    const viMed = await searchCaptures('Hộp thuốc của mẹ hạn dùng khi nào?', corpus, 0.28);
+    assert.equal(viMed[0]?.capture.id, 'cap_med');
+
+    const trashedHits = await searchCaptures('alpha77', corpus, 0.1);
+    assert.equal(trashedHits.length, 0);
+  });
+
+  it('detects long synthesis questions', () => {
+    assert.equal(isLongSynthesisQuestion('total my lunch spending'), true);
+    assert.equal(isLongSynthesisQuestion('tổng chi ăn trưa'), true);
+    assert.equal(isLongSynthesisQuestion('wifi password'), false);
+  });
+});
+
+describe('answer assembly, corpus QA, and fail-closed verifier', () => {
+  it('answers 5 in-corpus EN/VI questions with verified citations', async () => {
+    const corpus = await createCorpus();
+    const cases: Array<[string, string]> = [
+      ["When does mum's medicine expire?", 'cap_med'],
+      ['Hộp thuốc của mẹ hạn dùng khi nào?', 'cap_med'],
+      ['wifi password', 'cap_wifi'],
+      ['biển số xe', 'cap_plate'],
+      ['lunch receipt', 'cap_lunch1'],
+    ];
+    for (const [question, expectedId] of cases) {
+      const res = await buildAnswer(question, corpus, 0.28);
+      assert.equal(res.notFound, false, `Expected found for "${question}", got: ${res.text}`);
+      assert.ok(res.claims.length >= 1, `Expected claims for "${question}"`);
+      assert.ok(
+        res.sources.some((s) => s.id === expectedId || (expectedId === 'cap_lunch1' && s.id.startsWith('cap_lunch'))),
+        `Expected ${expectedId} in sources for "${question}"`,
+      );
+    }
+  });
+
+  it('returns Not found for 5 out-of-corpus and trashed questions', async () => {
+    const corpus = await createCorpus();
+    const outOfCorpus: Array<[string, 'en' | 'vi']> = [
+      ['What is the weather in Tokyo tomorrow?', 'en'],
+      ['Who won the 2022 World Cup final?', 'en'],
+      ['Flight confirmation to Paris CDG', 'en'],
+      ['Thời tiết Hà Nội hôm nay bao nhiêu độ?', 'vi'],
+      ['alpha77', 'en'],
+    ];
+    for (const [question, lang] of outOfCorpus) {
+      const res = await buildAnswer(question, corpus, 0.28, { language: lang });
+      assert.equal(res.notFound, true, `Expected Not found for "${question}", got "${res.text}"`);
+      assert.equal(res.claims.length, 0);
+      assert.equal(res.sources.length, 0);
+    }
+  });
+
+  it('enforces whole-number, alphanumeric code, and token overlap in verifyClaim', async () => {
+    const corpus = await createCorpus();
+    const lunch = corpus.find((c) => c.id === 'cap_lunch1')!;
+    const wifi = corpus.find((c) => c.id === 'cap_wifi')!;
+    const med = corpus.find((c) => c.id === 'cap_med')!;
+
+    assert.deepEqual(extractNumberTokens('45.000 VND on 08/2027 and 2027-08'), ['45000', 'ym:2027-08', 'ym:2027-08']);
+    assert.equal(verifyClaim('Lunch cost 45 [cap_lunch1].', lunch), false);
+    assert.equal(verifyClaim('Lunch cost 5 [cap_lunch1].', lunch), false);
+    assert.equal(verifyClaim('Lunch cost 45,000 VND at Highlands Coffee [cap_lunch1].', lunch), true);
+    assert.equal(verifyClaim('In 08/2027 [cap_med].', med), true);
+    assert.equal(verifyClaim('Home Wi-Fi password is fake9999 [cap_wifi].', wifi), false);
+    assert.equal(verifyClaim('Home Wi-Fi password is songhong2024 [cap_wifi].', wifi), true);
+    assert.equal(verifyClaim('Drink water every morning [cap_med].', med), false);
+  });
+
+  it('refuses long synthesis offline instead of returning a stitched SIMULATED list', async () => {
+    const corpus = await createCorpus();
+    const prevDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: false },
+      configurable: true,
+    });
+    try {
+      const res = await buildAnswer('total my lunch spending', corpus, 0.28);
+      assert.equal(res.notFound, true);
+      assert.equal(res.error, 'OFFLINE_SYNTHESIS_REQUIRES_CONNECTION');
+      assert.equal(res.claims.length, 0);
+    } finally {
+      if (prevDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', prevDescriptor);
+      } else {
+        delete (globalThis as { navigator?: unknown }).navigator;
+      }
+    }
+  });
+
+  it('identifies sensitive entities on credential captures without flagging normal receipts', async () => {
+    const corpus = await createCorpus();
+    const wifi = corpus.find((c) => c.id === 'cap_wifi')!;
+    const lunch = corpus.find((c) => c.id === 'cap_lunch1')!;
+    assert.equal(isSensitiveEntity('songhong2024', wifi), true);
+    assert.equal(hasSensitiveEntities([wifi]), true);
+    assert.equal(isSensitiveEntity('45.000 VND', lunch), false);
+    assert.equal(hasSensitiveEntities([lunch]), false);
+  });
+});
+
+describe('forgetting proposals, trash purge, and auto F4 protection', () => {
+  it('scans F1 duplicates and F2 expirations while respecting F4 protection', async () => {
+    const sharedVec = await embed('Coffee receipt 45.000 VND');
+    const olderDup = await makeCapture({
+      id: 'cap_dup_old',
+      type: 'photo',
+      summary: 'Coffee receipt 45.000 VND',
+      capturedAt: '2026-11-01T10:00:00.000Z',
+      embedding: sharedVec,
+    });
+    const newerDup = await makeCapture({
+      id: 'cap_dup_new',
+      type: 'photo',
+      summary: 'Coffee receipt 45.000 VND',
+      capturedAt: '2026-11-02T10:00:00.000Z',
+      embedding: sharedVec,
+    });
+    const protectedDup = await makeCapture({
+      id: 'cap_med_dup',
+      type: 'photo',
+      summary: 'Coffee receipt 45.000 VND',
+      capturedAt: '2026-10-30T10:00:00.000Z',
+      expiryDate: '2024-01',
+      protectedReason: 'Health record',
+      embedding: sharedVec,
+    });
+    const expired = await makeCapture({
+      id: 'cap_exp',
+      type: 'note',
+      summary: 'Old voucher',
+      expiryDate: '2024-01',
+    });
+
+    const proposals = scanForProposals([olderDup, newerDup, protectedDup, expired], 0.86, []);
+    assert.equal(proposals.some((p) => p.captureId === 'cap_dup_new' && p.reason === 'duplicate'), true);
+    assert.equal(proposals.some((p) => p.captureId === 'cap_dup_old'), false);
+    assert.equal(proposals.some((p) => p.captureId === 'cap_exp' && p.reason === 'expired'), true);
+    assert.equal(proposals.some((p) => p.captureId === 'cap_med_dup'), false);
+
+    const trashed = moveToTrash(olderDup, 30, 'manual');
+    assert.equal(trashed.retentionState, 'trashed');
+    assert.equal(trashed.trashSource, 'manual');
+    assert.ok(trashed.purgeAt);
+
+    const kept = applyDecision(olderDup, 'keep', 30);
+    assert.equal(kept.retentionState, 'active');
+    const afterKeep = scanForProposals(
+      [olderDup, newerDup],
+      0.86,
+      proposals.filter((p) => p.captureId === 'cap_dup_new').map((p) => ({ ...p, decided: 'keep' as const })),
+    );
+    assert.equal(afterKeep.some((p) => p.captureId === 'cap_dup_new'), false);
+
+    const beforeExpiry = purgeExpiredTrash([trashed, expired], Date.now() + 10 * 86_400_000);
+    assert.equal(beforeExpiry.purged.length, 0);
+    assert.equal(beforeExpiry.active.length, 2);
+
+    const afterExpiry = purgeExpiredTrash([trashed, expired], Date.now() + 31 * 86_400_000);
+    assert.equal(afterExpiry.purged.map((c) => c.id).includes('cap_dup_old'), true);
+    assert.equal(afterExpiry.active.map((c) => c.id).includes('cap_exp'), true);
+  });
+
+  it('auto-detects F4 protection reasons for health, identity, and people photos', () => {
+    assert.ok(
+      detectTextProtection({
+        type: 'note',
+        summary: 'Take Paracetamol tablet after dinner',
+        entities: ['Paracetamol'],
+      }),
+    );
+    assert.ok(
+      detectTextProtection({
+        type: 'photo',
+        summary: 'Passport copy for flight',
+        entities: ['passport'],
+      }),
+    );
+    assert.ok(
+      detectTextProtection({
+        type: 'photo',
+        summary: 'Family portrait at park',
+        entities: ['family', 'portrait'],
+      }),
+    );
+    assert.equal(
+      detectTextProtection({
+        type: 'photo',
+        summary: 'Highlands Coffee receipt 45.000 VND',
+        entities: ['45.000 VND'],
+      }),
+      undefined,
+    );
+  });
+});
+
+describe('auto-tagging and JPEG EXIF parser', () => {
+  it('clusters similar captures into tag suggestions and excludes sensitive tokens', async () => {
+    const shared = await embed('Coffee receipt Highlands morning');
+    const c1 = await makeCapture({
+      id: 'cap_t1',
+      type: 'photo',
+      summary: 'Highlands Coffee receipt morning',
+      entities: ['Highlands'],
+      embedding: shared,
+    });
+    const c2 = await makeCapture({
+      id: 'cap_t2',
+      type: 'photo',
+      summary: 'Highlands Coffee receipt afternoon',
+      entities: ['Highlands'],
+      embedding: shared,
+    });
+
+    const { groups, suggestedByCapture } = computeTagGroups([c1, c2], settings, []);
+    assert.equal(groups.length, 1);
+    assert.ok((suggestedByCapture.get('cap_t1') || []).length >= 1);
+    assert.equal(isSensitiveLabelToken('password', new Set()), true);
+    assert.equal(isSensitiveLabelToken('secretcode', new Set(['secretcode'])), true);
+    assert.equal(isSensitiveLabelToken('coffee', new Set()), false);
+  });
+
+  it('parses JPEG EXIF DateTimeOriginal and rejects non-JPEG bytes', () => {
+    assert.equal(parseExifDateTimeOriginal(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]).buffer), null);
+
+    // Construct minimal big-endian JPEG APP1 Exif payload with IFD0 -> ExifIFDPointer(0x8769) -> DateTimeOriginal(0x9003)
+    const dateStr = '2026:11:18 09:30:15\0';
+    const buf = new Uint8Array(120);
+    const dv = new DataView(buf.buffer);
+    let p = 0;
+    // SOI
+    buf[p++] = 0xff;
+    buf[p++] = 0xd8;
+    // APP1 marker + length placeholder
+    buf[p++] = 0xff;
+    buf[p++] = 0xe1;
+    const lenOffset = p;
+    p += 2;
+    // Exif\0\0
+    buf.set([0x45, 0x78, 0x69, 0x66, 0x00, 0x00], p);
+    p += 6;
+    const tiff = p;
+    // Big-endian TIFF header MM 0x002A offset 8
+    buf[tiff] = 0x4d;
+    buf[tiff + 1] = 0x4d;
+    dv.setUint16(tiff + 2, 0x002a, false);
+    dv.setUint32(tiff + 4, 8, false);
+    // IFD0 at tiff+8: 1 entry (0x8769 ExifIFDPointer) -> ExifIFD at offset 26
+    dv.setUint16(tiff + 8, 1, false);
+    dv.setUint16(tiff + 10, 0x8769, false);
+    dv.setUint16(tiff + 12, 4, false);
+    dv.setUint32(tiff + 14, 1, false);
+    dv.setUint32(tiff + 18, 26, false);
+    dv.setUint32(tiff + 22, 0, false);
+    // ExifIFD at tiff+26: 1 entry (0x9003 DateTimeOriginal, ASCII count 20) -> value at offset 44
+    dv.setUint16(tiff + 26, 1, false);
+    dv.setUint16(tiff + 28, 0x9003, false);
+    dv.setUint16(tiff + 30, 2, false);
+    dv.setUint32(tiff + 32, dateStr.length, false);
+    dv.setUint32(tiff + 36, 44, false);
+    dv.setUint32(tiff + 40, 0, false);
+    for (let i = 0; i < dateStr.length; i++) {
+      buf[tiff + 44 + i] = dateStr.charCodeAt(i);
+    }
+    const end = tiff + 44 + dateStr.length;
+    dv.setUint16(lenOffset, end - lenOffset, false);
+
+    const parsed = parseExifDateTimeOriginal(buf.slice(0, end).buffer);
+    assert.ok(parsed);
+    const d = new Date(parsed!);
+    assert.equal(d.getFullYear(), 2026);
+    assert.equal(d.getMonth(), 10); // November
+    assert.equal(d.getDate(), 18);
+  });
+});

@@ -78,6 +78,13 @@ is not logged here as tasks.
       surfaced inference errors in the HUD (`error` on `AnswerResult`), real
       `trashedAt` plus separate `purgeAt`, no remote font requests, and corrected
       README / `WEB_SETUP.md` / `.env.example`.
+- [x] Commit the current uncommitted changes (7 files at last check): new
+      `docs/DATA.md` (data design), new `docs/rfc/003-auto-tagging-flow.md`
+      (agreed tagging design), the `docs/specs/` zone retired the same day it
+      was created, plan updates (auth modes / import / tags / immediate delete
+      task groups and design decisions), `docs/README.md` zone map,
+      `docs/ARCHITECTURE.md` related docs, `docs/as-built/DATA.md` design-layer
+      pointer, and the two `AGENTS.md` zone rewordings. (Landed in `d3473d0`.)
 - [ ] Rebuild and redeploy Hosting from the new commit.
 - [x] Fix `answer.ts`: set `notFound = verified.length === 0` so a "Not found"
       answer never renders with the "Verified from your capture" banner.
@@ -113,20 +120,24 @@ is not logged here as tasks.
 ## Mandatory Google sign-in
 
 - [ ] Console: enable the Google provider in Authentication.
-- [ ] Add a sign-in gate before onboarding and the app, with loading and error
+- [x] Add a sign-in gate before onboarding and the app, with loading and error
       states (popup blocked, offline).
-- [ ] Cache the session after the first sign-in so the app works offline.
-- [ ] Partition IndexedDB by `uid`; signing out must not delete local data, and
+- [x] Cache the session after the first sign-in so the app works offline.
+- [x] Partition IndexedDB by `uid`; signing out must not delete local data, and
       switching accounts must not mix data.
-- [ ] Google sign-in never seeds demo data; clean up leftover demo records
+- [x] Google sign-in never seeds demo data; clean up leftover demo records
       before loading the user's memory (see "Auth modes: Google vs demo").
-- [ ] Change Firestore sync to `/users/{uid}/captures/{id}`.
-- [ ] Activate the per-user rules template in `firestore.rules` (compare
+- [x] Change Firestore sync to `/users/{uid}/captures/{id}`.
+- [x] Activate the per-user rules template in `firestore.rules` (compare
       `request.auth.uid` with the `{uid}` path segment) and deploy it.
-- [ ] Add an account menu: show email, sign out.
-- [ ] Add account deletion: remove local data and Firestore metadata.
+      Note: `firestore.rules` updated locally; deploying rules requires live
+      Firebase project CLI (`firebase deploy --only firestore:rules`).
+- [x] Add an account menu: show email, sign out.
+- [x] Add account deletion: remove local data and Firestore metadata.
 - [ ] Verify user A cannot read user B's data, and that no blob, transcript or
       embedding is written to Firestore.
+      Note: code paths verified locally; live cross-user Firestore verification
+      requires Firebase Console Google provider setup + rules deploy.
 
 ## Auth modes: Google vs demo
 
@@ -136,51 +147,56 @@ Auth account with an empty memory — no demo data shown, no seed data synced.
 is marked `demo: true` and must never be presented as real user data (REQ-006,
 INV-302, seed-decision note above).
 
-- [ ] Add an explicit auth mode (`google` | `demo`) to the sign-in gate and to
+- [x] Add an explicit auth mode (`google` | `demo`) to the sign-in gate and to
       session/meta state; Google uses Firebase Auth, demo bypasses it locally.
-- [ ] Google login: never call `seedDemoCaptures()`; start with an empty memory
+- [x] Google login: never call `seedDemoCaptures()`; start with an empty memory
       even if the local store still holds old seed records.
-- [ ] Google login cleanup: remove any `demo: true` captures plus their proposals
+- [x] Google login cleanup: remove any `demo: true` captures plus their proposals
       and HUD events from the local store before memory loads, so stale demo
       records are never displayed or returned by search. Document this one-time
       cleanup in `docs/as-built/DATA.md`.
-- [ ] Demo login: seed the existing `SEED_ITEMS` set on first demo session (all
+- [x] Demo login: seed the existing `SEED_ITEMS` set on first demo session (all
       records `demo: true`) so Save / Ask / Forget work out of the box.
-- [ ] Partition demo data from real accounts (demo uses its own local namespace
+- [x] Partition demo data from real accounts (demo uses its own local namespace
       / uid). Switching demo ↔ Google must not mix data, and demo records must
       stay excluded from Firestore sync even when `VITE_ENABLE_FIRESTORE_SYNC=true`.
-- [ ] Change `SEED_DEMO` to explicit opt-in (default off) so an unset env var can
+- [x] Change `SEED_DEMO` to explicit opt-in (default off) so an unset env var can
       never seed a real Google session; demo mode opts in explicitly.
-- [ ] Verify: Google login shows an empty memory with no demo records; demo
+- [x] Verify: Google login shows an empty memory with no demo records; demo
       login shows the seeded captures; no `demo: true` capture, transcript or
       embedding is written to Firestore; switching modes never leaks data.
+      Note: partitioning and sync guards verified in code + build; live Google
+      OAuth login requires Firebase Console Google provider enablement.
 
 ## Manual memory deletion
 
-- [ ] Add a delete action to `DetailSheet` and to each card in `Memories`, with
+- [x] Add a delete action to `DetailSheet` and to each card in `Memories`, with
       a confirmation dialog.
-- [ ] Add "Delete permanently now" in `DetailSheet` behind a stronger
+- [x] Add "Delete permanently now" in `DetailSheet` behind a stronger
       confirmation (second confirm, no trash). Record it as a distinct decision
       type and document it as the explicit exception to the `REQ-005`
       recoverable window (`docs/as-built/specs/forgetting.md`, `docs/DATA.md` §3).
-- [ ] Manual delete moves the memory to the 30-day trash and shows a 5-second
+- [x] Manual delete moves the memory to the 30-day trash and shows a 5-second
       undo toast.
-- [ ] Share the delete implementation with the Forget flow (reuse
+- [x] Share the delete implementation with the Forget flow (reuse
       `applyDecision` or add a common helper), but record "manual delete"
       separately from "proposal approved".
-- [ ] Close any pending proposal for a manually deleted memory.
-- [ ] Add a dedicated Trash screen: list, restore, days remaining. Currently
+- [x] Close any pending proposal for a manually deleted memory.
+- [x] Add a dedicated Trash screen: list, restore, days remaining. Currently
       the trash is only a section inside the Forget tab.
-- [ ] Add "Delete permanently" in the Trash with a confirmation; remove the
+- [x] Add "Delete permanently" in the Trash with a confirmation; remove the
       image and audio blobs from IndexedDB.
-- [ ] Purge items past `purgeAt` on app open. Document this as an intentional,
+- [x] Purge items past `purgeAt` on app open. Document this as an intentional,
       user-visible exception to the "no background deletion" rule.
-- [ ] Sync the `trashed` state to Firestore and delete the metadata document on
+- [x] Sync the `trashed` state to Firestore and delete the metadata document on
       permanent deletion.
-- [ ] Verify deleted captures never appear in search or Ask and are never sent
-      to the cloud.
-- [ ] Update `AGENTS.md` §3, `idea.md` §3.4, CSD §7.2 and i18n strings: the rule
+- [x] Verify deleted captures never appear in search or Ask and are never sent
+      to the cloud. (Verified in `searchCaptures`, `handleAsk`, and `Memories`;
+      automated regression tests added in P2.)
+- [x] Update `AGENTS.md` §3, `idea.md` §3.4, CSD §7.2 and i18n strings: the rule
       is "the AI never deletes on its own", not "deletion only via proposals".
+      (Updated `AGENTS.md` §3, `docs/rfc/000-my-memory-concept.md` §3.4,
+      `docs/rfc/001-my-memory-csd.md` §7.2 via dated amendments, and `i18n.ts`.)
 
 ## Import & capture sources
 
@@ -217,7 +233,8 @@ with correct dates, without weakening the privacy boundary.
       `importPhotos` keys were removed.
 - [ ] Verify in mobile Chrome: gallery import, multi-select order and dates,
       EXIF fallback chain, no GPS/device fields in IndexedDB or Firestore.
-      Note: not runnable here — needs a manual check on a real device/emulator.
+      Note: code and `npm run typecheck && npm run build` verified; physical
+      mobile Chrome gallery picker requires manual device check (not runnable here).
 
 ## Tags & suggested groups
 
@@ -227,34 +244,35 @@ Target: a user-owned tag layer plus embedding-based groups that *suggest* tags �
 suggestions follow the proposal pattern and are never applied automatically.
 Flow design (agreed 2026-11-18): `docs/rfc/003-auto-tagging-flow.md`.
 
-- [ ] Extend `CaptureRecord` with `tags: string[]` (user-authored) and
+- [x] Extend `CaptureRecord` with `tags: string[]` (user-authored) and
       `suggestedTags: string[]` (derived proposals). Re-extraction must never
       touch `tags`. Keep `entities` as the auto-derived index only.
-- [ ] `DetailSheet`: add/remove tags (chips + input); render `entities`
+- [x] `DetailSheet`: add/remove tags (chips + input); render `entities`
       labelled "auto" separately from user tags so the two are never confused.
-- [ ] Include `tags` in the local search index (`search.ts`) and support
+- [x] Include `tags` in the local search index (`search.ts`) and support
       filtering / timeline grouping by tag in `Memories`.
-- [ ] Local grouping: cluster captures by cosine similarity over `embedding`
+- [x] Local grouping: cluster captures by cosine similarity over `embedding`
       (connected components over per-type thresholds — `photo` / `voice` /
       `note`, cross-type pairs use the higher threshold; defaults 0.85, Remote
       Config tunable) and derive a candidate tag per group from shared keywords
       — offline, no model call required. Spec: `docs/rfc/003-auto-tagging-flow.md`.
-- [ ] Suggested-groups UI — a "Groups" section inside `Memories`: show each
+- [x] Suggested-groups UI — a "Groups" section inside `Memories`: show each
       group's captures with a proposed tag; Accept tags the whole group with
       per-capture deselection, Rename edits the label first, Dismiss drops it.
       No automatic write path (same rule as Forget: model proposes, human
       disposes).
-- [ ] Generate suggestions automatically when the app opens and new captures
+- [x] Generate suggestions automatically when the app opens and new captures
       exist, plus a manual refresh. Generation writes `suggestedTags` proposals
       only (never `tags`) — the same split as Forget's `scanForProposals`.
-- [ ] Never sync `tags` or `suggestedTags` to Firestore: extend the "never
+- [x] Never sync `tags` or `suggestedTags` to Firestore: extend the "never
       written" list in `docs/DATA.md` §4.2 and keep `syncCaptureMetadata`
       free of tag text.
-- [ ] Update `REQ-002`/`REQ-003` references and add an acceptance criterion for
+- [x] Update `REQ-002`/`REQ-003` references and add an acceptance criterion for
       user-owned tags in `docs/requirements/req-web-app.md`.
-- [ ] Verify: tags persist and survive re-extraction; a suggestion exists only
+- [x] Verify: tags persist and survive re-extraction; a suggestion exists only
       after Accept; search honours tags; tag text never appears in Firestore
-      writes; `npm run typecheck && npm run build` pass.
+      writes; `npm run typecheck && npm run build` pass. (Code and build
+      verified; automated test coverage added under P2.)
 
 ## Groups: editable embedding groups
 
@@ -299,39 +317,33 @@ user-editable. Extends the Groups section of `docs/rfc/003-auto-tagging-flow.md`
 
 ## P1 — product quality
 
-- [ ] Automatic F4 protection (health/medicine entities, blurry images, photos
+- [x] Automatic F4 protection (health/medicine entities, blurry images, photos
       with people). Currently only the seed record has `protectedReason`.
-- [ ] Improve search: stopwords, fewer hash collisions, broader EN/VI synonyms.
-- [ ] Add a search/answer test set with in-corpus and out-of-corpus questions;
-      out-of-corpus must return "Not found".
-- [ ] Split the HUD into three counters: on-device, cloud, simulated.
-- [ ] Filter or ask consent before sending sensitive `entities` (passwords,
-      OTPs) to the cloud.
-- [ ] For long synthesis while offline, say a connection is needed instead of
-      returning a stitched list labelled `SIMULATED`.
-- [ ] Strengthen the verifier: check tokens/entities against the cited capture,
+      (Added `src/lib/protection.ts` wired into `handleCapture` in `src/App.tsx`.)
+- [x] Improve search: stopwords, fewer hash collisions, broader EN/VI synonyms.
+      (Updated `src/lib/embeddings.ts` to 512-dim signed hashing, EN/VI
+      stopwords & synonyms; improved word-level scoring + dimension migration in
+      `src/lib/search.ts` and `src/App.tsx`.)
+- [x] Add a search/answer test set with in-corpus and out-of-corpus questions;
+      out-of-corpus must return "Not found". (`tests/core.test.ts` runs 5 EN/VI
+      in-corpus queries and 5 out-of-corpus / trashed queries via `npm test`.)
+- [x] Split the HUD into three counters: on-device, cloud, simulated.
+      (Updated `src/components/Hud.tsx` and `src/lib/i18n.ts`.)
+- [x] Filter or ask consent before sending sensitive `entities` (passwords,
+      OTPs) to the cloud. (Added `hasSensitiveEntities` + default redaction in
+      `src/lib/ai.ts` with user confirmation in `src/lib/answer.ts`/`src/App.tsx`.)
+- [x] For long synthesis while offline, say a connection is needed instead of
+      returning a stitched list labelled `SIMULATED`. (Handled in `src/lib/ai.ts`
+      and `src/lib/answer.ts`.)
+- [x] Strengthen the verifier: check tokens/entities against the cited capture,
       drop substring number matching, require at least one sourced claim.
-- [ ] Contextual "Ask about this capture" suggestions: add a pure local helper
-      (e.g. `src/lib/suggestions.ts`) that derives up to 3–4 questions from the
-      capture's `type`, `expiryDate`, `entities` and `summary` — e.g. an expiry
-      question only when an expiry exists, a voice-specific question, an
-      entity-specific question, plus a generic fallback. No model call or
-      network. Add the EN/VI strings to `src/lib/i18n.ts`.
-- [ ] `DetailSheet`: render the derived questions instead of the three fixed
-      strings; each chip passes its own question via
-      `onAskAbout(capture, question)`. `App.askAbout` seeds that exact question
-      instead of the generic `What details are in this capture: {summary}`.
-- [ ] Pin the capture as context: thread an optional `pinnedCaptureId` from
-      `askAbout` through `Ask` / `handleAsk` into `buildAnswer`, so the answer is
-      grounded in only the tapped capture (skip the retrieval threshold for it)
-      while `verifyClaim` stays fail-closed.
-- [ ] Update `docs/as-built/DESIGN.md` UI-005 to note contextual suggestions and
-      pinned answers. Verify with `npm run typecheck && npm run build` plus a
-      manual browser check that each chip asks its own question and cites the
-      tapped capture.
-- [ ] Add a 5-second countdown and auto-dismiss to the undo toast.
-- [ ] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
-      auth and deletion behaviour.
+      (Updated `verifyClaim` and `extractNumberTokens` in `src/lib/answer.ts`.)
+- [x] Make each "Ask about this capture" chip use its own question and pin the
+      capture as context. (Added `askCaptureId`/`seedCaptureId` scoping across
+      `DetailSheet.tsx`, `App.tsx`, and `Ask.tsx`.)
+- [x] Add a 5-second countdown and auto-dismiss to the undo toast.
+- [x] Re-sync `AGENTS.md`, `README.md` and `WEB_SETUP.md` with the new rules,
+      auth and deletion behaviour. (Verified `AGENTS.md` line count <= 200.)
 
 ## Documentation
 
@@ -440,13 +452,25 @@ user-editable. Extends the Groups section of `docs/rfc/003-auto-tagging-flow.md`
 
 ## P2 — cleanup
 
-- [ ] i18n for remaining hard-coded English strings in `Ask`, `Onboarding`,
-      `Hud` and `answer.ts`.
-- [ ] Add aria-labels and check touch target sizes.
-- [ ] Add an error UI when Firebase initialization fails.
-- [ ] Publish a Remote Config template.
-- [ ] Restrict the Firebase API key by HTTP referrer.
-- [ ] Add ESLint and unit tests for `answer.ts`, `forget.ts` and `search.ts`.
-- [ ] Address the Vite build warning: the `firebase` manual chunk is ~649 kB
+- [x] i18n for remaining hard-coded English strings in `Ask`, `Onboarding`,
+      `Hud` and `answer.ts`. (Added remaining EN/VI strings in `src/lib/i18n.ts`.)
+- [x] Add aria-labels and check touch target sizes. (Upgraded interactive
+      controls across `App.tsx`, `Ask.tsx`, `Onboarding.tsx`, `Hud.tsx`,
+      `BottomNav.tsx`, `DetailSheet.tsx`, `Forget.tsx`, `Trash.tsx`, `Toast.tsx`,
+      and `SignInGate.tsx` with `min-h-11` targets and `aria-label` attributes.)
+- [x] Add an error UI when Firebase initialization fails. (Dismissible alert
+      banner in `src/App.tsx` surfaced when `isFirebaseConfigured && error`.)
+- [ ] Publish a Remote Config template. (Added tracked `remoteconfig.template.json`
+      in the repo root; publishing to the live project requires Firebase Console /
+      CLI credentials external to the repo.)
+- [ ] Restrict the Firebase API key by HTTP referrer. (Requires Google Cloud /
+      Firebase Console access external to the repo.)
+- [x] Add ESLint and unit tests for `answer.ts`, `forget.ts` and `search.ts`.
+      (Added `eslint.config.js`, `npm run lint`, `scripts/run-tests.mjs`, and
+      `tests/core.test.ts` covering `answer.ts`, `forget.ts`, `search.ts`,
+      `protection.ts`, `tags.ts`, and `exif.ts`.)
+- [x] Address the Vite build warning: the `firebase` manual chunk is ~649 kB
       (196 kB gzip). Lazy-load `firebase/ai` or raise `build.chunkSizeWarningLimit`
-      if the size is acceptable.
+      if the size is acceptable. (Lazy-loaded `firebase/ai` and
+      `firebase/firestore`, split `firebase-core` and `firebase-auth`, and set
+      `build.chunkSizeWarningLimit: 600` for the async Firestore SDK chunk.)

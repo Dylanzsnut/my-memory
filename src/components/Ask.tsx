@@ -8,10 +8,12 @@ import { SourceBadge } from './Hud';
 interface Props {
   language: Language;
   nanoStatus: NanoAvailability;
-  onAsk: (question: string) => Promise<AnswerResult>;
+  onAsk: (question: string, captureId?: string) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy: boolean;
   seedQuestion?: string;
+  seedCaptureId?: string;
+  onSeedConsumed?: () => void;
 }
 
 const CHIPS: { en: string; vi: string }[] = [
@@ -22,32 +24,40 @@ const CHIPS: { en: string; vi: string }[] = [
   { en: 'total my lunch spending', vi: 'tổng chi phí ăn trưa' },
 ];
 
-export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion }: Props) {
+export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, seedQuestion, seedCaptureId, onSeedConsumed }: Props) {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<AnswerResult | null>(null);
   const [asked, setAsked] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (seedQuestion) {
       setQuery(seedQuestion);
-      submit(seedQuestion);
+      void submit(seedQuestion, seedCaptureId);
+      onSeedConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedQuestion]);
+  }, [seedQuestion, seedCaptureId]);
 
-  const submit = async (question: string) => {
+  const submit = async (question: string, captureId?: string) => {
     if (!question.trim() || busy) return;
-    setAsked(question);
-    setAnswer(await onAsk(question));
+    setError(null);
+    try {
+      const result = await onAsk(question, captureId);
+      setAsked(question);
+      setAnswer(result);
+    } catch (err) {
+      setAsked(question);
+      setAnswer(null);
+      setError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="font-serif text-[26px] font-bold tracking-tight">{t(language, 'ask')}</h1>
-        <p className="mt-1 text-[12px] text-ink2">
-          {language === 'vi' ? 'Hỏi bằng lời của bạn — nhận lại bằng chứng gốc.' : 'Ask in your own words — get the original back as proof.'}
-        </p>
+        <p className="mt-1 text-[12px] text-ink2">{t(language, 'askSubtitle')}</p>
       </div>
 
       <form
@@ -62,12 +72,14 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(language, 'askPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink3"
+          aria-label={t(language, 'askPlaceholder')}
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink3"
         />
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
+          aria-label={t(language, 'search')}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-white disabled:opacity-40"
         >
           <Sparkles size={16} />
         </button>
@@ -84,7 +96,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
                 setQuery(label);
                 submit(label);
               }}
-              className="rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
+              className="min-h-11 rounded-full border border-line2 bg-canvas px-3.5 py-2 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
             >
               {label}
             </button>
@@ -106,6 +118,13 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             <p className="font-bold text-gold">{t(language, 'flow7Title')}</p>
             <p className="mt-0.5 text-ink2">{t(language, 'flow7Body')}</p>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-danger/30 bg-danger-soft p-3 text-[12px] text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
@@ -154,7 +173,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
                     <span className="block truncate text-[12.5px] font-bold">{capture.summary}</span>
                     <span className="mt-0.5 block text-[10.5px] text-ink3">
                       {new Date(capture.capturedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')} ·{' '}
-                      {t(language, 'match')} {match ? match.toFixed(2) : '—'}
+                      {t(language, 'match')} {match !== undefined ? match.toFixed(2) : '—'}
                     </span>
                   </span>
                   <ArrowUpRight size={16} className="shrink-0 text-accent" />
@@ -163,7 +182,12 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
             })}
 
             <div className="flex items-center justify-between border-t border-line pt-3 text-[10.5px] text-ink3">
-              <span>{answer.latencyMs} ms · {answer.intent === 'long' ? 'cross-capture synthesis' : 'local lookup'}</span>
+              <span>
+                {answer.latencyMs} ms ·{' '}
+                {!answer.notFound && answer.intent === 'long'
+                  ? t(language, 'crossCaptureSynthesis')
+                  : t(language, 'localLookup')}
+              </span>
               <span className="inline-flex items-center gap-1">
                 <ShieldCheck size={12} className="text-teal" /> {t(language, 'zeroDeletions')}
               </span>
@@ -173,9 +197,7 @@ export default function Ask({ language, nanoStatus, onAsk, onOpenDetail, busy, s
       ) : (
         <div className="rounded-2xl border border-dashed border-line2 bg-canvas/50 px-5 py-10 text-center">
           <Sparkles size={26} className="mx-auto text-line2" />
-          <p className="mt-3 text-[13px] text-ink2">
-            {language === 'vi' ? 'Câu trả lời sẽ xuất hiện ở đây, kèm bản gốc.' : 'Answers appear here, with the original capture attached.'}
-          </p>
+          <p className="mt-3 text-[13px] text-ink2">{t(language, 'askEmptyHint')}</p>
         </div>
       )}
     </div>

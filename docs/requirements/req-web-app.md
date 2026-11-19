@@ -4,29 +4,29 @@
 
 ## REQ-001 — Zero-effort multi-type capture
 
-- Statement: A signed-in user can create a photo, voice or note capture without naming or filing it.
+- Statement: A signed-in user can create a photo (via camera or multi-select gallery import), voice or note capture without naming or filing it.
 - Type: functional · Priority: must
 - Source: OUT-1
-- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears. A single **Photo** action opens the platform picker (camera or gallery/file) and accepts multiple images; it sets `capturedAt` from EXIF `DateTimeOriginal` (fallback `file.lastModified` → import time) and reads no other EXIF field (no GPS or device-identifying data).
+- Acceptance: one action creates a `CaptureRecord`; no folder/tag/title prompt appears. A single **Photo** action opens the platform picker (camera or gallery/file) and accepts multiple images through a sequential batch queue with visible progress; it sets `capturedAt` from EXIF `DateTimeOriginal` → `file.lastModified` → import time and reads no other EXIF field (no GPS or device-identifying data, `INV-304`).
 - Implemented by: `src/components/Memories.tsx`, `src/lib/exif.ts`, `src/lib/ai.ts`
-- Verified by: UNVERIFIED — typecheck/build pass; gallery import and EXIF dates need manual check in mobile Chrome
+- Verified by: UNVERIFIED — no test yet; gallery import and EXIF dates need manual check in mobile Chrome
 
 ## REQ-002 — Cited answer or refusal
 
 - Statement: Every factual answer carries a capture id that resolves locally; otherwise the app says "Not found".
 - Type: functional · Priority: must
 - Source: OUT-2, CON-2
-- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims.
-- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`
+- Acceptance: all rendered claims have `Claim.verified === true`; zero uncited factual claims; local search honors user-authored `tags` (never unaccepted `suggestedTags`).
+- Implemented by: `src/lib/answer.ts`, `src/lib/search.ts`, `src/lib/tags.ts`
 - Verified by: UNVERIFIED — no test yet
 
 ## REQ-003 — Local-first offline operation
 
-- Statement: Capture, local search and cached answers work after first load without a network connection.
+- Statement: Capture, local search, user-owned tagging/grouping, and cached answers work after first load without a network connection.
 - Type: non-functional · Priority: must
 - Source: OUT-3, CON-2
-- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection.
-- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `public/sw.js`
+- Acceptance: offline reload returns the app shell and the local index; cloud synthesis reports that it needs a connection; user-owned `tags` and `suggestedTags` run locally and never leave the device (`INV-401`, `INV-402`).
+- Implemented by: `src/lib/store.ts`, `src/lib/embeddings.ts`, `src/lib/tags.ts`, `public/sw.js`
 - Verified by: UNVERIFIED — no automated offline run yet
 
 ## REQ-004 — Human-controlled forgetting
@@ -40,21 +40,21 @@
 
 ## REQ-005 — Manual deletion with recovery
 
-- Statement: A user can delete one memory at a time; deletion enters a recoverable trash. Permanent removal happens only from the trash or when the recovery window ends.
+- Statement: A user can delete one memory at a time; deletion enters a recoverable trash. Permanent removal happens only from the trash, when the recovery window ends on app open, or via explicit two-step "Delete permanently now" in `DetailSheet` (documented exception).
 - Type: functional · Priority: must
 - Source: OUT-4
-- Acceptance: recovery window target is **30 days**; permanent removal deletes the metadata document and local blob.
-- Implemented by: planned — see `plan/tasks.md`
-- Verified by: UNVERIFIED — not implemented at HEAD
+- Acceptance: recovery window target is **30 days**; permanent removal deletes the metadata document (`deleteCaptureMetadata`) and local blobs (`deleteCapture`).
+- Implemented by: `src/components/Trash.tsx`, `src/components/DetailSheet.tsx`, `src/components/Memories.tsx`, `src/lib/forget.ts`, `src/App.tsx`
+- Verified by: UNVERIFIED — code + build checked; automated tests added in P2
 
-## REQ-006 — Mandatory Google sign-in
+## REQ-006 — Mandatory Google sign-in & partitioned Demo mode
 
-- Statement: Access to the app requires Google sign-in; local data is partitioned by the authenticated `uid`.
+- Statement: Access passes through the sign-in gate (`SignInGate`); Google sign-in partitions local data by authenticated `uid` with an empty initial memory, while an explicit Demo mode option loads synthetic judging data in an isolated `'demo'` namespace.
 - Type: functional · Priority: must
 - Source: product decision in `plan/tasks.md`
-- Acceptance: no guest mode; user A cannot read user B's captures; sign-out preserves local data.
-- Implemented by: planned — see `plan/tasks.md`
-- Verified by: UNVERIFIED — not implemented at HEAD
+- Acceptance: no silent guest fallback; Google login cleans stray demo records and starts empty; user A cannot read user B's captures; sign-out preserves local data; Demo records never sync to Firestore (`INV-302`).
+- Implemented by: `src/components/SignInGate.tsx`, `src/lib/firebase.ts`, `src/lib/store.ts`, `firestore.rules`, `src/App.tsx`
+- Verified by: UNVERIFIED — code + build verified; live Google OAuth + cross-user rules check requires Firebase Console setup
 
 ## REQ-007 — Runtime hybrid inference
 

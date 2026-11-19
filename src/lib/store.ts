@@ -26,22 +26,42 @@ function db(): Promise<IDBPDatabase<MemoryDB>> {
   return dbPromise;
 }
 
-export async function getCaptures(): Promise<CaptureRecord[]> {
+export const DEMO_UID = 'demo';
+
+function belongsToOwner(ownerUid: string | undefined, uid?: string): boolean {
+  if (!uid) return true;
+  if (uid === DEMO_UID) return (ownerUid ?? DEMO_UID) === DEMO_UID;
+  return ownerUid === uid;
+}
+
+export async function getCaptures(uid?: string): Promise<CaptureRecord[]> {
   const all = await (await db()).getAll('captures');
-  return all.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
+  const filtered = uid
+    ? all.filter((c) => belongsToOwner(c.ownerUid, uid) && (uid === DEMO_UID || !c.demo))
+    : all;
+  return filtered.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
 }
 
 export async function saveCapture(capture: CaptureRecord): Promise<void> {
   await (await db()).put('captures', capture);
 }
 
-export async function getProposals(): Promise<ForgetProposal[]> {
+export async function deleteCapture(id: string): Promise<void> {
+  await (await db()).delete('captures', id);
+}
+
+export async function getProposals(uid?: string): Promise<ForgetProposal[]> {
   const all = await (await db()).getAll('proposals');
-  return all.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const filtered = uid ? all.filter((p) => belongsToOwner(p.ownerUid, uid)) : all;
+  return filtered.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function saveProposal(proposal: ForgetProposal): Promise<void> {
   await (await db()).put('proposals', proposal);
+}
+
+export async function deleteProposal(id: string): Promise<void> {
+  await (await db()).delete('proposals', id);
 }
 
 export async function clearProposals(): Promise<void> {
@@ -51,17 +71,19 @@ export async function clearProposals(): Promise<void> {
 export async function addHudEvent(event: HudEvent): Promise<void> {
   await (await db()).put('hud', event);
   const all = await (await db()).getAll('hud');
-  if (all.length > 60) {
+  const scoped = all.filter((e) => belongsToOwner(e.ownerUid, event.ownerUid));
+  if (scoped.length > 60) {
     const store = (await db()).transaction('hud', 'readwrite').store;
-    for (const old of all.sort((a, b) => a.at.localeCompare(b.at)).slice(0, all.length - 60)) {
+    for (const old of scoped.sort((a, b) => a.at.localeCompare(b.at)).slice(0, scoped.length - 60)) {
       await store.delete(old.id);
     }
   }
 }
 
-export async function getHudEvents(): Promise<HudEvent[]> {
+export async function getHudEvents(uid?: string): Promise<HudEvent[]> {
   const all = await (await db()).getAll('hud');
-  return all.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
+  const filtered = uid ? all.filter((e) => belongsToOwner(e.ownerUid, uid)) : all;
+  return filtered.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
 }
 
 export async function getMeta<T>(key: string, fallback: T): Promise<T> {
@@ -71,6 +93,79 @@ export async function getMeta<T>(key: string, fallback: T): Promise<T> {
 
 export async function setMeta(key: string, value: unknown): Promise<void> {
   await (await db()).put('meta', { key, value });
+}
+
+export async function getUserMeta<T>(uid: string, key: string, fallback: T): Promise<T> {
+  return getMeta<T>(`${uid}::${key}`, fallback);
+}
+
+export async function setUserMeta(uid: string, key: string, value: unknown): Promise<void> {
+  await setMeta(`${uid}::${key}`, value);
+}
+
+export async function cleanupDemoRecordsForUser(uid: string): Promise<void> {
+  if (!uid || uid === DEMO_UID) return;
+  const database = await db();
+  const [captures, proposals, hud] = await Promise.all([
+    database.getAll('captures'),
+    database.getAll('proposals'),
+    database.getAll('hud'),
+  ]);
+  const demoCaptureIds = new Set(
+    captures
+      .filter((c) => c.demo === true && (!c.ownerUid || c.ownerUid === uid))
+      .map((c) => c.id),
+  );
+  for (const id of demoCaptureIds) {
+    await database.delete('captures', id);
+  }
+  for (const p of proposals) {
+    if (
+      (p.ownerUid === uid && demoCaptureIds.has(p.captureId)) ||
+      (!p.ownerUid && demoCaptureIds.has(p.captureId))
+    ) {
+      await database.delete('proposals', p.id);
+    }
+  }
+  for (const e of hud) {
+    if (!e.ownerUid || (e.ownerUid === uid && e.source === 'SIMULATED' && demoCaptureIds.size > 0)) {
+      await database.delete('hud', e.id);
+    }
+  }
+}
+
+export async function deleteUserAccountData(uid: string): Promise<string[]> {
+  const database = await db();
+  const [captures, proposals, hud, metaRows] = await Promise.all([
+    database.getAll('captures'),
+    database.getAll('proposals'),
+    database.getAll('hud'),
+    database.getAll('meta'),
+  ]);
+  const deletedCaptureIds: string[] = [];
+  for (const c of captures) {
+    if (belongsToOwner(c.ownerUid, uid)) {
+      deletedCaptureIds.push(c.id);
+      await database.delete('captures', c.id);
+    }
+  }
+  for (const p of proposals) {
+    if (belongsToOwner(p.ownerUid, uid)) {
+      await database.delete('proposals', p.id);
+    }
+  }
+  for (const e of hud) {
+    if (belongsToOwner(e.ownerUid, uid)) {
+      await database.delete('hud', e.id);
+    }
+  }
+  const prefix = `${uid}::`;
+  for (const row of metaRows) {
+    if (row.key.startsWith(prefix)) {
+      await database.delete('meta', row.key);
+    }
+  }
+  return deletedCaptureIds;
 }
 
 interface SeedItem {
@@ -183,9 +278,9 @@ const SEED_ITEMS: SeedItem[] = [
   },
 ];
 
-export async function seedDemoCaptures(): Promise<void> {
-  const existing = await getCaptures();
-  if (!SEED_DEMO || existing.length > 0) return;
+export async function seedDemoCaptures(explicitDemo = false): Promise<void> {
+  const existing = await getCaptures(DEMO_UID);
+  if ((!SEED_DEMO && !explicitDemo) || existing.length > 0) return;
   const now = Date.now();
   for (const item of SEED_ITEMS) {
     const searchable = [item.summary, ...item.entities, item.derivedText || ''].join(' ');
@@ -205,6 +300,7 @@ export async function seedDemoCaptures(): Promise<void> {
       embedding: await embed(searchable),
       protectedReason: item.protectedReason,
       demo: true,
+      ownerUid: DEMO_UID,
     };
     await saveCapture(capture);
   }

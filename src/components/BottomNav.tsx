@@ -20,13 +20,13 @@ export default function BottomNav({ active, onChange, language, reviewCount }: P
     <nav className="sticky bottom-0 z-30 border-t border-line bg-canvas/95 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-4">
         {items.map(({ id, icon: Icon, key }) => {
-          const isActive = active === id;
+          const isActive = active === id || (id === 'forget' && active === 'trash');
           return (
             <button
               key={id}
               type="button"
               onClick={() => onChange(id)}
-              className={`relative flex min-w-16 flex-col items-center gap-0.5 py-1 ${
+              className={`relative flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 py-1 ${
                 isActive ? 'text-accent' : 'text-ink2 hover:text-ink'
               }`}
             >

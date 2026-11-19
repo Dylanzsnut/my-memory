@@ -204,6 +204,11 @@ product's boundary, not a configurable setting:
 4. **Keeping is feedback.** Each "keep" tunes the curator to propose fewer false positives.
 5. **The human decides.** No mode exists that skips this step.
 
+> **Amendment (2026-11-18):** The governing rule for the Web companion is "the AI never deletes on
+> its own", not "deletion only via proposals". Owners may manually trash individual captures (30-day
+> recoverable window, undo toast) or trigger two-step permanent deletion in `DetailSheet`/`Trash`,
+> and trashed items past `purgeAt` are cleaned up on app open as an explicit user-visible exception.
+
 ### 3.5 Demo flow (from the concept page)
 
 The interactive mockup uses illustrative sample captures: a lunch receipt (256,000₫, VAT 7%), a

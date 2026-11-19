@@ -2,7 +2,15 @@ export type CaptureType = 'photo' | 'voice' | 'note';
 export type InferenceSource = 'ON_DEVICE' | 'IN_CLOUD' | 'SIMULATED';
 export type RetentionState = 'active' | 'proposed' | 'trashed' | 'protected';
 export type Language = 'en' | 'vi';
-export type Tab = 'memories' | 'ask' | 'forget';
+export type Tab = 'memories' | 'ask' | 'forget' | 'trash';
+export type AuthMode = 'google' | 'demo';
+
+export interface AuthSession {
+  mode: AuthMode;
+  uid: string;
+  email: string | null;
+  displayName?: string | null;
+}
 
 export interface Extraction {
   summary: string;
@@ -35,8 +43,24 @@ export interface CaptureRecord {
   trashedAt?: string;
   /** When the recoverable trash window ends and the capture may be purged. */
   purgeAt?: string;
+  /** Origin of trash transition so manual deletion stays distinct from proposal approval. */
+  trashSource?: 'proposal' | 'manual';
+  /** User-authored tags (local only, never synced to Firestore). */
+  tags?: string[];
+  /** Model/grouping-derived tag proposals (local only, never synced). */
+  suggestedTags?: string[];
   /** Demo/sample marker so synthetic data is never mistaken for real captures. */
   demo?: boolean;
+  /** Owning user UID (or 'demo' for local demo sandbox) to partition IndexedDB. */
+  ownerUid?: string;
+}
+
+export interface TagGroupProposal {
+  id: string;
+  fingerprint: string;
+  label: string;
+  captureIds: string[];
+  meanSimilarity: number;
 }
 
 export interface SearchResult {
@@ -63,7 +87,7 @@ export interface AnswerResult {
 }
 
 export type ForgetReason = 'duplicate' | 'expired';
-export type Decision = 'approve' | 'keep';
+export type Decision = 'approve' | 'keep' | 'manual';
 
 export interface ForgetProposal {
   id: string;
@@ -74,6 +98,7 @@ export interface ForgetProposal {
   relatedCaptureId?: string;
   createdAt: string;
   decided?: Decision;
+  ownerUid?: string;
 }
 
 export interface HudEvent {
@@ -83,6 +108,7 @@ export interface HudEvent {
   source: InferenceSource;
   latencyMs: number;
   detail?: string;
+  ownerUid?: string;
 }
 
 export interface AppSettings {
@@ -92,6 +118,9 @@ export interface AppSettings {
   retrievalThreshold: number;
   trashRetentionDays: number;
   cloudModel: string;
+  groupThresholdPhoto: number;
+  groupThresholdVoice: number;
+  groupThresholdNote: number;
 }
 
 export interface ExtractionRequest {
@@ -100,7 +129,6 @@ export interface ExtractionRequest {
   imageDataUrl?: string;
   audioBlob?: Blob;
   audioMimeType?: string;
-  /** Original's own timestamp (e.g. EXIF DateTimeOriginal); defaults to now. */
   capturedAt?: string;
 }
 

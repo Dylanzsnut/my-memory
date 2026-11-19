@@ -31,9 +31,10 @@ State rules: `retentionState` is `active | proposed | trashed | protected`.
 `trashedAt` records the transition; `purgeAt` records the recoverable-window end.
 Only a human decision may move `active` to `trashed`.
 
-Derived data: `embedding` is derived from summary + entities + derived text and
-rebuilt locally when a capture is created. `sourceMatch` is derived from the last
-answer. A claim is derived from an answer and checked against its cited capture.
+Derived data: `embedding` is derived from summary + entities + user tags + derived text and
+rebuilt locally when a capture is created or tagged. `sourceMatch` is derived from the last
+answer. A claim is derived from an answer and checked against its cited capture. `suggestedTags`
+are derived locally from cosine similarity grouping and never synced (`docs/as-built/specs/auto-tagging.md`).
 
 ## 2. Physical schema & key-prefix catalog
 
@@ -42,13 +43,13 @@ answer. A claim is derived from an answer and checked against its cited capture.
 | captures | IndexedDB | `id` | `CaptureRecord` incl. Blob/DataURL original | index `by-date` on `capturedAt` |
 | proposals | IndexedDB | `id` | `ForgetProposal` | no index |
 | hud | IndexedDB | `id` | `HudEvent` | trimmed above 60 entries |
-| meta | IndexedDB | `key` | `{key, value}` | language, onboardingDone |
-| captures | Firestore | `/captures/{id}` | metadata fields only | opt-in, demo records skipped |
+| meta | IndexedDB | `key` | `{key, value}` | `activeAuthSession` plus `${uid}::*` per-user settings (`language`, `onboardingDone`, `dismissedTagGroups`) |
+| captures | Firestore | `/users/{uid}/captures/{id}` | metadata fields only | opt-in, Google accounts only; demo records skipped (`INV-302`) |
 
 Firestore field allowlist in `syncCaptureMetadata`: `id`, `type`, `capturedAt`,
 `summary`, `entities`, `expiryDate`, `language`, `inferenceSource`,
 `retentionState`. No `originalRef`, `audioBlob`, `derivedText`, `embedding`,
-`sourceMatch`, `protectedReason`, timestamps of purge, or demo records.
+`sourceMatch`, `protectedReason`, `tags`, `suggestedTags`, timestamps of purge, or demo records.
 
 ## 3. Query-to-index matrix
 
@@ -73,5 +74,4 @@ personal-corpus size and has no vector index at HEAD.
 - Trash retention target belongs to REQ-005; see `docs/as-built/specs/forgetting.md`.
 - HUD events are trimmed above 60 entries in IndexedDB.
 - No schema migration exists; IndexedDB version is `1`.
-- PII: demo seed values are synthetic and marked `demo: true`. Real capture
-  content stays local at HEAD.
+- PII: demo seed values are synthetic, tagged `demo: true`, and partitioned in `ownerUid: 'demo'`. Google sign-in runs a one-time cleanup (`cleanupDemoRecordsForUser`) removing any unowned or stray `demo: true` records, proposals, and HUD events before loading memory, and never calls `seedDemoCaptures()`. Real capture content stays local at HEAD.

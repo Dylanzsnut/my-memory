@@ -33,7 +33,7 @@ self.addEventListener('message', (event) => {
     caches.open(CACHE_NAME).then((cache) =>
       Promise.allSettled(
         sameOriginUrls.map(async (url) => {
-          const cached = await cache.match(url);
+          const cached = await cache.match(url, { ignoreVary: true });
           if (!cached) await cache.add(url);
         }),
       ),
@@ -51,8 +51,11 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request)
         .then((response) => {
           if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+            const copyIndex = response.clone();
+            const copyRoot = response.clone();
+            caches.open(CACHE_NAME).then((cache) =>
+              Promise.all([cache.put('/index.html', copyIndex), cache.put('/', copyRoot)]),
+            );
           }
           return response;
         })
@@ -62,15 +65,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
+    caches.match(event.request, { ignoreVary: true }).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      });
+      return fetch(event.request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => Response.error());
     }),
   );
 });

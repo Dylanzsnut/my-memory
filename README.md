@@ -2,10 +2,7 @@
 
 **A second memory in your pocket.** Capture a photo, a voice memo, or a note, then ask for it later
 in plain words — the answer comes back with the original capture as evidence, runs locally, and
-never deletes anything without your approval.
-
-> **Concept stage.** The design is documented, but no application code, hosted build, or demo video
-> has been published yet. See [Project status](#project-status).
+deletes memories only through human approval or explicit user-triggered trash/delete controls.
 
 ## About
 
@@ -98,29 +95,32 @@ The models are pinned by the build specification: **Gemini Nano 4 only** for on-
 
 ## Project status
 
-As of **2026-11-18**, the Web/Chrome companion is implemented in `src/` and
-deployed to Firebase Hosting. Mandatory Google sign-in and manual memory deletion
-are planned, not implemented at HEAD; see `docs/plan/tasks.md`.
+The Web/Chrome companion is implemented in `src/`. Google sign-in vs explicit Demo mode,
+camera + multi-select gallery photo EXIF import, user tags + auto-tag suggestions, automatic F4
+protection, manual deletion + 30-day Trash (`permanent delete` option), 3-counter HUD, and
+fail-closed verification are in place; physical Android/Chrome 139+ hardware checks and live
+Firebase Console setup remain open — see `docs/plan/tasks.md`.
 
 | Surface | Status |
 | :--- | :--- |
 | Public repository | `Dylanzsnut/my-memory` |
 | Android (Kotlin) capture and on-device query | Not started |
 | Web/Chrome companion (React + IndexedDB) | Implemented |
-| Hybrid inference, citation evidence, human-only forget decisions | Implemented with labelled local fallbacks |
-| Mandatory Google sign-in / manual delete | Planned |
+| Hybrid inference, citation evidence, human/manual forgetting & Trash | Implemented with labelled local fallbacks |
+| Google sign-in / Demo mode + per-user Firestore rules | Implemented in code (Console provider config external) |
 | Hosted build | `https://my-memory-hybrid-2026.web.app` |
 | Demo video | None |
 
 ## Getting started
 
 The Web app is runnable locally. Copy `.env.example` to `.env`, fill in Firebase
-values for live inference, then:
+values for live inference and Google sign-in, then:
 
 ```bash
 npm install
-npm run dev      # start the Vite dev server
-npm run build    # type-check and build
+npm run dev        # start the Vite dev server
+npm run typecheck  # TypeScript check
+npm run build      # type-check and build
 ```
 
 Start with [`docs/README.md`](docs/README.md). Historical design and original
@@ -129,9 +129,9 @@ build targets are in [`docs/rfc/`](docs/rfc/); they do not override as-built doc
 ## Roadmap
 
 - [ ] Push the Android capture and on-device query implementation.
-- [ ] Build the Web/Chrome companion (Prompt API + IndexedDB).
-- [ ] Wire hybrid inference, citation evidence, and deletion approval.
-- [ ] Publish a hosted build and an English demo video (under 3 minutes).
+- [x] Build the Web/Chrome companion (Prompt API + IndexedDB).
+- [x] Wire hybrid inference, citation evidence, manual/AI deletion approval, and auth modes.
+- [ ] Publish an updated hosted build and an English demo video (under 3 minutes).
 
 ## License
 

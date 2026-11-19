@@ -9,16 +9,16 @@ export default defineConfig({
     port: 5173,
   },
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
-          firebase: [
+          'firebase-core': [
             'firebase/app',
-            'firebase/ai',
             'firebase/app-check',
-            'firebase/firestore',
             'firebase/remote-config',
           ],
+          'firebase-auth': ['firebase/auth'],
           react: ['react', 'react-dom'],
         },
       },

@@ -27,11 +27,11 @@ These are product rules, not suggestions. Breaking them breaks the project's rea
 2. **Citation or refusal.** No answer may contain a factual claim without a resolved source capture.
    `NOT_FOUND` / "Not found in memory" is the correct output when evidence is missing. Keep the
    fail-closed logic in `src/lib/answer.ts` intact.
-3. **Human-in-the-loop forgetting.** `src/lib/forget.ts` only produces **proposals**. Never add an
-   auto-delete path, bulk approval, or a background job that bypasses a recorded decision. Approved
-   captures are recoverable for 30 days.
-4. **Protected captures stay protected.** A unique health/safety capture (`protectedReason`) is
-   excluded from proposals regardless of score. Remote Config may tune thresholds, never this rule.
+3. **Human-in-the-loop forgetting.** The AI never deletes on its own: `src/lib/forget.ts` only
+   proposes. Owners may manually trash or confirm permanent delete; trash purges past `purgeAt`
+   on app open (explicit user-visible exception, recoverable for 30 days before then).
+4. **Protected captures stay protected.** A unique health/safety/people/blurry capture (`protectedReason`)
+   is auto-detected (`src/lib/protection.ts`) and excluded from proposals regardless of score. Remote Config may tune thresholds, never this rule.
 5. **Provenance is explicit.** `InferenceSource` is `ON_DEVICE`, `IN_CLOUD`, or `SIMULATED`. Never
    present `SIMULATED` as a real model run. The UI label must come from the SDK response, not a guess.
 6. **Model pins.** Gemini Nano 4 only for on-device inference (no Nano 3 / Nano 2 downgrade) and
@@ -52,23 +52,19 @@ src/
   types.ts                all shared domain types (start here for data shapes)
   styles.css              Tailwind + custom styles
   components/
-    Memories.tsx          captured items / timeline
-    Ask.tsx               question input and answer view
-    Forget.tsx            proposal review queue and decisions
-    DetailSheet.tsx       capture detail + evidence sheet
-    Onboarding.tsx        first-run flow, local/on-device guarantee
-    BottomNav.tsx         Save / Ask / Forget navigation
-    Hud.tsx               inference-source + latency readout
-    Toast.tsx             transient feedback
+    Memories.tsx · Ask.tsx · Forget.tsx · Trash.tsx   capture timeline, QA, proposals, 30-day trash
+    SignInGate.tsx · DetailSheet.tsx · Onboarding.tsx  Google/demo auth gate, detail sheet, onboarding
+    BottomNav.tsx · Hud.tsx · Toast.tsx               tabs, 3-counter HUD, 5s undo toast
   lib/
-    firebase.ts           Firebase init, App Check, Remote Config, metadata sync
+    firebase.ts           Firebase init, Auth, App Check, Remote Config, /users/{uid}/captures sync
     config.ts             env-backed settings and defaults
-    ai.ts                 on-device extraction, on-device/cloud answering
-    answer.ts             claim verification and answer assembly
-    search.ts             local retrieval + long-synthesis intent detection
-    embeddings.ts         local embedding/cosine utilities
-    store.ts              IndexedDB persistence and demo seed data
-    forget.ts             proposal scan and decisions
+    ai.ts                 ONLY_ON_DEVICE extraction, PREFER_ON_DEVICE / cloud QA, sensitive filter
+    answer.ts             fail-closed claim verifier and answer assembly
+    search.ts             local retrieval, tag boost + long-synthesis intent detection
+    embeddings.ts         512-dim signed lexical embeddings, EN/VI synonyms, stopwords
+    store.ts              UID-partitioned IndexedDB persistence and explicit Demo seeding
+    forget.ts · protection.ts  F1/F2 proposals, auto F4 protection, manual trash & purgeAt
+    exif.ts · tags.ts     JPEG EXIF capture timestamps, auto-tag grouping (threshold 0.85)
     i18n.ts               English/Vietnamese strings
 docs/
   README.md · ARCHITECTURE.md   doc map + system index (moved from root)
@@ -77,7 +73,7 @@ docs/
   rfc/ · adr/                   frozen design + decisions
   operations/ · prototypes/     runbooks + historical design artifacts
 firebase.json             Hosting + Firestore rules config
-firestore.rules           metadata-only demo rules
+firestore.rules           per-user /users/{uid}/captures/{captureId} metadata-only rules
 ```
 
 ## Development
@@ -86,12 +82,14 @@ firestore.rules           metadata-only demo rules
 npm install
 npm run dev         # Vite dev server
 npm run typecheck   # tsc -b --pretty false
+npm run lint        # ESLint across src/ and tests/
+npm test            # Node test suite (tests/core.test.ts)
 npm run build       # tsc -b && vite build
 npm run preview     # serve dist/ locally
 ```
 
-Run `npm run typecheck && npm run build` before declaring a task done. There is no automated test
-suite yet; verify UI changes manually in the browser.
+Run `npm run typecheck && npm run lint && npm test && npm run build` before declaring a task
+done; verify live Chrome Nano 4 / Console behaviour manually when changing device integrations.
 
 ### Environment
 
@@ -102,8 +100,8 @@ allow-listed in the Firebase console.
 
 Settings come from `VITE_*` vars with safe defaults in `src/lib/config.ts`; Remote Config can
 override `cloud_model`, `duplicate_threshold`, `retrieval_threshold`, and `trash_retention_days`.
-`VITE_SEED_DEMO` seeds synthetic captures on first run — these are marked `demo: true` and must never
-be represented as real user data.
+`VITE_SEED_DEMO` defaults to `false`; explicit **Demo mode** on `SignInGate` seeds `demo: true`
+captures under `ownerUid: 'demo'`, isolated from Google accounts.
 
 ## Firebase setup
 
@@ -121,9 +119,8 @@ Enabling services alone is not enough — run through the Firebase console **AI 
 Get started** flow (or `npx firebase-tools@latest init ailogic`) so the service account is provisioned
 and the API key allowlist is set. App Check enforcement is required for AI Logic.
 
-`firestore.rules` currently uses open demo rules for an unauthenticated judging demo. They are not
-production-safe: replace them with per-user (`request.auth.uid`) rules before any public release,
-and never widen them to include blobs, transcripts, or embeddings.
+`firestore.rules` enforces per-user `request.auth.uid` ownership under `/users/{uid}/captures/{captureId}`
+with schema allowlist validation; never widen rules to include blobs, transcripts, emails, or embeddings.
 
 ### Firebase skills
 

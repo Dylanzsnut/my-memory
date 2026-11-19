@@ -35,14 +35,23 @@ reason is surfaced in the HUD detail rather than silently swapped for a fake ans
 6. Optional: set Remote Config keys `cloud_model`, `duplicate_threshold`,
    `retrieval_threshold`, `trash_retention_days` to tune behaviour without a rebuild.
 
-### Firestore metadata sync (off by default)
+### Authentication & Firestore metadata sync (off by default)
 
-Captures stay entirely on-device unless `VITE_ENABLE_FIRESTORE_SYNC=true`. The shipped
-`firestore.rules` **deny all access** because the app has no authentication. Before
-enabling sync you must add Firebase Auth, scope documents to `/users/{uid}/captures/`,
-and activate the per-user rule template documented in `firestore.rules`. Demo captures
-are never synced. Original blobs, transcripts and embeddings are never written to
-Firestore under any configuration.
+- **Google sign-in vs Demo mode:** `SignInGate` offers private Google sign-in (with
+  offline session cache after first sign-in) alongside an explicit **Demo mode** button
+  that loads synthetic `demo: true` captures under `ownerUid: 'demo'`. `VITE_SEED_DEMO`
+  defaults to `false`.
+- **Per-user IndexedDB & one-time cleanup:** All captures, proposals, and HUD events
+  are partitioned by `ownerUid`. First sign-in to a Google account runs a one-time
+  `demo` cleanup so synthetic records never mix into personal space.
+- **Firestore sync & rules:** Captures stay entirely on-device unless
+  `VITE_ENABLE_FIRESTORE_SYNC=true`. `firestore.rules` enforces per-user ownership at
+  `/users/{uid}/captures/{captureId}` with schema allowlist validation. Demo captures
+  (`ownerUid: 'demo'`) are never synced. Original blobs, transcripts, tags, and
+  embeddings are never written to Firestore.
+- **Manual deletion & 30-day Trash:** Users can manually trash captures or permanently
+  delete them in `DetailSheet`/`Trash` (plus **Delete account & local data** in the
+  Account menu). Trashed captures purge automatically past `purgeAt` on app boot.
 
 Models are pinned per the CSD: cloud synthesis uses `gemini-3.8-flash` with
 `gemini-3.5-flash-lite` as the documented default fallback. Both names were
@@ -65,13 +74,16 @@ On-device structured output uses `Schema` helpers passed as `responseConstraint`
 
 | File | Responsibility |
 |---|---|
-| `src/lib/firebase.ts` | Firebase app, App Check, Firestore offline persistence (metadata only), Remote Config, AI backend |
-| `src/lib/ai.ts` | Hybrid inference adapter: `ONLY_ON_DEVICE` extraction, `PREFER_ON_DEVICE` short answers, `ONLY_IN_CLOUD` synthesis, `inferenceSource` label |
-| `src/lib/embeddings.ts` | Local embedding provider with a pluggable neural hook; deterministic lexical default |
-| `src/lib/store.ts` | IndexedDB: originals, capture records, proposals, HUD events |
-| `src/lib/search.ts` | Local vector + lexical bilingual search |
-| `src/lib/answer.ts` | Fail-closed claim verification — no citation, no answer |
-| `src/lib/forget.ts` | F1 duplicate / F2 expired proposals, F4 protections, human-only decisions |
+| `src/lib/firebase.ts` | Firebase app, Google Auth, App Check, Firestore `/users/{uid}/captures` metadata sync & delete, Remote Config, AI backend |
+| `src/lib/ai.ts` | Hybrid inference adapter: `ONLY_ON_DEVICE` extraction, `PREFER_ON_DEVICE` short answers, `ONLY_IN_CLOUD` synthesis, offline guard, sensitive-entity redaction |
+| `src/lib/embeddings.ts` | Local 512-dim signed lexical embedder with EN/VI stopwords, synonyms, and a pluggable neural hook |
+| `src/lib/store.ts` | UID-partitioned IndexedDB: originals, capture records, proposals, HUD events, user meta |
+| `src/lib/search.ts` | Local vector + lexical + tag bilingual search |
+| `src/lib/answer.ts` | Fail-closed claim verification — exact number/code/token checks against cited capture |
+| `src/lib/forget.ts` | F1 duplicate / F2 expired proposals, manual trash, `purgeAt` cleanup, F4 exclusions |
+| `src/lib/protection.ts` | Automatic F4 protection for health/medicine, identity/safety, people photos, and blurry images |
+| `src/lib/exif.ts` | JPEG EXIF `DateTimeOriginal` parser for imported photo timestamps |
+| `src/lib/tags.ts` | Auto-tag similarity clustering (0.85 threshold), user tag vs auto entity helpers |
 | `src/lib/i18n.ts` | EN / VI interface strings |
 
 ## Known deviations from the CSD (call these out in submissions)
@@ -81,9 +93,10 @@ On-device structured output uses `Schema` helpers passed as `responseConstraint`
   with another neural model; image/audio are represented by their derived text, so
   native multimodal retrieval is not yet demonstrated. `src/lib/embeddings.ts` is the
   boundary where that provider would be plugged in.
-- On-device ASR uses the browser SpeechRecognition API where available; a typed
-  transcript fallback keeps the flow usable elsewhere. Original audio capture is not
-  yet persisted as a blob.
+- Voice memos record locally with `MediaRecorder` and persist `audioBlob` in IndexedDB
+  alongside an optional user-typed transcript (`derivedText`), never calling browser
+  `SpeechRecognition` or streaming audio externally. On-device neural ASR is not yet
+  bundled in the Web companion.
 - Latency and match numbers shown in the UI are measured locally where possible; the
   design targets (0.4 s answer, <1 s search, 0.97 similarity) are not claimed as
   measured benchmarks.
