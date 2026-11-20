@@ -924,3 +924,40 @@ provenance, model pins and the privacy boundary stay intact.
       release completed for `my-memory-hybrid-2026`; live URL
       <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
       `index-k6YHq3Pt.js` / `index-jpOQdllu.css`, matching the local build.
+
+## Entity approval & reachable tag filters (2026-11-20)
+
+Scope: owner reports that auto-extracted entities are displayed but cannot be
+approved as tags, and that the single horizontal date/tag strip hides the
+rightmost tags (no visible scroll affordance). Tags remain local, per-capture,
+and never sent to Firestore.
+
+- [x] Add a pure `prepareEntityTag` helper: normalise a detected entity into a
+      tag label and classify it as add / tagged / sensitive / unusable, reusing
+      the existing sensitive-entity and duplicate checks; add unit tests.
+- [x] `DetailSheet.tsx`: render every entity as a tappable chip that promotes it
+      to a real tag on this capture only; show tagged/sensitive/unusable state,
+      keep 44px targets and aria-labels, and reuse the same cleanup path as the
+      add-tag input.
+- [x] Add `src/lib/tagOptions.ts` (count-descending, then alphabetical, selected
+      pinned) plus tests, and a shared `TagFilterBar.tsx` with counts,
+      collapse/expand and a search field for large tag sets.
+- [x] `Memories.tsx`: split date chips and tag chips into two rows; put All and
+      Untagged always visible, sort tags by count, and never hide the selected
+      tag behind the "+N more" chip.
+- [x] `Ask.tsx`: reuse the shared tag chip list with capture counts and the same
+      collapse/expand behaviour; keep tag-scoped question submission.
+- [x] EN/VI i18n for all new labels; update `DESIGN.md` UI-002/UI-005 and
+      `VERIFICATION.md`; run typecheck, lint, tests and build.
+
+      Note (2026-11-20): verified with typecheck, lint, 26/26 tests across 8
+      suites, production build (`index-gOcGdHMj.js`). Sensitive classification
+      is checked before the generic unusable-label check so "password" reads as
+      sensitive, not merely unusable. No live device check was available.
+
+## Commit & deploy: entity approval & tag filters (2026-11-20)
+
+- [ ] Commit the entity-approval and tag-filter changes; verify no `.env`,
+      credentials or debug tokens are staged.
+- [ ] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.

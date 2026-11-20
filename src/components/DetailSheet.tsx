@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Sparkles, Tag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Sparkles, Tag, Trash2, X } from 'lucide-react';
 import type { CaptureRecord, CaptureType, Language } from '../types';
 import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
+import { prepareEntityTag, type EntityTagProposal } from '../lib/tags';
 import { useDialog } from '../lib/useDialog';
 import { SourceBadge } from './Hud';
 
@@ -51,16 +52,23 @@ export default function DetailSheet({
   const suggestedTags = capture.suggestedTags || [];
   const userTags = capture.tags || [];
 
-  const addTag = () => {
-    const cleaned = tagInput.trim().replace(/^#+/, '');
-    if (!cleaned || !onUpdateTags) return;
-    const norm = normalize(cleaned);
-    if (!norm || userTags.some((existing) => normalize(existing) === norm)) {
-      setTagInput('');
-      return;
+  const entityChipsMap = new Map<string, EntityTagProposal>();
+  for (const entity of capture.entities) {
+    const proposal = prepareEntityTag(entity, userTags, capture);
+    if (!proposal) continue;
+    const key = normalize(proposal.label);
+    const existing = entityChipsMap.get(key);
+    if (!existing || (existing.state !== 'tagged' && proposal.state === 'tagged')) {
+      entityChipsMap.set(key, proposal);
     }
-    void onUpdateTags(capture, [...userTags, cleaned]);
+  }
+  const entityChips = Array.from(entityChipsMap.values());
+
+  const addTag = () => {
+    const proposal = prepareEntityTag(tagInput, userTags, capture);
     setTagInput('');
+    if (!proposal || proposal.state !== 'add' || !onUpdateTags) return;
+    void onUpdateTags(capture, [...userTags, proposal.label]);
   };
 
   const removeTag = (target: string) => {
@@ -169,20 +177,52 @@ export default function DetailSheet({
                 {capture.derivedText}
               </p>
             )}
-            {capture.entities.length > 0 && (
+            {entityChips.length > 0 && (
               <div className="mt-3 border-t border-line pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-ink2">{t(language, 'autoEntities')}</span>
-                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink3 border border-line">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-ink2">
+                    {t(language, 'autoEntities', { n: capture.entities.length })}
+                  </span>
+                  <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink3">
                     {t(language, 'autoBadge')}
                   </span>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {capture.entities.slice(0, 6).map((entity, index) => (
-                    <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[11px] font-semibold text-ink2">
-                      {entity}
-                    </span>
-                  ))}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {entityChips.map(({ label, state }) => {
+                    const canAdd = state === 'add' && Boolean(onUpdateTags);
+                    const hint =
+                      state === 'tagged'
+                        ? t(language, 'entityTagged')
+                        : state === 'sensitive'
+                          ? t(language, 'entitySensitive')
+                          : state === 'unusable'
+                            ? t(language, 'entityUnusable')
+                            : t(language, 'entityTapToTag');
+                    const ariaLabel =
+                      state === 'tagged'
+                        ? t(language, 'ariaEntityTagged', { tag: label })
+                        : t(language, 'ariaAddEntityTag', { tag: label });
+                    const tone =
+                      state === 'add'
+                        ? 'border-dashed border-accent bg-accent-soft text-accent hover:bg-accent hover:text-white'
+                        : state === 'tagged'
+                          ? 'border-teal bg-teal-soft text-teal'
+                          : 'cursor-not-allowed border-line bg-surface2 text-ink3 opacity-75';
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={!canAdd}
+                        onClick={() => { if (canAdd) void onUpdateTags?.(capture, [...userTags, label]); }}
+                        title={hint}
+                        aria-label={ariaLabel}
+                        className={`inline-flex min-h-11 max-w-full items-center gap-1 rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold ${tone}`}
+                      >
+                        {state === 'add' ? <Plus size={11} /> : state === 'tagged' ? <Check size={11} /> : <Lock size={11} />}
+                        <span className="truncate">#{label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

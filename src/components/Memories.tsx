@@ -20,6 +20,7 @@ import { t } from '../lib/i18n';
 import { useDialog } from '../lib/useDialog';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
+import TagFilterBar from './TagFilterBar';
 
 interface Props {
   captures: CaptureRecord[];
@@ -274,6 +275,12 @@ export default function Memories({
     a.localeCompare(b),
   );
   const hasUntagged = visibleCaptures.some((c) => !(c.tags || []).length);
+  const untaggedCount = visibleCaptures.filter((c) => !(c.tags || []).length).length;
+  const tagCounts = new Map<string, number>();
+  visibleCaptures.forEach((capture) => {
+    (capture.tags || []).forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1));
+  });
+  const tagOptions = Array.from(tagCounts, ([tag, count]) => ({ tag, count }));
   const selectedTag = activeTag && (activeTag === UNTAGGED || allTags.includes(activeTag)) ? activeTag : null;
   const filteredCaptures = !selectedTag
     ? visibleCaptures
@@ -552,7 +559,7 @@ export default function Memories({
         </div>
       )}
 
-      <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-0.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {([['all', 'allDates'], ['today', 'today'], ['yesterday', 'yesterday'], ['older', 'older']] as const).map(([value, labelKey]) => (
           <button
             key={value}
@@ -566,45 +573,17 @@ export default function Memories({
             {t(language, labelKey)}
           </button>
         ))}
-        {(allTags.length > 0 || hasUntagged) && <span aria-hidden="true" className="mx-0.5 h-3.5 w-px shrink-0 bg-line2" />}
-        {allTags.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setActiveTag(null)}
-            aria-pressed={!selectedTag}
-            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold ${
-              !selectedTag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
-            }`}
-          >
-            {t(language, 'allTags')}
-          </button>
-        )}
-        {allTags.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => setActiveTag(selectedTag === tag ? null : tag)}
-            aria-pressed={selectedTag === tag}
-            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
-              selectedTag === tag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
-            }`}
-          >
-            #{tag}
-          </button>
-        ))}
-        {hasUntagged && (
-          <button
-            type="button"
-            onClick={() => setActiveTag(selectedTag === UNTAGGED ? null : UNTAGGED)}
-            aria-pressed={selectedTag === UNTAGGED}
-            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
-              selectedTag === UNTAGGED ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
-            }`}
-          >
-            {t(language, 'untagged')}
-          </button>
-        )}
       </div>
+
+      <TagFilterBar
+        language={language}
+        tags={tagOptions}
+        activeTag={selectedTag}
+        onSelect={setActiveTag}
+        showUntagged={hasUntagged}
+        untaggedValue={UNTAGGED}
+        untaggedCount={untaggedCount}
+      />
 
       {tagGroups.length > 0 && (
         <div className="flex items-center justify-between gap-2 rounded-2xl border border-accent/25 bg-accent-soft/60 px-3 py-2">

@@ -5,6 +5,8 @@ import type { NanoAvailability } from '../lib/ai';
 import { t } from '../lib/i18n';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
+import TagFilterBar from './TagFilterBar';
+import type { TagOption } from '../lib/tagOptions';
 
 interface Props {
   language: Language;
@@ -13,7 +15,7 @@ interface Props {
   onOpenDetail: (capture: CaptureRecord) => void;
   busy?: boolean;
   demoMode?: boolean;
-  tags?: string[];
+  tags?: TagOption[];
   activeTag?: string | null;
   onActiveTagChange?: (tag: string | null) => void;
   onTagNavigate?: (tag: string) => void;
@@ -146,25 +148,21 @@ export default function Ask({
       {!hasAsked && tags.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-wide text-ink3">{t(language, 'askTagsTitle')}</p>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => {
+          <TagFilterBar
+            language={language}
+            tags={tags}
+            activeTag={activeTag}
+            onSelect={(tag) => {
+              if (!tag) {
+                onActiveTagChange?.(null);
+                return;
+              }
+              onActiveTagChange?.(tag);
               const question = t(language, 'askTagQuestion', { tag });
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => {
-                    onActiveTagChange?.(tag);
-                    setQuery(question);
-                    void submit(question, undefined, tag);
-                  }}
-                  className="min-h-11 rounded-full border border-teal/40 bg-teal-soft px-3.5 py-2 text-[11.5px] font-bold text-teal transition-colors hover:border-teal"
-                >
-                  #{tag}
-                </button>
-              );
-            })}
-          </div>
+              setQuery(question);
+              void submit(question, undefined, tag);
+            }}
+          />
         </div>
       )}
 

@@ -676,9 +676,13 @@ export default function App() {
   }
 
   const pendingCount = proposals.filter((p) => !p.decided).length;
-  const askTags = Array.from(
-    new Set(captures.filter((c) => c.retentionState !== 'trashed').flatMap((c) => c.tags || [])),
-  ).sort((a, b) => a.localeCompare(b));
+  const askTagCounts = new Map<string, number>();
+  captures
+    .filter((capture) => capture.retentionState !== 'trashed')
+    .forEach((capture) => {
+      (capture.tags || []).forEach((tag) => askTagCounts.set(tag, (askTagCounts.get(tag) || 0) + 1));
+    });
+  const askTags = Array.from(askTagCounts, ([tag, count]) => ({ tag, count }));
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-bg">

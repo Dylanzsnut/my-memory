@@ -5,6 +5,7 @@
  * Runs 100% locally offline and never sends labels, embeddings, or tags to cloud/Firestore.
  */
 import type { AppSettings, CaptureRecord, CaptureType, TagGroupProposal } from '../types';
+import { isSensitiveEntity } from './ai';
 import { cosine, normalize } from './embeddings';
 
 const STOPWORDS = new Set([
@@ -244,4 +245,31 @@ export function rebuildSearchText(capture: Pick<CaptureRecord, 'summary' | 'enti
   return [capture.summary, ...capture.entities, ...(capture.tags || []), capture.derivedText || '']
     .filter(Boolean)
     .join(' ');
+}
+
+export type EntityTagState = 'add' | 'tagged' | 'sensitive' | 'unusable';
+
+export interface EntityTagProposal {
+  label: string;
+  state: EntityTagState;
+}
+
+/**
+ * Decide whether a detected entity can be promoted to a user tag. The caller
+ * still owns the write: this only classifies the label (proposal-only).
+ */
+export function prepareEntityTag(
+  raw: string,
+  existingTags: string[],
+  capture?: Pick<CaptureRecord, 'summary' | 'derivedText'>,
+): EntityTagProposal | null {
+  const label = (raw || '').trim().replace(/^#+/, '').trim();
+  if (!label) return null;
+  if (isSensitiveEntity(label, capture)) return { label, state: 'sensitive' };
+  if (label.length > 40 || isSensitiveLabelToken(label, new Set())) {
+    return { label, state: 'unusable' };
+  }
+  const norm = normalize(label);
+  if (existingTags.some((tag) => normalize(tag) === norm)) return { label, state: 'tagged' };
+  return { label, state: 'add' };
 }

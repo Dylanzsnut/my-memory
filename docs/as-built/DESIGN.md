@@ -26,7 +26,7 @@
 | UI-002 | demo seed banner when enabled | `busy` disables capture controls | feed updates on save | SIMULATED badge | capture stays unextracted with HUD error |
 | UI-003 | prompt + tag chips from real tags (demo chips only in Demo mode / no tags) | `busy` disables submit | answer + evidence cards with `#tags`; answer scrolls into view | cloud unavailable → local fallback labelled SIMULATED; active `#tag` scopes retrieval | neutral/gold "Not found in memory" panel with next steps (try `#tag`, check spelling) |
 | UI-004 | "Nothing to forget right now" | n/a | proposal cards | protected badge | n/a |
-| UI-005 | n/a | n/a | extracted facts + original | n/a | n/a |
+| UI-005 | n/a | n/a | extracted facts + original; detected entities can be approved as tags | sensitive / unusable entities shown disabled | n/a |
 | UI-006 | `—` | n/a | latency + source counters | SIMULATED counter shown separately | shows error detail |
 | UI-007 | n/a | n/a | announced via `role="status"`; auto-dismisses after 5s with optional Undo | n/a | n/a |
 
@@ -53,13 +53,26 @@ the fold.
 
 UI-002's primary axis is local-only **tags** (`#label`) plus a "Group by tag"
 view: each capture appears once under its first tag, with an "Untagged" section
-where needed. Date chips and tag chips share one horizontal strip. Suggested tag
-proposals collapse into a single pill (`{n} suggested tags · Review`) that opens
-a review sheet with per-member checkboxes, Accept, Rename and Dismiss. Accept
-writes the label as a real tag on the selected captures; rename overrides and
-dismissals persist per user, so they survive recompute. Tag edits are scoped to
-the capture being edited and never touch other captures (Verified: unit tests
+where needed. Date filters and tag filters now occupy **two separate rows** so
+the rightmost tag can never be hidden in a single scrolling strip. The shared
+`TagFilterBar` keeps All and Untagged visible, sorts tags by capture count
+(alphabetical tie-break), pins the selected tag into the visible set, and
+collapses long lists behind "+N more" with a wrapped, searchable expanded list.
+It is also used in UI-003 so both tabs show the same tags and counts. Suggested
+tag proposals collapse into a single pill (`{n} suggested tags · Review`) that
+opens a review sheet with per-member checkboxes, Accept, Rename and Dismiss.
+Accept writes the label as a real tag on the selected captures; rename overrides
+and dismissals persist per user, so they survive recompute. Tag edits are scoped
+to the capture being edited and never touch other captures (Verified: unit tests
 in `tests/core.test.ts`).
+
+UI-005 shows every auto-extracted entity as a chip. Tapping a chip promotes it
+to a real `#tag` on that capture only (`prepareEntityTag`); already-approved
+entities show a ✓, while sensitive entities (passwords, OTPs, codes) and labels
+that cannot make useful tags are disabled with an explanatory title. The same
+cleanup and duplicate checks are used by the manual add-tag box. This is an
+approval path for existing index data — it introduces no new inference or cloud
+call, and no new data in Firestore writes.
 
 UI-002 and UI-005 expose a single safe delete action (**Move to Trash** —
 30-day recovery + 5s undo toast); permanent deletion lives exclusively in the

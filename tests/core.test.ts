@@ -12,7 +12,8 @@ import {
   scanForProposals,
 } from '../src/lib/forget';
 import { detectTextProtection } from '../src/lib/protection';
-import { computeTagGroups, isSensitiveLabelToken } from '../src/lib/tags';
+import { computeTagGroups, isSensitiveLabelToken, prepareEntityTag } from '../src/lib/tags';
+import { sortTagOptions } from '../src/lib/tagOptions';
 import { parseExifDateTimeOriginal } from '../src/lib/exif';
 import { matchesDateFilter } from '../src/lib/dateFilter';
 import { settings } from '../src/lib/config';
@@ -508,5 +509,50 @@ describe('calendar date filters', () => {
     assert.equal(matchesDateFilter('nope', 'all', now), true);
     assert.equal(matchesDateFilter('nope', 'today', now), false);
     assert.equal(matchesDateFilter('nope', 'older', now), true);
+  });
+});
+
+describe('entity approval and tag filter ordering', () => {
+  it('classifies detected entities before they become tags', () => {
+    assert.deepEqual(prepareEntityTag('  #Casa Nos  ', ['meeting']), {
+      label: 'Casa Nos',
+      state: 'add',
+    });
+    assert.deepEqual(prepareEntityTag('MEETING', ['meeting']), {
+      label: 'MEETING',
+      state: 'tagged',
+    });
+    assert.deepEqual(prepareEntityTag('123456', []), { label: '123456', state: 'unusable' });
+    assert.deepEqual(prepareEntityTag('x'.repeat(41), []), {
+      label: 'x'.repeat(41),
+      state: 'unusable',
+    });
+    assert.equal(prepareEntityTag('   ', []), null);
+  });
+
+  it('blocks sensitive entities using the existing detector', () => {
+    const capture = { summary: 'wifi password note', derivedText: 'The wifi key is stored here' };
+    assert.equal(prepareEntityTag('password', [], capture)?.state, 'sensitive');
+    assert.equal(prepareEntityTag('wifi', [], capture)?.state, 'add');
+    assert.equal(prepareEntityTag('secret', [])?.state, 'sensitive');
+  });
+
+  it('sorts tags by count, breaks ties alphabetically and pins the selected tag', () => {
+    const options = [
+      { tag: 'zeta', count: 1 },
+      { tag: 'meeting', count: 9 },
+      { tag: 'Casa', count: 9 },
+      { tag: 'rare', count: 4 },
+    ];
+    const sorted = sortTagOptions(options, null);
+    assert.deepEqual(sorted.map((o) => o.tag), ['Casa', 'meeting', 'rare', 'zeta']);
+    const pinned = sortTagOptions(options, 'zeta');
+    assert.deepEqual(pinned.map((o) => o.tag), ['zeta', 'Casa', 'meeting', 'rare']);
+    assert.deepEqual(sortTagOptions(options, '__untagged__').map((o) => o.tag), [
+      'Casa',
+      'meeting',
+      'rare',
+      'zeta',
+    ]);
   });
 });
