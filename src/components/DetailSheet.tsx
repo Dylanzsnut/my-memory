@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Image, Lock, Mic, NotepadText, Plus, ShieldCheck, Sparkles, Tag, Trash2, X } from 'lucide-react';
-import type { CaptureRecord, Language } from '../types';
+import type { CaptureRecord, CaptureType, Language } from '../types';
 import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
+import { useDialog } from '../lib/useDialog';
 import { SourceBadge } from './Hud';
+
+function typeLabel(language: Language, type: CaptureType): string {
+  const key = type === 'photo' ? 'photo' : type === 'voice' ? 'voice' : 'noteType';
+  return t(language, key);
+}
 
 interface Props {
   capture: CaptureRecord;
@@ -30,6 +36,17 @@ export default function DetailSheet({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [tagEditValue, setTagEditValue] = useState('');
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  useDialog(sheetRef, true, onClose, {
+    focusRootRef: lightboxOpen ? lightboxRef : sheetRef,
+    focusKey: lightboxOpen ? 'lightbox' : 'sheet',
+    onEscape: () => {
+      if (!lightboxOpen) return false;
+      setLightboxOpen(false);
+      return true;
+    },
+  });
 
   const suggestedTags = capture.suggestedTags || [];
   const userTags = capture.tags || [];
@@ -66,14 +83,6 @@ export default function DetailSheet({
   };
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
-  useEffect(() => {
     if (capture.type !== 'voice') {
       setAudioUrl(null);
       return;
@@ -91,10 +100,12 @@ export default function DetailSheet({
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50" onClick={onClose}>
       <div
+        ref={sheetRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={t(language, 'detail')}
-        className="animate-sheet flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-canvas shadow-2xl"
+        className="animate-sheet flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-canvas shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-line bg-canvas/95 px-4 py-3">
@@ -103,7 +114,7 @@ export default function DetailSheet({
             <button type="button" onClick={onClose} aria-label={t(language, 'dismiss')} className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-surface2 px-3.5 py-1.5 text-[12px] font-semibold">
               <ArrowLeft size={15} /> {t(language, 'back')}
             </button>
-            <span className="text-[13px] font-bold">Memory #{capture.id.slice(-4)}</span>
+            <span className="text-[13px] font-bold">{t(language, 'memoryNumber', { n: capture.id.slice(-4) })}</span>
             <SourceBadge source={capture.inferenceSource} language={language} />
           </div>
         </div>
@@ -112,9 +123,9 @@ export default function DetailSheet({
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink2">
             <span>{t(language, 'captured')}: {new Date(capture.capturedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}</span>
             <span>·</span>
-            <span>{capture.type}</span>
+            <span>{typeLabel(language, capture.type)}</span>
             {capture.protectedReason && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-bold text-teal">
                 <ShieldCheck size={11} /> {t(language, 'alwaysProtected')}
               </span>
             )}
@@ -125,18 +136,18 @@ export default function DetailSheet({
               <button
                 type="button"
                 onClick={() => setLightboxOpen(true)}
-                aria-label="Open full-screen original"
+                aria-label={t(language, 'openOriginal')}
                 className="block w-full"
               >
-                <img src={capture.originalRef} alt="Original capture" className="w-full object-cover" />
+                <img src={capture.originalRef} alt={t(language, 'originalProof')} className="w-full object-cover" />
               </button>
-              <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-canvas/90 px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm">
-                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> Original proof · on-device
+              <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-canvas/90 px-2.5 py-1 text-[11px] font-bold text-teal shadow-sm">
+                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> {t(language, 'originalProof')}
               </span>
             </div>
           ) : capture.type === 'voice' ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-teal-soft p-4 text-teal">
-              <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-canvas/90 px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm">
+              <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-canvas/90 px-2.5 py-1 text-[11px] font-bold text-teal shadow-sm">
                 <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-teal" /> {t(language, 'originalAudioProof')}
               </span>
               <Mic size={36} className="mt-3" />
@@ -162,13 +173,13 @@ export default function DetailSheet({
               <div className="mt-3 border-t border-line pt-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-ink2">{t(language, 'autoEntities')}</span>
-                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-ink3 border border-line">
+                  <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink3 border border-line">
                     {t(language, 'autoBadge')}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {capture.entities.slice(0, 6).map((entity, index) => (
-                    <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[10.5px] font-semibold text-ink2">
+                    <span key={`${entity}-${index}`} className="truncate rounded-lg border border-line bg-canvas px-2 py-1.5 text-center text-[11px] font-semibold text-ink2">
                       {entity}
                     </span>
                   ))}
@@ -199,8 +210,8 @@ export default function DetailSheet({
                       onChange={(e) => setTagEditValue(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') commitTagRename(tag); }}
                       onBlur={() => commitTagRename(tag)}
-                      aria-label={`Rename tag ${tag}`}
-                      className="min-h-11 w-32 rounded-full border border-teal bg-canvas px-2.5 text-[11px] font-bold outline-none"
+                      aria-label={t(language, 'renameTagAria', { tag })}
+                      className="min-h-11 w-32 rounded-full border border-teal bg-canvas px-2.5 text-base font-bold outline-none"
                     />
                   ) : (
                     <span
@@ -210,7 +221,7 @@ export default function DetailSheet({
                       <button
                         type="button"
                         onClick={() => { setEditingTag(tag); setTagEditValue(tag); }}
-                        aria-label={`Rename tag ${tag}`}
+                        aria-label={t(language, 'renameTagAria', { tag })}
                         title={t(language, 'renameTagHint')}
                         className="min-h-11"
                       >
@@ -220,8 +231,8 @@ export default function DetailSheet({
                         <button
                           type="button"
                           onClick={() => removeTag(tag)}
-                          aria-label={`Remove tag ${tag}`}
-                          className="rounded-full p-0.5 hover:bg-teal/15"
+                          aria-label={t(language, 'removeTagAria', { tag })}
+                          className="grid min-h-11 min-w-11 place-items-center rounded-full hover:bg-teal/15"
                         >
                           <X size={11} />
                         </button>
@@ -233,7 +244,7 @@ export default function DetailSheet({
             )}
             {suggestedTags.length > 0 && (
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-[10.5px] font-bold text-accent">{t(language, 'suggestedTagLabel')}:</span>
+                <span className="text-[11px] font-bold text-accent">{t(language, 'suggestedTagLabel')}:</span>
                 {suggestedTags.map((tag) => (
                   <span
                     key={tag}
@@ -256,7 +267,7 @@ export default function DetailSheet({
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   placeholder={t(language, 'addTagPlaceholder')}
-                  className="min-w-0 flex-1 rounded-full border border-line bg-surface2 px-3 py-1.5 text-[12px] outline-none focus:border-teal"
+                  className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-surface2 px-3 py-1.5 text-base outline-none focus:border-teal"
                 />
                 <button
                   type="submit"
@@ -344,15 +355,17 @@ export default function DetailSheet({
             </button>
           )}
 
-          <p className="flex items-center justify-center gap-1 text-[10px] text-ink3">
-            <Lock size={11} /> {language === 'vi' ? 'Bản gốc ở lại trên máy.' : 'The original stays on this device.'}
+          <p className="flex items-center justify-center gap-1 text-[11px] text-ink3">
+            <Lock size={11} /> {t(language, 'originalStaysLocal')}
           </p>
         </div>
       </div>
 
       {lightboxOpen && capture.originalRef && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          ref={lightboxRef}
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 outline-none"
           onClick={() => setLightboxOpen(false)}
         >
           <button
@@ -365,7 +378,7 @@ export default function DetailSheet({
           </button>
           <img
             src={capture.originalRef}
-            alt="Original capture — full screen"
+            alt={t(language, 'openOriginal')}
             className="max-h-full max-w-full object-contain"
             onClick={(e) => e.stopPropagation()}
           />

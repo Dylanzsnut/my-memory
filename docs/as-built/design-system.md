@@ -52,7 +52,7 @@ colors:
   bg-subtle: '#efe6d6'
   surface-raised: '#fbf6ec'
   ink-secondary: '#5c5344'
-  ink-tertiary: '#8a7d68'
+  ink-tertiary: '#756a58'
   line: '#e2d7c3'
   line-strong: '#cdbd9c'
   accent-deep: '#c74312'
@@ -156,7 +156,7 @@ The palette derives from physical archival materials: parchment paper, aged mine
 
 - **Primary (`#e4571e`)**: Vibrant terracotta orange. Serves as the primary brand touchpoint, dominant interactive triggers (FABs, primary actions), and focal highlights.
 - **Secondary (`#14705c`)**: Soft pine/sage teal. Used exclusively for verification, on-device intelligence affirmations, audio/voice notes, and trusted citations.
-- **Tertiary (`#b8860b`)**: Muted ochre gold. Reserved for contextual notes, expiry states, and non-blocking warnings.
+- **Tertiary / gold (`#785600`)**: Deep ochre gold. Reserved for contextual notes, expiry states, and non-blocking warnings. Darkened from `#b8860b` on 2026-11-20 so text reaches ≥4.5:1 on `gold-soft`; do not revert for a warmer look.
 - **Neutral (`#1c1710`)**: Deep charcoal ink. Replaces harsh blacks for core typography, active icons, and crisp outlines.
 - **Semantic Pairing Principle**: Every functional chromatic color (`accent`, `teal`, `gold`, `danger`) pairs with a dedicated `*-soft` tint for pills, badges, and selected card states. This preserves text contrast and avoids visual fatigue on warm surfaces.
 - **Dark Mode Adaptation**: In dark environments, backgrounds invert to deep charred wood (`#131009`, `#1a160e`), while text shifts to warm milk parchment (`#f4ecdc`), retaining the warm paper metaphor without stark contrast.
@@ -213,7 +213,7 @@ The shape system is rounded and organic, balancing structural utility with comfo
 ### Badges & Pill Chips
 - **Photo Badge**: Background `accent-soft` (`#fdeadd`), text `accent-deep` (`#c74312`), uppercase `label-sm` font, pill radius.
 - **Voice Badge**: Background `teal-soft` (`#e0f0ea`), text `secondary` (`#14705c`), paired with miniature animated or static audio waveforms.
-- **Note Badge**: Background `gold-soft` (`#fbf0cd`), text `tertiary` (`#b8860b`).
+- **Note Badge**: Background `gold-soft` (`#fbf0cd`), text `tertiary` (`#785600`).
 - **Interactive Chips**: Tap-to-filter pills with `1px solid var(--line-strong)` border. Selected state switches background to `accent-soft` with `accent-deep` text and border.
 
 ### Memory Cards
@@ -222,11 +222,21 @@ The shape system is rounded and organic, balancing structural utility with comfo
 - **Ephemeral Actions**: Swipe-to-action or card footers featuring dual-action "Keep" (teal accent) and "Trash" (`danger` soft `#fbe7e2` background with `#b3372a` icon/text).
 
 ### Inputs & Search Bars
-- **Pill Search Shell**: Fully rounded (`999px`), background `surface-raised` (`#fbf6ec`), border `1.5px solid var(--line-strong)`. Placeholder styled in `ink-tertiary` (`#8a7d68`).
+- **Pill Search Shell**: Fully rounded (`999px`), background `surface-raised` (`#fbf6ec`), border `1.5px solid var(--line-strong)`. Placeholder styled in `ink-tertiary` (`#756a58`, ≥4.5:1 on `surface`);
+inputs use 16px text so iOS Safari does not zoom the viewport on focus.
 - **Form Text Fields**: Minimum height `44px` for touch accessibility, subtle bottom border or rounded frame with soft focus ring tinted in `accent`.
 
 ### Tactile On-Device Indicators
 - **Local Vault Status**: Dedicated micro-capsule featuring an `8px` pulsating green-teal indicator dot, `teal-soft` fill, and text reading "ON-DEVICE ARCHIVE". Denotes privacy and local storage.
+
+### Touch & Legibility Floor (2026-11-20)
+
+- Every interactive control reviewed in `src/components/` has at least a 44px
+  touch target, including filter chips, card menus, tag remove buttons and
+  inline dismiss buttons.
+- Body and status labels are at least 11px; inputs and textareas are 16px.
+- `ink-tertiary` and `tertiary`/gold were darkened to meet WCAG AA (4.5:1) on
+  their soft surfaces. Contrast is calculated, not yet axe-audited on device.
 
 ### Clean Bottom Tabs
 - **Tab Bar**: Floating dock or docked bottom bar with `surface` background, top border `1px solid var(--line)`.

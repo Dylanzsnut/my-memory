@@ -1,4 +1,4 @@
-import { BookOpen, MessageCircle, Trash2 } from 'lucide-react';
+import { BookOpen, MessageCircle, Sparkles } from 'lucide-react';
 import type { Language, Tab } from '../types';
 import { t } from '../lib/i18n';
 
@@ -12,7 +12,7 @@ interface Props {
 const items: { id: Tab; icon: typeof BookOpen; key: 'memories' | 'ask' | 'forget' }[] = [
   { id: 'memories', icon: BookOpen, key: 'memories' },
   { id: 'ask', icon: MessageCircle, key: 'ask' },
-  { id: 'forget', icon: Trash2, key: 'forget' },
+  { id: 'forget', icon: Sparkles, key: 'forget' },
 ];
 
 export default function BottomNav({ active, onChange, language, reviewCount }: Props) {
@@ -35,7 +35,7 @@ export default function BottomNav({ active, onChange, language, reviewCount }: P
                 {t(language, key)}
               </span>
               {id === 'forget' && reviewCount > 0 && (
-                <span className="absolute -top-1 right-2 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">
+                <span className="absolute -top-1 right-2 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
                   {reviewCount}
                 </span>
               )}

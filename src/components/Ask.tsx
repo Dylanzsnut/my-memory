@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, Cloud, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, Cloud, Search, Sparkles } from 'lucide-react';
 import type { AnswerResult, CaptureRecord, Language } from '../types';
 import type { NanoAvailability } from '../lib/ai';
 import { t } from '../lib/i18n';
@@ -12,6 +12,7 @@ interface Props {
   onAsk: (question: string, captureId?: string, tag?: string | null) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy?: boolean;
+  demoMode?: boolean;
   tags?: string[];
   activeTag?: string | null;
   onActiveTagChange?: (tag: string | null) => void;
@@ -34,6 +35,7 @@ export default function Ask({
   nanoStatus,
   onAsk,
   onOpenDetail,
+  demoMode = false,
   tags = [],
   activeTag = null,
   onActiveTagChange,
@@ -48,7 +50,10 @@ export default function Ask({
   const [error, setError] = useState<string | null>(null);
   const online = useOnlineStatus();
   const [pending, setPending] = useState(false);
+  const [hasAsked, setHasAsked] = useState(false);
   const requestSeq = useRef(0);
+  const answerRef = useRef<HTMLElement>(null);
+  const showExamples = demoMode || tags.length === 0;
 
   useEffect(() => {
     if (seedQuestion) {
@@ -59,6 +64,10 @@ export default function Ask({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedQuestion, seedCaptureId]);
 
+  useEffect(() => {
+    if (answer) answerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [answer]);
+
   const submit = async (question: string, captureId?: string, tag?: string | null) => {
     if (!question.trim()) return;
     // The latest request wins: an older, slower answer must never overwrite it,
@@ -67,6 +76,7 @@ export default function Ask({
     setError(null);
     setPending(true);
     setAsked(question);
+    setHasAsked(true);
     try {
       const result = await onAsk(question, captureId, tag !== undefined ? tag : activeTag);
       if (seq !== requestSeq.current) return;
@@ -100,7 +110,7 @@ export default function Ask({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(language, 'askPlaceholder')}
           aria-label={t(language, 'askPlaceholder')}
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-ink3"
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink3"
         />
         <button
           type="submit"
@@ -112,26 +122,28 @@ export default function Ask({
         </button>
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        {CHIPS.map((chip) => {
-          const label = language === 'vi' ? chip.vi : chip.en;
-          return (
-            <button
-              key={chip.en}
-              type="button"
-              onClick={() => {
-                setQuery(label);
-                submit(label);
-              }}
-              className="min-h-11 rounded-full border border-line2 bg-canvas px-3.5 py-2 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      {!hasAsked && showExamples && (
+        <div className="flex flex-wrap gap-2">
+          {CHIPS.map((chip) => {
+            const label = language === 'vi' ? chip.vi : chip.en;
+            return (
+              <button
+                key={chip.en}
+                type="button"
+                onClick={() => {
+                  setQuery(label);
+                  submit(label);
+                }}
+                className="min-h-11 rounded-full border border-line2 bg-canvas px-3.5 py-2 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {tags.length > 0 && (
+      {!hasAsked && tags.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-wide text-ink3">{t(language, 'askTagsTitle')}</p>
           <div className="flex flex-wrap gap-2">
@@ -172,7 +184,7 @@ export default function Ask({
 
       <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
         <span className={`h-1.5 w-1.5 animate-pulse-dot rounded-full ${online ? 'bg-teal' : 'bg-gold'}`} />
-        <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-teal">
           {t(language, online ? 'onlineLive' : 'offlineLive')}
         </span>
       </div>
@@ -211,10 +223,10 @@ export default function Ask({
       )}
 
       {pending ? null : answer ? (
-        <article className="animate-sheet overflow-hidden rounded-2xl border border-line bg-canvas shadow-sm">
-          <div className="flex items-center justify-between bg-teal px-4 py-2.5 text-white">
+        <article ref={answerRef} className="animate-sheet overflow-hidden rounded-2xl border border-line bg-canvas shadow-sm">
+          <div className={`flex items-center justify-between px-4 py-2.5 ${answer.notFound ? 'border-b border-gold/30 bg-gold-soft text-gold' : 'bg-teal text-white'}`}>
             <div className="flex items-center gap-1.5">
-              <CheckCircle2 size={16} />
+              {answer.notFound ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
               <span className="text-[11px] font-bold uppercase tracking-wider">
                 {answer.notFound ? t(language, 'notFound') : t(language, 'verified')}
               </span>
@@ -234,6 +246,12 @@ export default function Ask({
               </div>
             )}
             <p className="font-serif text-[19px] font-bold leading-snug">{answer.text}</p>
+            {answer.notFound && (
+              <div className="flex items-start gap-2 rounded-xl border border-line bg-surface2 px-3 py-2.5">
+                <Sparkles size={15} className="mt-0.5 shrink-0 text-accent" />
+                <p className="text-[11.5px] leading-snug text-ink2">{t(language, 'notFoundHint')}</p>
+              </div>
+            )}
 
             {answer.sources.map((capture) => {
               const match = capture.sourceMatch?.score;
@@ -256,7 +274,7 @@ export default function Ask({
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] font-bold">{capture.summary}</span>
-                      <span className="mt-0.5 block text-[10.5px] text-ink3">
+                      <span className="mt-0.5 block text-[11px] text-ink3">
                         {new Date(capture.capturedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')} ·{' '}
                         {t(language, 'match')} {match !== undefined ? match.toFixed(2) : '—'}
                       </span>
@@ -271,7 +289,7 @@ export default function Ask({
                           type="button"
                           onClick={() => onTagNavigate?.(tag)}
                           aria-label={`#${tag}`}
-                          className="min-h-11 rounded-full bg-teal-soft px-2.5 py-0.5 text-[10px] font-bold text-teal hover:bg-teal hover:text-white"
+                          className="min-h-11 rounded-full bg-teal-soft px-2.5 py-0.5 text-[11px] font-bold text-teal hover:bg-teal hover:text-white"
                         >
                           #{tag}
                         </button>
@@ -282,15 +300,12 @@ export default function Ask({
               );
             })}
 
-            <div className="flex items-center justify-between border-t border-line pt-3 text-[10.5px] text-ink3">
+            <div className="flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink3">
               <span>
                 {answer.latencyMs} ms ·{' '}
                 {!answer.notFound && answer.intent === 'long'
                   ? t(language, 'crossCaptureSynthesis')
                   : t(language, 'localLookup')}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <ShieldCheck size={12} className="text-teal" /> {t(language, 'zeroDeletions')}
               </span>
             </div>
           </div>

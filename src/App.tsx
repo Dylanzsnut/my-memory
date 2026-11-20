@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useOutsideDismiss } from './lib/useDialog';
 import { AlertTriangle, Fingerprint, Languages, LogOut, Trash2, User, X } from 'lucide-react';
 import type {
   AuthSession,
@@ -87,6 +88,8 @@ export default function App() {
   const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const booted = useRef(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  useOutsideDismiss(accountMenuRef, accountMenuOpen, () => setAccountMenuOpen(false));
 
   const syncTagSuggestions = async (
     currentCaptures: CaptureRecord[],
@@ -551,7 +554,7 @@ export default function App() {
     }
     void syncCaptureMetadata([restored], syncUid);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
-    setToast({ message: language === 'vi' ? 'Đã khôi phục.' : 'Restored to your memories.' });
+    setToast({ message: t(language, 'restored') });
   };
 
   const handleUpdateTags = async (capture: CaptureRecord, nextTags: string[]) => {
@@ -695,29 +698,29 @@ export default function App() {
           >
             <Languages size={14} /> {language}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAccountMenuOpen((open) => !open);
-              setDeleteAccountConfirm(false);
-            }}
-            aria-label={t(language, 'ariaAccountMenu')}
-            aria-expanded={accountMenuOpen}
-            className="inline-flex min-h-11 max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
-          >
-            <User size={13} className="shrink-0" />
-            <span className="truncate">
-              {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid.slice(0, 8)}
-            </span>
-          </button>
-        </div>
+          <div ref={accountMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountMenuOpen((open) => !open);
+                setDeleteAccountConfirm(false);
+              }}
+              aria-label={t(language, 'ariaAccountMenu')}
+              aria-expanded={accountMenuOpen}
+              className="inline-flex min-h-11 max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
+            >
+              <User size={13} className="shrink-0" />
+              <span className="truncate">
+                {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid.slice(0, 8)}
+              </span>
+            </button>
 
-        {accountMenuOpen && (
-          <div className="absolute right-5 top-14 z-50 w-64 rounded-2xl border border-line bg-canvas p-3 shadow-xl">
+            {accountMenuOpen && (
+              <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-canvas p-3 shadow-xl">
             <p className="truncate text-[11.5px] font-bold text-ink">
               {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid}
             </p>
-            <p className="mt-0.5 truncate font-mono text-[10px] text-ink3">uid: {session.uid}</p>
+            <p className="mt-0.5 truncate font-mono text-[11px] text-ink3">uid: {session.uid}</p>
             <div className="mt-2.5 space-y-1.5 border-t border-line pt-2.5">
               <button
                 type="button"
@@ -756,8 +759,10 @@ export default function App() {
                 </button>
               )}
             </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </header>
 
       <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5">
@@ -815,6 +820,7 @@ export default function App() {
             onAsk={handleAsk}
             onOpenDetail={setSelected}
             busy={busy}
+            demoMode={session.mode === 'demo'}
             tags={askTags}
             activeTag={activeTag}
             onActiveTagChange={setActiveTag}

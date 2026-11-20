@@ -15,7 +15,6 @@ export default function Toast({ message, language = 'en', onUndo, onDismiss }: P
 
   useEffect(() => {
     setSecondsLeft(5);
-    if (!onUndo) return;
     const interval = window.setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
@@ -30,7 +29,7 @@ export default function Toast({ message, language = 'en', onUndo, onDismiss }: P
   }, [message, onUndo, onDismiss]);
 
   return (
-    <div className="animate-toast fixed bottom-20 left-1/2 z-50 flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border border-line bg-ink px-4 py-3 text-canvas shadow-xl">
+    <div role="status" aria-live="polite" className="animate-toast fixed bottom-20 left-1/2 z-50 flex w-[min(92vw,420px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl border border-line bg-ink px-4 py-3 text-canvas shadow-xl">
       <span className="text-[12.5px] font-medium">{message}</span>
       <div className="flex shrink-0 items-center gap-3">
         {onUndo && (

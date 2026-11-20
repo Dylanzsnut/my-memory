@@ -163,7 +163,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
         {step === 1 && (
           <div className="animate-sheet space-y-6">
             <div>
-              <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
+              <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-accent">
                 {t(language, 'ob2Badge')}
               </span>
               <h1 className="mt-4 font-serif text-[26px] font-bold leading-tight tracking-tight">
@@ -188,7 +188,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
             <div className="rounded-2xl border border-line bg-canvas p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">{t(language, 'ob2ConnectedTitle')}</span>
-                <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-bold text-gold">
+                <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-bold text-gold">
                   {t(language, 'ob2ConnectedBadge')}
                 </span>
               </div>
@@ -201,7 +201,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
               </div>
               <div className="mt-4 flex items-center justify-between rounded-xl bg-surface2 px-3 py-2">
                 <span className="text-[12px] font-semibold">{t(language, 'ob2SpeedLabel')}</span>
-                <span className="rounded-full bg-teal px-2 py-0.5 text-[10px] font-bold text-white">&lt; 1s</span>
+                <span className="rounded-full bg-teal px-2 py-0.5 text-[11px] font-bold text-white">&lt; 1s</span>
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
         {step === 2 && (
           <div className="animate-sheet space-y-4">
             <div>
-              <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
+              <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-accent">
                 {t(language, 'ob3Badge')}
               </span>
               <h1 className="mt-4 font-serif text-[26px] font-bold leading-tight tracking-tight">

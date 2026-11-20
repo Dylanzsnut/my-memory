@@ -1,4 +1,5 @@
-import { CheckCircle2, Clock3, Image, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, Clock3, Image, Mic, NotepadText, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import type { CaptureRecord, Decision, ForgetProposal, Language } from '../types';
 import { t } from '../lib/i18n';
 
@@ -16,11 +17,12 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
   const kept = proposals.filter((p) => p.decided === 'keep').length;
   const trashedCaptures = captures.filter((c) => c.retentionState === 'trashed');
   const protectedCaptures = captures.filter((c) => c.retentionState === 'protected');
+  const [protectedOpen, setProtectedOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-accent">
           <Sparkles size={13} /> {language === 'vi' ? 'Dọn dẹp chánh niệm' : 'Mindful tidying'}
         </span>
         <h1 className="mt-3 font-serif text-[26px] font-bold tracking-tight">{t(language, 'forget')}</h1>
@@ -37,7 +39,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
         ].map((stat) => (
           <div key={stat.label} className={`rounded-xl p-3 shadow-sm ${stat.cls}`}>
             <span className="block text-[22px] font-black leading-none">{stat.value}</span>
-            <span className="mt-1.5 block text-[10px] font-semibold opacity-80">{stat.label}</span>
+            <span className="mt-1.5 block text-[11px] font-semibold opacity-80">{stat.label}</span>
           </div>
         ))}
       </div>
@@ -47,7 +49,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
           <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
             <Sparkles size={16} className="text-accent" /> {t(language, 'reviewQueue')}
           </h2>
-          <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold text-ink2">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-semibold text-ink2">
             {pending.length} {language === 'vi' ? 'mục' : 'items'}
           </span>
         </div>
@@ -60,30 +62,24 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
 
         {pending.map((proposal, index) => {
           const capture = captures.find((c) => c.id === proposal.captureId);
+          const reasonKey =
+            proposal.reason !== 'duplicate'
+              ? 'proposalExpired'
+              : capture?.type === 'note'
+                ? 'proposalDuplicateNote'
+                : capture?.type === 'voice'
+                  ? 'proposalDuplicateVoice'
+                  : 'proposalDuplicatePhoto';
           return (
             <div key={proposal.id} className="animate-sheet rounded-2xl border border-line bg-canvas p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink3">
-                    {proposal.reason === 'duplicate'
-                      ? capture?.type === 'note'
-                        ? language === 'vi'
-                          ? 'Ghi chú trùng lặp'
-                          : 'Duplicate note'
-                        : capture?.type === 'voice'
-                          ? language === 'vi'
-                            ? 'Ghi âm trùng lặp'
-                            : 'Duplicate voice memo'
-                          : language === 'vi'
-                            ? 'Ảnh trùng lặp'
-                            : 'Duplicate photo'
-                      : language === 'vi'
-                        ? 'Đã hết hạn'
-                        : 'Expired'}
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-ink3">
+                    {t(language, reasonKey)}
                   </span>
                   <h3 className="mt-0.5 truncate text-[14px] font-bold">{capture?.summary || proposal.captureId}</h3>
                 </div>
-                <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold text-ink2">
+                <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-semibold text-ink2">
                   {index + 1} / {pending.length}
                 </span>
               </div>
@@ -98,14 +94,14 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'keep')}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-line2 bg-canvas text-[12px] font-bold text-ink transition-colors hover:bg-surface2"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-teal text-[12px] font-bold text-white transition-colors hover:bg-teal/90"
                 >
-                  <CheckCircle2 size={15} className="text-teal" /> {t(language, 'keep')}
+                  <CheckCircle2 size={15} /> {t(language, 'keep')}
                 </button>
                 <button
                   type="button"
                   onClick={() => onDecide(proposal, 'approve')}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-accent-bright"
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-danger/40 bg-canvas text-[12px] font-bold text-danger transition-colors hover:bg-danger-soft"
                 >
                   <Trash2 size={15} /> {t(language, 'moveToTrash')}
                 </button>
@@ -115,27 +111,42 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
         })}
       </section>
 
-      {protectedCaptures.map((capture) => (
-        <div key={capture.id} className="rounded-2xl border border-teal/20 bg-gold-soft p-4">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gold">
+      {protectedCaptures.length > 0 && (
+        <section className="rounded-2xl border border-teal/20 bg-gold-soft p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
               <ShieldCheck size={16} /> {t(language, 'alwaysProtected')}
             </span>
-            <span className="rounded-full bg-canvas/70 px-2 py-0.5 text-[9px] font-bold text-gold">
-              {language === 'vi' ? 'An toàn · không xóa' : 'Safe · never removed'}
-            </span>
+            <button
+              type="button"
+              onClick={() => setProtectedOpen((open) => !open)}
+              aria-expanded={protectedOpen}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-canvas/70 px-3 text-[11px] font-bold text-gold"
+            >
+              {t(language, 'protectedCount', { n: protectedCaptures.length })} ·{' '}
+              {t(language, protectedOpen ? 'protectedHide' : 'protectedShow')}
+            </button>
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-canvas/70 text-gold">
-              <Image size={22} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-bold">{capture.summary}</p>
-              <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink2">{capture.protectedReason}</p>
+          {protectedOpen && (
+            <div className="mt-3 space-y-2">
+              {protectedCaptures.map((capture) => {
+                const TypeIcon = capture.type === 'voice' ? Mic : capture.type === 'note' ? NotepadText : Image;
+                return (
+                  <div key={capture.id} className="flex items-center gap-3 rounded-xl bg-canvas/70 p-2.5">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gold-soft text-gold">
+                      <TypeIcon size={18} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-[12.5px] font-bold">{capture.summary}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink2">{capture.protectedReason}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </div>
-      ))}
+          )}
+        </section>
+      )}
 
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2 p-3.5">
         <div className="flex items-center gap-3">
@@ -143,10 +154,8 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
             <Clock3 size={17} />
           </span>
           <div>
-            <p className="text-[12px] font-bold">{language === 'vi' ? `An toàn ${trashDays} ngày` : `${trashDays}-day safety net`}</p>
-            <p className="text-[11px] text-ink2">
-              {language === 'vi' ? 'Khôi phục hoặc xóa vĩnh viễn trong Thùng rác.' : 'Restore or permanently delete items in Trash.'}
-            </p>
+            <p className="text-[12px] font-bold">{t(language, 'safetyNet', { n: trashDays })}</p>
+            <p className="text-[11px] text-ink2">{t(language, 'safetyNetBody')}</p>
           </div>
         </div>
         <button

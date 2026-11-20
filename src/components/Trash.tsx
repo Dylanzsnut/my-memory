@@ -74,10 +74,10 @@ export default function Trash({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent">
                         {t(language, 'daysLeft', { n: left })}
                       </span>
-                      <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold text-ink2">
+                      <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-semibold text-ink2">
                         {capture.trashSource === 'manual' ? t(language, 'sourceManual') : t(language, 'sourceProposal')}
                       </span>
                     </div>

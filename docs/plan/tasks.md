@@ -855,3 +855,66 @@ existing browsers already held a v2 database → `openDB` threw `VersionError`,
       if the size is acceptable. (Lazy-loaded `firebase/ai` and
       `firebase/firestore`, split `firebase-core` and `firebase-auth`, and set
       `build.chunkSizeWarningLimit: 600` for the async Firestore SDK chunk.)
+
+## UI/UX review (2026-11-20)
+
+Scope: owner asked to "review to improve uiux" then "fix all"; 17 findings from
+the review of `App.tsx` and every `src/components/` screen. No product rules
+change: fail-closed answers, human-in-the-loop forgetting, protected captures,
+provenance, model pins and the privacy boundary stay intact.
+
+- [x] Ask — distinct Not-found treatment (neutral/gold header + non-success
+      icon + "try a #tag / check spelling" next steps) instead of the teal
+      verified banner; add EN/VI keys.
+- [x] Memories — calendar-day date filters (local time) for All / Today /
+      Yesterday / Older, replacing the rolling 24-hour windows.
+- [x] Ask — show demo example chips only in Demo mode or when no real tags
+      exist, so new Google accounts don't start with guaranteed Not-found.
+- [x] Forms — use ≥16px text in Ask / note / voice / tag inputs so iOS Safari
+      does not zoom the page on focus.
+- [x] Contrast — darken `ink3` and `gold` tokens to ≥4.5:1 on their soft
+      surfaces and raise the smallest body labels to ≥11px; record the new
+      token values in `docs/as-built/design-system.md`.
+- [x] Touch targets — bring every small control to ≥44px (capture buttons,
+      date/tag chips, tag remove ✕, draft-panel dismiss buttons).
+- [x] Dialogs — shared keyboard behaviour: Escape, backdrop dismiss, focus
+      trap + focus restore, and page scroll lock for the suggestions sheet,
+      trash confirm, account menu, DetailSheet and its photo lightbox.
+- [x] i18n — move hardcoded labels/copy (`Memory #…`, `Original proof`,
+      full-screen open, `Rename tag`, raw capture type, Forget reason labels,
+      restore toast) into `src/lib/i18n.ts` for EN and VI.
+- [x] Toast — add `role="status"` for announcements and auto-dismiss all
+      toasts (including Undo-less restore/purge messages).
+- [x] Memories — move the destructive card action behind a single `⋮` menu,
+      matching the as-built design and keeping cards scannable.
+- [x] Forget — give Keep and Move to trash equal visual weight and use a
+      non-alarming tab icon for the review tab.
+- [x] Memories — header cleanup: time-aware greeting, one online/offline
+      status in the subtitle, status pill colour changes offline, and remove
+      the decorative avatar; title the unfiltered list "All memories".
+- [x] Ask — collapse example/tag chips after a question and scroll the answer
+      into view so the result is visible on a 375px viewport.
+- [x] Memories — clamp capture summaries to two lines instead of truncating
+      them to one.
+- [x] Forget — compact the protected-capture list behind an expandable count
+      and use the correct type icon.
+- [x] Ask / SignInGate — remove the unrelated "AI never deletes" footer from
+      answer cards and replace the misleading lock footer on sign-in with
+      privacy copy.
+- [x] Verify — `npm run typecheck && npm run lint && npm test && npm run build`,
+      then update `docs/as-built/DESIGN.md`, `docs/as-built/design-system.md`,
+      `docs/as-built/VERIFICATION.md` and the known-limits list.
+
+      Note (2026-11-20): all 17 findings fixed. Verification passed: typecheck,
+      lint (0 warnings), 23/23 tests across 7 suites, production build
+      (`index-k6YHq3Pt.js`). New pure helper `src/lib/dateFilter.ts` is covered
+      by two calendar-day tests; the shared dialog hook is
+      `src/lib/useDialog.ts`. No live device or screen-reader run was possible
+      here, so visual/AT behaviour remains a manual check.
+
+## Commit & deploy (2026-11-20)
+
+- [ ] Commit the UI/UX review changes with a descriptive message; confirm no
+      `.env`, credentials or debug tokens are staged.
+- [ ] Deploy the current `dist/` build to Firebase Hosting for the configured
+      project (`my-memory-hybrid-2026`) and verify the live URL responds.

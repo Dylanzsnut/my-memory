@@ -14,6 +14,7 @@ import {
 import { detectTextProtection } from '../src/lib/protection';
 import { computeTagGroups, isSensitiveLabelToken } from '../src/lib/tags';
 import { parseExifDateTimeOriginal } from '../src/lib/exif';
+import { matchesDateFilter } from '../src/lib/dateFilter';
 import { settings } from '../src/lib/config';
 
 async function makeCapture(
@@ -486,5 +487,26 @@ describe('local-first Ask: tags, synonyms and speed', () => {
     assert.ok(hits.length >= 1);
     assert.equal(answer.notFound, false);
     assert.ok(elapsed < 250, `took ${elapsed.toFixed(0)} ms`);
+  });
+});
+
+describe('calendar date filters', () => {
+  // Local-time constructor keeps the test independent of the machine timezone.
+  const now = new Date(2026, 10, 20, 8, 0, 0);
+  const at = (day: number, hour: number) =>
+    new Date(2026, 10, day, hour, 0, 0).toISOString();
+
+  it('uses calendar days rather than rolling 24-hour windows', () => {
+    assert.equal(matchesDateFilter(at(19, 23), 'today', now), false);
+    assert.equal(matchesDateFilter(at(19, 23), 'yesterday', now), true);
+    assert.equal(matchesDateFilter(at(20, 7), 'today', now), true);
+    assert.equal(matchesDateFilter(at(18, 12), 'older', now), true);
+    assert.equal(matchesDateFilter(at(20, 9), 'today', now), true);
+  });
+
+  it('keeps all dates unfiltered and ignores malformed timestamps', () => {
+    assert.equal(matchesDateFilter('nope', 'all', now), true);
+    assert.equal(matchesDateFilter('nope', 'today', now), false);
+    assert.equal(matchesDateFilter('nope', 'older', now), true);
   });
 });

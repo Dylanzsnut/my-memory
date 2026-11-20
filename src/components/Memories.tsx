@@ -3,6 +3,7 @@ import {
   Check,
   Image,
   Mic,
+  MoreVertical,
   NotepadText,
   Pencil,
   RefreshCw,
@@ -14,7 +15,9 @@ import {
 } from 'lucide-react';
 import type { CaptureRecord, CaptureType, ExtractionRequest, Language, TagGroupProposal } from '../types';
 import { extractPhotoCapturedAt } from '../lib/exif';
+import { matchesDateFilter, type DateFilter } from '../lib/dateFilter';
 import { t } from '../lib/i18n';
+import { useDialog } from '../lib/useDialog';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
 
@@ -47,14 +50,10 @@ function typeLabel(language: Language, type: CaptureType): string {
   return t(language, key);
 }
 
-type DateFilter = 'all' | 'today' | 'yesterday' | 'older';
-
-function matchesDateFilter(date: string, filter: DateFilter): boolean {
-  if (filter === 'all') return true;
-  const days = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
-  if (filter === 'today') return days < 1;
-  if (filter === 'yesterday') return days >= 1 && days < 2;
-  return days >= 2;
+function greeting(language: Language): string {
+  const hour = new Date().getHours();
+  const key = hour < 12 ? 'goodMorning' : hour < 18 ? 'goodAfternoon' : 'goodEvening';
+  return t(language, key);
 }
 
 interface VoiceDraft {
@@ -125,6 +124,11 @@ export default function Memories({
   const [confirmTrash, setConfirmTrash] = useState<CaptureRecord | null>(null);
   const [activeDateFilter, setActiveDateFilter] = useState<DateFilter>('all');
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const trashConfirmRef = useRef<HTMLDivElement>(null);
+  useDialog(suggestionsRef, suggestionsOpen, () => setSuggestionsOpen(false));
+  useDialog(trashConfirmRef, Boolean(confirmTrash), () => setConfirmTrash(null));
   const [groupByTag, setGroupByTag] = useState(false);
   const online = useOnlineStatus();
   const UNTAGGED = '__untagged__';
@@ -142,6 +146,22 @@ export default function Memories({
     setVoiceDraft(null);
     setVoiceText('');
   };
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest('[data-card-menu]')) setOpenMenuId(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [openMenuId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -274,32 +294,46 @@ export default function Memories({
   }
 
   const renderCaptureCard = (capture: CaptureRecord) => (
-    <div key={capture.id} className="w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2">
+    <div key={capture.id} className="relative w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TYPE_STYLE[capture.type]}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${TYPE_STYLE[capture.type]}`}>
             {typeLabel(language, capture.type)}
           </span>
           {capture.protectedReason && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
-              <ShieldCheck size={11} /> {language === 'vi' ? 'Được bảo vệ' : 'Protected'}
+            <span className="inline-flex items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-bold text-teal">
+              <ShieldCheck size={11} /> {t(language, 'alwaysProtected')}
             </span>
           )}
           {capture.demo && (
-            <span className="rounded-full bg-surface2 px-2 py-0.5 text-[9px] font-semibold text-ink3">
+            <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-semibold text-ink3">
               {t(language, 'demoData')}
             </span>
           )}
         </div>
         {onManualTrash && (
-          <button
-            type="button"
-            onClick={() => setConfirmTrash(capture)}
-            aria-label={t(language, 'deleteMemory')}
-            className="grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-ink3 transition-colors hover:bg-danger-soft hover:text-danger"
-          >
-            <Trash2 size={14} />
-          </button>
+          <div className="relative shrink-0" data-card-menu>
+            <button
+              type="button"
+              onClick={() => setOpenMenuId((id) => (id === capture.id ? null : capture.id))}
+              aria-label={t(language, 'cardActions')}
+              aria-expanded={openMenuId === capture.id}
+              className="grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-ink2 transition-colors hover:bg-surface2"
+            >
+              <MoreVertical size={16} />
+            </button>
+            {openMenuId === capture.id && (
+              <div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-line bg-canvas p-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => { setOpenMenuId(null); setConfirmTrash(capture); }}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 text-[12px] font-semibold text-danger hover:bg-danger-soft"
+                >
+                  <Trash2 size={14} /> {t(language, 'moveToTrash')}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <button type="button" onClick={() => onOpenDetail(capture)} className="mt-2.5 flex w-full items-start gap-3 text-left">
@@ -311,14 +345,14 @@ export default function Memories({
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-bold leading-snug">{capture.summary}</p>
+          <p className="line-clamp-2 text-[13.5px] font-bold leading-snug">{capture.summary}</p>
           {capture.derivedText && (
             <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink2">{capture.derivedText}</p>
           )}
           {capture.tags && capture.tags.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {capture.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-teal">
+                <span key={tag} className="rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-bold text-teal">
                   #{tag}
                 </span>
               ))}
@@ -326,7 +360,7 @@ export default function Memories({
           )}
           <div className="mt-2 flex items-center gap-2">
             <SourceBadge source={capture.inferenceSource} language={language} />
-            <span className="text-[10px] text-ink3">
+            <span className="text-[11px] text-ink3">
               {new Date(capture.capturedAt).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US', {
                 day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
@@ -341,7 +375,7 @@ export default function Memories({
     <section key={title} className="space-y-2.5">
       <div className="flex items-center justify-between px-0.5">
         <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
-        <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink2">
+        <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[11px] font-semibold text-ink2">
           {badge || `${items.length} ${t(language, 'groupEntries')}`}
         </span>
       </div>
@@ -351,24 +385,20 @@ export default function Memories({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[12px] font-semibold text-ink3">{t(language, 'goodMorning')}</p>
-          <h1 className="font-serif text-[26px] font-bold leading-tight tracking-tight">
-            {language === 'vi' ? 'Trí nhớ của bạn' : 'Your memory'}
-          </h1>
-          <p className="mt-1 text-[12px] text-ink2">
-            {t(language, 'momentsRemembered', { n: visibleCaptures.length })} ·{' '}
-            {t(language, online ? 'onlineLive' : 'offlineLive')}
-          </p>
-        </div>
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-accent text-sm font-black text-white">M</div>
+      <div>
+        <p className="text-[12px] font-semibold text-ink3">{greeting(language)}</p>
+        <h1 className="font-serif text-[26px] font-bold leading-tight tracking-tight">
+          {t(language, 'allMemories')}
+        </h1>
+        <p className="mt-1 text-[12px] text-ink2">
+          {t(language, 'momentsRemembered', { n: visibleCaptures.length })}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-teal-soft px-3 py-1.5">
+        <div className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 ${online ? 'bg-teal-soft' : 'bg-gold-soft'}`}>
           <span className={`h-1.5 w-1.5 animate-pulse-dot rounded-full ${online ? 'bg-teal' : 'bg-gold'}`} />
-          <span className="text-[10.5px] font-bold uppercase tracking-wide text-teal">
+          <span className={`text-[11px] font-bold uppercase tracking-wide ${online ? 'text-teal' : 'text-gold'}`}>
             {t(language, online ? 'onlineLive' : 'offlineLive')}
           </span>
         </div>
@@ -400,7 +430,7 @@ export default function Memories({
           type="button"
           onClick={() => photoInputRef.current?.click()}
           disabled={busy || Boolean(importProgress?.active)}
-          className="inline-flex items-center justify-center gap-1 rounded-xl bg-accent-soft px-2 py-2.5 text-[11.5px] font-bold text-accent active:scale-95 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-accent-soft px-2 py-2.5 text-[11.5px] font-bold text-accent active:scale-95 disabled:opacity-50"
         >
           <Image size={15} /> {t(language, 'photo')}
         </button>
@@ -408,7 +438,7 @@ export default function Memories({
           type="button"
           onClick={toggleRecording}
           disabled={(busy || Boolean(importProgress?.active)) && !recording}
-          className={`inline-flex items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[11.5px] font-bold active:scale-95 disabled:opacity-50 ${
+          className={`inline-flex min-h-11 items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[11.5px] font-bold active:scale-95 disabled:opacity-50 ${
             recording ? 'bg-danger-soft text-danger' : 'bg-teal-soft text-teal'
           }`}
         >
@@ -417,7 +447,7 @@ export default function Memories({
         <button
           type="button"
           onClick={() => { if (!noteOpen) clearDraft(); setNoteOpen(!noteOpen); }}
-          className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold-soft px-2 py-2.5 text-[11.5px] font-bold text-gold active:scale-95"
+          className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-gold-soft px-2 py-2.5 text-[11.5px] font-bold text-gold active:scale-95"
         >
           <NotepadText size={15} /> {t(language, 'note')}
         </button>
@@ -439,7 +469,7 @@ export default function Memories({
               : t(language, 'importFailed', { n: importProgress.failed })}
           </span>
           {!importProgress.active && (
-            <button type="button" onClick={() => setImportProgress(null)} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
+            <button type="button" onClick={() => setImportProgress(null)} aria-label={t(language, 'cancel')} className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3 hover:bg-surface2 hover:text-ink">
               <X size={14} />
             </button>
           )}
@@ -457,7 +487,7 @@ export default function Memories({
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold">{t(language, 'newVoiceMemo')}</span>
-            <button type="button" onClick={clearDraft} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
+            <button type="button" onClick={clearDraft} aria-label={t(language, 'cancel')} className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3 hover:bg-surface2 hover:text-ink">
               <X size={16} />
             </button>
           </div>
@@ -471,7 +501,7 @@ export default function Memories({
                 value={voiceText}
                 onChange={(e) => setVoiceText(e.target.value)}
                 placeholder={t(language, 'voiceMemoPlaceholder')}
-                className="mt-2 min-h-16 w-full rounded-xl border border-line bg-surface2 p-2 text-[11.5px] outline-none"
+                className="mt-2 min-h-16 w-full rounded-xl border border-line bg-surface2 p-2 text-base outline-none"
               />
               <button
                 type="button"
@@ -495,7 +525,7 @@ export default function Memories({
         <div className="animate-sheet rounded-2xl border border-line bg-canvas p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-bold">{t(language, 'newNote')}</span>
-            <button type="button" onClick={() => setNoteOpen(false)} aria-label={t(language, 'cancel')} className="text-ink3 hover:text-ink">
+            <button type="button" onClick={() => setNoteOpen(false)} aria-label={t(language, 'cancel')} className="grid min-h-11 min-w-11 place-items-center rounded-full text-ink3 hover:bg-surface2 hover:text-ink">
               <X size={16} />
             </button>
           </div>
@@ -503,7 +533,7 @@ export default function Memories({
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder={t(language, 'notePlaceholder')}
-            className="mt-2 min-h-20 w-full rounded-xl border border-line bg-surface2 p-2 text-[11.5px] outline-none"
+            className="mt-2 min-h-20 w-full rounded-xl border border-line bg-surface2 p-2 text-base outline-none"
           />
           <button
             type="button"
@@ -529,7 +559,7 @@ export default function Memories({
             type="button"
             onClick={() => setActiveDateFilter(value)}
             aria-pressed={activeDateFilter === value}
-            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
               activeDateFilter === value ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
             }`}
           >
@@ -542,7 +572,7 @@ export default function Memories({
             type="button"
             onClick={() => setActiveTag(null)}
             aria-pressed={!selectedTag}
-            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold ${
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold ${
               !selectedTag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
             }`}
           >
@@ -555,7 +585,7 @@ export default function Memories({
             type="button"
             onClick={() => setActiveTag(selectedTag === tag ? null : tag)}
             aria-pressed={selectedTag === tag}
-            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
               selectedTag === tag ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
             }`}
           >
@@ -567,7 +597,7 @@ export default function Memories({
             type="button"
             onClick={() => setActiveTag(selectedTag === UNTAGGED ? null : UNTAGGED)}
             aria-pressed={selectedTag === UNTAGGED}
-            className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
               selectedTag === UNTAGGED ? 'border-teal bg-teal text-white' : 'border-line bg-canvas text-ink2'
             }`}
           >
@@ -635,7 +665,7 @@ export default function Memories({
 
       {suggestionsOpen && tagGroups.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4" onClick={() => setSuggestionsOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label={t(language, 'groupsTitle')} className="animate-sheet flex max-h-[82vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+          <div ref={suggestionsRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t(language, 'groupsTitle')} className="animate-sheet flex max-h-[82vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl outline-none sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2">
               <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
                 <Sparkles size={14} className="text-accent" /> {t(language, 'groupsTitle')}
@@ -667,7 +697,7 @@ export default function Memories({
                             onKeyDown={(e) => { if (e.key === 'Enter') commitSuggestedRename(); }}
                             onBlur={commitSuggestedRename}
                             aria-label={t(language, 'renameGroup')}
-                            className="w-36 rounded-lg border border-accent bg-canvas px-2 py-0.5 text-[12px] font-bold outline-none"
+                            className="min-h-11 w-36 rounded-lg border border-accent bg-canvas px-2 py-0.5 text-base font-bold outline-none"
                           />
                         ) : (
                           <span className="rounded-full border border-dashed border-accent bg-accent-soft px-2.5 py-0.5 text-[11px] font-bold text-accent">
@@ -675,7 +705,7 @@ export default function Memories({
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] font-semibold text-ink3">{t(language, 'match')} {group.meanSimilarity.toFixed(2)}</span>
+                      <span className="text-[11px] font-semibold text-ink3">{t(language, 'match')} {group.meanSimilarity.toFixed(2)}</span>
                     </div>
                     <div className="mt-2.5 space-y-1.5">
                       {members.map((member) => {
@@ -740,7 +770,7 @@ export default function Memories({
 
       {confirmTrash && onManualTrash && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setConfirmTrash(null)}>
-          <div role="dialog" aria-modal="true" aria-label={t(language, 'deleteConfirmTitle')} className="animate-sheet w-full max-w-sm rounded-2xl border border-line bg-canvas p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div ref={trashConfirmRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t(language, 'deleteConfirmTitle')} className="animate-sheet w-full max-w-sm rounded-2xl border border-line bg-canvas p-4 shadow-xl outline-none" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-[14px] font-bold text-ink">{t(language, 'deleteConfirmTitle')}</h2>
             <p className="mt-1 truncate text-[12px] font-semibold text-ink2">{confirmTrash.summary}</p>
             <p className={`mt-2 rounded-xl p-2.5 text-[11.5px] leading-snug ${confirmTrash.protectedReason ? 'bg-danger-soft text-danger font-semibold' : 'bg-surface2 text-ink2'}`}>

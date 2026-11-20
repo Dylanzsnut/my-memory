@@ -130,7 +130,7 @@ export default function SignInGate({ language, onLanguageChange, onAuthenticated
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-ink3">
-        <Lock size={12} /> {t(language, 'authOffline')}
+        <Lock size={12} /> {t(language, 'privacyFooter')}
       </p>
     </div>
   );

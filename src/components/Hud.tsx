@@ -24,7 +24,7 @@ function SourceIcon({ source }: { source: InferenceSource }) {
 export function SourceBadge({ source, language }: { source: InferenceSource; language: Language }) {
   const label = source === 'IN_CLOUD' ? t(language, 'inCloud') : source === 'SIMULATED' ? t(language, 'simulated') : t(language, 'onDevice');
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${SOURCE_STYLE[source]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${SOURCE_STYLE[source]}`}>
       <SourceIcon source={source} /> {label}
     </span>
   );
@@ -63,7 +63,7 @@ export default function Hud({ events, language, demoMode }: Props) {
         </div>
       </button>
       {demoMode && (
-        <p className="mt-2 rounded-lg bg-accent-soft px-2 py-1.5 text-[10.5px] leading-snug text-accent">
+        <p className="mt-2 rounded-lg bg-accent-soft px-2 py-1.5 text-[11px] leading-snug text-accent">
           {t(language, 'demoBanner')}
         </p>
       )}
@@ -77,10 +77,10 @@ export default function Hud({ events, language, demoMode }: Props) {
                   <SourceIcon source={event.source} />
                   <span className="truncate text-[11px] font-semibold text-ink2">{event.label}</span>
                 </div>
-                <span className="shrink-0 font-mono text-[10px] text-ink3">{event.latencyMs} ms</span>
+                <span className="shrink-0 font-mono text-[11px] text-ink3">{event.latencyMs} ms</span>
               </div>
               {event.detail && (
-                <p className="mt-0.5 truncate pl-5 text-[10px] text-ink3" title={event.detail}>
+                <p className="mt-0.5 truncate pl-5 text-[11px] text-ink3" title={event.detail}>
                   {event.detail}
                 </p>
               )}
