@@ -957,7 +957,12 @@ and never sent to Firestore.
 
 ## Commit & deploy: entity approval & tag filters (2026-11-20)
 
-- [ ] Commit the entity-approval and tag-filter changes; verify no `.env`,
+- [x] Commit the entity-approval and tag-filter changes; verify no `.env`,
       credentials or debug tokens are staged.
-- [ ] Deploy the current `dist/` build to Firebase Hosting for
+- [x] Deploy the current `dist/` build to Firebase Hosting for
       `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-20): committed as `fa38d56` (12 files; no secrets in the
+      staged diff). Hosting release completed; live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-gOcGdHMj.js` / `index-BUHdG5US.css`, matching the local build.
