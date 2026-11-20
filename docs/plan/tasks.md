@@ -914,7 +914,13 @@ provenance, model pins and the privacy boundary stay intact.
 
 ## Commit & deploy (2026-11-20)
 
-- [ ] Commit the UI/UX review changes with a descriptive message; confirm no
+- [x] Commit the UI/UX review changes with a descriptive message; confirm no
       `.env`, credentials or debug tokens are staged.
-- [ ] Deploy the current `dist/` build to Firebase Hosting for the configured
+- [x] Deploy the current `dist/` build to Firebase Hosting for the configured
       project (`my-memory-hybrid-2026`) and verify the live URL responds.
+
+      Note (2026-11-20): committed as `ec90898` (20 files; `.env`/`dist/`
+      gitignored and no secret patterns in the staged diff). Firebase Hosting
+      release completed for `my-memory-hybrid-2026`; live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-k6YHq3Pt.js` / `index-jpOQdllu.css`, matching the local build.
