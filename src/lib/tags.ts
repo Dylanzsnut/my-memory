@@ -5,7 +5,6 @@
  * Runs 100% locally offline and never sends labels, embeddings, or tags to cloud/Firestore.
  */
 import type { AppSettings, CaptureRecord, CaptureType, TagGroupProposal } from '../types';
-import { isSensitiveEntity } from './ai';
 import { cosine, normalize } from './embeddings';
 
 const STOPWORDS = new Set([
@@ -247,6 +246,30 @@ export function rebuildSearchText(capture: Pick<CaptureRecord, 'summary' | 'enti
     .join(' ');
 }
 
+const TAG_SECRET_KEYWORDS =
+  /\b(password|passcode|passphrase|pwd|mat\s*khau|otp|verification\s*code|ma\s*xac\s*thuc|pin\s*code|cvv|secret|api\s*key|token|wifi\s*key|wifi|mat\s*khau)\b/i;
+const TAG_CATEGORY_WORDS = new Set([
+  'password', 'passcode', 'passphrase', 'pwd', 'mat khau', 'matkhau', 'otp', 'verification code',
+  'ma xac thuc', 'pin code', 'cvv', 'secret', 'api key', 'token', 'wifi key', 'wifi',
+]);
+
+/** Narrower secret check for tag approval only — real-looking secrets lock. */
+export function isTagSecret(
+  value: string,
+  capture?: Pick<CaptureRecord, 'summary' | 'derivedText'>,
+): boolean {
+  const label = value.trim();
+  if (!label) return false;
+  const norm = normalize(label);
+  // Category words ("password", "wifi", "mat khau") are useful tags, not secrets.
+  if (TAG_CATEGORY_WORDS.has(norm)) return false;
+  if (/^\d{4,8}$/.test(label)) return true;
+  if (/[a-z]/i.test(label) && /[0-9!@#$%^&*_.-]/.test(label) && label.length >= 4) return true;
+  const text = `${capture?.summary || ''} ${capture?.derivedText || ''}`;
+  const inline = new RegExp(`${TAG_SECRET_KEYWORDS.source}\\s*(?:is|la|:|=)?\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+  return TAG_SECRET_KEYWORDS.test(text) && inline.test(text);
+}
+
 export type EntityTagState = 'add' | 'tagged' | 'sensitive' | 'unusable';
 
 export interface EntityTagProposal {
@@ -265,8 +288,9 @@ export function prepareEntityTag(
 ): EntityTagProposal | null {
   const label = (raw || '').trim().replace(/^#+/, '').trim();
   if (!label) return null;
-  if (isSensitiveEntity(label, capture)) return { label, state: 'sensitive' };
-  if (label.length > 40 || isSensitiveLabelToken(label, new Set())) {
+  if (isTagSecret(label, capture)) return { label, state: 'sensitive' };
+  const isCategory = TAG_CATEGORY_WORDS.has(normalize(label));
+  if (!isCategory && (label.length > 40 || isSensitiveLabelToken(label, new Set()))) {
     return { label, state: 'unusable' };
   }
   const norm = normalize(label);

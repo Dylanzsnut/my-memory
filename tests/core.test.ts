@@ -15,7 +15,11 @@ import { detectTextProtection } from '../src/lib/protection';
 import { computeTagGroups, isSensitiveLabelToken, prepareEntityTag } from '../src/lib/tags';
 import { sortTagOptions } from '../src/lib/tagOptions';
 import { parseExifDateTimeOriginal } from '../src/lib/exif';
-import { matchesDateFilter } from '../src/lib/dateFilter';
+import { matchesDateFilter, countByType, navTarget, paginate } from '../src/lib/dateFilter';
+import { formatBytes } from '../src/lib/storage';
+import { tagCollections, recentCaptures, pickInspected } from '../src/lib/collections';
+import { buildCopyText, askSuggestions } from '../src/lib/captureView';
+import { suggestQuestions } from '../src/lib/askSuggestions';
 import { settings } from '../src/lib/config';
 
 async function makeCapture(
@@ -491,24 +495,26 @@ describe('local-first Ask: tags, synonyms and speed', () => {
   });
 });
 
-describe('calendar date filters', () => {
-  // Local-time constructor keeps the test independent of the machine timezone.
+describe('date range filters', () => {
   const now = new Date(2026, 10, 20, 8, 0, 0);
   const at = (day: number, hour: number) =>
     new Date(2026, 10, day, hour, 0, 0).toISOString();
 
-  it('uses calendar days rather than rolling 24-hour windows', () => {
-    assert.equal(matchesDateFilter(at(19, 23), 'today', now), false);
-    assert.equal(matchesDateFilter(at(19, 23), 'yesterday', now), true);
-    assert.equal(matchesDateFilter(at(20, 7), 'today', now), true);
-    assert.equal(matchesDateFilter(at(18, 12), 'older', now), true);
-    assert.equal(matchesDateFilter(at(20, 9), 'today', now), true);
+  it('filters by week, month, year and older', () => {
+    assert.equal(matchesDateFilter(at(20, 7), 'week', now), true);
+    assert.equal(matchesDateFilter(at(15, 7), 'week', now), true);
+    assert.equal(matchesDateFilter(at(10, 7), 'week', now), false);
+    assert.equal(matchesDateFilter(at(1, 7), 'month', now), true);
+    assert.equal(matchesDateFilter(new Date(2026, 9, 30).toISOString(), 'month', now), false);
+    assert.equal(matchesDateFilter(new Date(2026, 0, 5).toISOString(), 'year', now), true);
+    assert.equal(matchesDateFilter(new Date(2025, 11, 31).toISOString(), 'year', now), false);
+    assert.equal(matchesDateFilter(new Date(2025, 0, 1).toISOString(), 'older', now), true);
   });
 
   it('keeps all dates unfiltered and ignores malformed timestamps', () => {
     assert.equal(matchesDateFilter('nope', 'all', now), true);
-    assert.equal(matchesDateFilter('nope', 'today', now), false);
-    assert.equal(matchesDateFilter('nope', 'older', now), true);
+    assert.equal(matchesDateFilter('nope', 'week', now), false);
+    assert.equal(matchesDateFilter('nope', 'older', now), false);
   });
 });
 
@@ -522,7 +528,7 @@ describe('entity approval and tag filter ordering', () => {
       label: 'MEETING',
       state: 'tagged',
     });
-    assert.deepEqual(prepareEntityTag('123456', []), { label: '123456', state: 'unusable' });
+    assert.deepEqual(prepareEntityTag('123456', []), { label: '123456', state: 'sensitive' });
     assert.deepEqual(prepareEntityTag('x'.repeat(41), []), {
       label: 'x'.repeat(41),
       state: 'unusable',
@@ -532,9 +538,12 @@ describe('entity approval and tag filter ordering', () => {
 
   it('blocks sensitive entities using the existing detector', () => {
     const capture = { summary: 'wifi password note', derivedText: 'The wifi key is stored here' };
-    assert.equal(prepareEntityTag('password', [], capture)?.state, 'sensitive');
+    assert.equal(prepareEntityTag('songhong2024', [], capture)?.state, 'sensitive');
+    assert.equal(prepareEntityTag('849201', [], capture)?.state, 'sensitive');
+    assert.equal(prepareEntityTag('cafe', [], capture)?.state, 'add');
     assert.equal(prepareEntityTag('wifi', [], capture)?.state, 'add');
-    assert.equal(prepareEntityTag('secret', [])?.state, 'sensitive');
+    assert.equal(prepareEntityTag('password', [], capture)?.state, 'add');
+    assert.equal(prepareEntityTag('mat khau', [], capture)?.state, 'add');
   });
 
   it('sorts tags by count, breaks ties alphabetically and pins the selected tag', () => {
@@ -554,5 +563,102 @@ describe('entity approval and tag filter ordering', () => {
       'rare',
       'zeta',
     ]);
+  });
+});
+
+describe('desktop helpers', () => {
+  it('formats storage estimates without inventing data', () => {
+    assert.equal(formatBytes(0), '0 B');
+    assert.equal(formatBytes(999), '999 B');
+    assert.equal(formatBytes(1536), '1.5 KB');
+    assert.equal(formatBytes(150 * 1024 * 1024), '150 MB');
+    assert.equal(formatBytes(2.5 * 1024 * 1024 * 1024), '2.5 GB');
+  });
+
+  it('counts by type, pages and builds tag collections', async () => {
+    const captures = [
+      await makeCapture({ id: 'a', type: 'photo', summary: 'A', tags: ['x'], capturedAt: new Date(2026, 10, 21, 8).toISOString() }),
+      await makeCapture({ id: 'b', type: 'voice', summary: 'B', tags: ['x'], capturedAt: new Date(2026, 10, 20, 22).toISOString() }),
+      await makeCapture({ id: 'c', type: 'note', summary: 'C', capturedAt: new Date(2026, 10, 18, 12).toISOString() }),
+    ];
+    assert.deepEqual(countByType(captures), { all: 3, photo: 1, voice: 1, note: 1 });
+    assert.deepEqual(paginate(captures, 0, 2), [captures[0], captures[1]]);
+    assert.deepEqual(paginate(captures, 1, 2), [captures[0], captures[1], captures[2]]);
+    assert.equal(navTarget(['a', 'b', 'c'], 'b', -1), 'a');
+    assert.equal(navTarget(['a', 'b', 'c'], 'a', -1), null);
+    assert.equal(navTarget(['a', 'b', 'c'], 'c', 1), null);
+    const collections = tagCollections(captures);
+    assert.equal(collections.length, 1);
+    assert.equal(collections[0].tag, 'x');
+    assert.equal(collections[0].count, 2);
+    assert.equal(recentCaptures(captures, 2).length, 2);
+    assert.equal(recentCaptures(captures, 2)[0].id, 'a');
+  });
+
+  it('copies only safe capture details', async () => {
+    const capture = await makeCapture({
+      id: 'copy',
+      type: 'note',
+      summary: 'Wifi note',
+      entities: ['wifi', 'password'],
+      derivedText: 'The password is secret123',
+    });
+    const text = buildCopyText(capture);
+    assert.match(text, /Wifi note/);
+    assert.match(text, /wifi/);
+    assert.doesNotMatch(text, /secret123/);
+    assert.doesNotMatch(text, /password/);
+    assert.equal(askSuggestions('en').length, 2);
+  });
+
+  it('picks the inspected capture or falls back to the newest', async () => {
+    const a = await makeCapture({ id: 'a', type: 'note', summary: 'A' });
+    const b = await makeCapture({ id: 'b', type: 'note', summary: 'B' });
+    assert.equal(pickInspected([a, b], 'b')?.id, 'b');
+    assert.equal(pickInspected([a, b], 'missing')?.id, 'a');
+    assert.equal(pickInspected([], 'a'), null);
+  });
+});
+
+describe('local Ask suggestions', () => {
+  it('generates questions only from real local data', async () => {
+    assert.deepEqual(suggestQuestions([], 'en'), []);
+    const expiry = await makeCapture({
+      id: 'med',
+      type: 'note',
+      summary: 'Panadol box',
+      entities: ['panadol'],
+      expiryDate: '2027-03-01',
+      capturedAt: new Date(2026, 10, 19).toISOString(),
+    });
+    const wifi = await makeCapture({
+      id: 'wifi',
+      type: 'note',
+      summary: 'Wifi password note',
+      entities: ['wifi', 'songhong2024'],
+      derivedText: 'The wifi password is songhong2024',
+    });
+    const questions = suggestQuestions([expiry, wifi], 'en');
+    assert.ok(questions.length > 0 && questions.length <= 5);
+    assert.ok(questions.some((q) => /expire/i.test(q.question)));
+    assert.ok(questions.some((q) => /wifi/i.test(q.question)));
+    for (const q of questions) assert.doesNotMatch(q.question, /songhong2024/);
+  });
+
+  it('only adds a tag-total question when online', async () => {
+    const a = await makeCapture({ id: 'a', type: 'note', summary: 'Lunch', tags: ['lunch'] });
+    const b = await makeCapture({ id: 'b', type: 'note', summary: 'Lunch 2', tags: ['lunch'] });
+    assert.equal(suggestQuestions([a, b], 'en', false).some((q) => /total/i.test(q.question)), false);
+    assert.equal(suggestQuestions([a, b], 'en', true).some((q) => /total/i.test(q.question)), true);
+  });
+
+  it('produces Vietnamese questions and no hardcoded demo phrases', async () => {
+    const demo = await makeCapture({ id: 'd', type: 'note', summary: 'Cafe menu', entities: ['cafe'] });
+    const vi = suggestQuestions([demo], 'vi');
+    assert.ok(vi.length > 0);
+    assert.ok(vi.some((q) => /[à-ỹ]/i.test(q.question)));
+    for (const q of suggestQuestions([demo], 'en')) {
+      assert.doesNotMatch(q.question, /license plate|lunch receipt|mum's medicine/i);
+    }
   });
 });

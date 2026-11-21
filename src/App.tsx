@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useOutsideDismiss } from './lib/useDialog';
-import { AlertTriangle, Fingerprint, Languages, LogOut, Trash2, User, X } from 'lucide-react';
+import { AlertTriangle, Fingerprint, Languages, X } from 'lucide-react';
 import type {
   AuthSession,
   CaptureRecord,
@@ -13,6 +12,7 @@ import type {
   TagGroupProposal,
 } from './types';
 import { isFirebaseConfigured, settings } from './lib/config';
+import { useStorageEstimate } from './lib/storage';
 import {
   initFirebase,
   getServices,
@@ -50,6 +50,8 @@ import Onboarding from './components/Onboarding';
 import SignInGate from './components/SignInGate';
 import BottomNav from './components/BottomNav';
 import SideNav from './components/SideNav';
+import AccountMenu from './components/AccountMenu';
+import DesktopTopBar, { type QuickCapture } from './components/DesktopTopBar';
 import Memories from './components/Memories';
 import Ask from './components/Ask';
 import Forget from './components/Forget';
@@ -66,20 +68,24 @@ interface ToastState {
 export default function App() {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [tab, setTab] = useState<Tab>('memories');
   const [captures, setCaptures] = useState<CaptureRecord[]>([]);
   const [proposals, setProposals] = useState<ForgetProposal[]>([]);
   const [hudEvents, setHudEvents] = useState<HudEvent[]>([]);
-  const [selected, setSelected] = useState<CaptureRecord | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inspectedId, setInspectedId] = useState<string | null>(null);
+  const [detailOrder, setDetailOrder] = useState<string[]>([]);
+  const [recentQuestions, setRecentQuestions] = useState<string[]>([]);
+  const [technicalDetails, setTechnicalDetails] = useState(false);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [busy, setBusy] = useState(false);
   const [askSeed, setAskSeed] = useState<string | undefined>(undefined);
   const [askCaptureId, setAskCaptureId] = useState<string | undefined>(undefined);
   const [askNonce, setAskNonce] = useState(0);
+  const [captureRequest, setCaptureRequest] = useState<{ kind: QuickCapture; nonce: number } | undefined>();
   const [nanoStatus, setNanoStatus] = useState<NanoAvailability>('unsupported');
   const [dismissedTagGroups, setDismissedTagGroups] = useState<string[]>([]);
   const [renamedTagGroups, setRenamedTagGroups] = useState<Record<string, string>>({});
@@ -89,8 +95,7 @@ export default function App() {
   const [trashReturnTab, setTrashReturnTab] = useState<Tab>('forget');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const booted = useRef(false);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  useOutsideDismiss(accountMenuRef, accountMenuOpen, () => setAccountMenuOpen(false));
+  const storageUsage = useStorageEstimate();
 
   const syncTagSuggestions = async (
     currentCaptures: CaptureRecord[],
@@ -172,6 +177,9 @@ export default function App() {
       probedNano,
       savedDismissed,
       savedRenamed,
+      savedRecentQuestions,
+      savedTechnical,
+      savedPreview,
     ] = await Promise.all([
       getCaptures(uid),
       getProposals(uid),
@@ -181,6 +189,9 @@ export default function App() {
       probeNanoAvailability(),
       getUserMeta<string[]>(uid, 'dismissedTagGroups', []),
       getUserMeta<Record<string, string>>(uid, 'renamedTagGroups', {}),
+      getUserMeta<string[]>(uid, 'recentQuestions', []),
+      getUserMeta<boolean>(uid, 'technicalDetails', false),
+      getUserMeta<boolean>(uid, 'previewEnabled', false),
     ]);
 
     const syncUid = activeSession.mode === 'google' ? uid : undefined;
@@ -215,6 +226,9 @@ export default function App() {
     setNanoStatus(probedNano);
     setDismissedTagGroups(savedDismissed);
     setRenamedTagGroups(savedRenamed);
+    setRecentQuestions(savedRecentQuestions);
+    setTechnicalDetails(savedTechnical);
+    setPreviewEnabled(savedPreview);
 
     const fresh = scanForProposals(migratedCaptures, settings.duplicateThreshold, currentProposals).map((p) => ({
       ...p,
@@ -284,16 +298,14 @@ export default function App() {
       console.warn('[store] save activeAuthSession failed', err),
     );
     setTab('memories');
-    setSelected(null);
+    setSelectedId(null);
+    setInspectedId(null);
+    setDetailOrder([]);
     setToast(null);
-    setAccountMenuOpen(false);
-    setDeleteAccountConfirm(false);
     await loadWorkspaceForSession(nextSession);
   };
 
   const handleSignOut = async () => {
-    setAccountMenuOpen(false);
-    setDeleteAccountConfirm(false);
     await setMeta('activeAuthSession', null).catch(() => undefined);
     await signOutFirebase();
     setSession(null);
@@ -303,9 +315,13 @@ export default function App() {
     setTagGroups([]);
     setDismissedTagGroups([]);
     setRenamedTagGroups({});
+    setRecentQuestions([]);
+    setTechnicalDetails(false);
     setActiveTag(null);
     activeUidRef.current = undefined;
-    setSelected(null);
+    setSelectedId(null);
+    setInspectedId(null);
+    setDetailOrder([]);
     setToast(null);
   };
 
@@ -430,6 +446,14 @@ export default function App() {
       result.latencyMs,
       result.error ? `${question.slice(0, 40)} — ${result.error}` : question.slice(0, 60),
     );
+    const clean = question.trim();
+    const nextRecent = [clean, ...recentQuestions.filter((item) => item !== clean)].slice(0, 5);
+    setRecentQuestions(nextRecent);
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'recentQuestions', nextRecent).catch((err) =>
+        console.warn('[store] setUserMeta(recentQuestions) failed', err),
+      );
+    }
     return result;
   };
 
@@ -489,7 +513,6 @@ export default function App() {
     const nextProposals = proposals.map((p) => closedProposals.find((u) => u.id === p.id) || p);
     setCaptures(nextCaptures);
     setProposals(nextProposals);
-    setSelected((prev) => (prev?.id === trashedCapture.id ? null : prev));
     void syncCaptureMetadata([trashedCapture], syncUid);
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     log(t(language, 'sourceManual'), capture.inferenceSource, 0, capture.summary.slice(0, 60));
@@ -525,7 +548,6 @@ export default function App() {
     const nextCaptures = captures.filter((c) => c.id !== capture.id);
     setCaptures(nextCaptures);
     setProposals((prev) => prev.filter((p) => p.captureId !== capture.id));
-    setSelected((prev) => (prev?.id === capture.id ? null : prev));
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
     log(t(language, 'deletePerm'), capture.inferenceSource, 0, capture.summary.slice(0, 60));
   };
@@ -567,7 +589,6 @@ export default function App() {
     await saveCapture(updated).catch((err) => console.warn('[store] saveCapture tags failed', err));
     const nextCaptures = captures.map((c) => (c.id === updated.id ? updated : c));
     setCaptures(nextCaptures);
-    setSelected((prev) => (prev?.id === updated.id ? updated : prev));
     await syncTagSuggestions(nextCaptures, dismissedTagGroups);
   };
 
@@ -634,8 +655,13 @@ export default function App() {
     setTab('memories');
   };
 
+  const openDetail = (capture: CaptureRecord, order?: string[]) => {
+    setSelectedId(capture.id);
+    setDetailOrder(order && order.length ? order : [capture.id]);
+  };
+
   const askAbout = (capture: CaptureRecord, question?: string) => {
-    setSelected(null);
+    setSelectedId(null);
     const resolved =
       question?.trim() ||
       (language === 'vi'
@@ -653,6 +679,52 @@ export default function App() {
       setAskCaptureId(undefined);
     }
     setTab(nextTab);
+  };
+
+  const handleTopSearch = (query: string) => {
+    setAskSeed(query);
+    setAskCaptureId(undefined);
+    setAskNonce((n) => n + 1);
+    setTab('ask');
+  };
+
+  const handleQuickCapture = (kind: QuickCapture) => {
+    setTab('memories');
+    setCaptureRequest({ kind, nonce: Date.now() });
+  };
+
+  const openInTimeline = (captureId: string) => {
+    setInspectedId(captureId);
+    setTab('memories');
+  };
+
+  const togglePreview = () => {
+    const next = !previewEnabled;
+    setPreviewEnabled(next);
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'previewEnabled', next).catch((err) =>
+        console.warn('[store] setUserMeta(previewEnabled) failed', err),
+      );
+    }
+  };
+
+  const toggleTechnical = () => {
+    const next = !technicalDetails;
+    setTechnicalDetails(next);
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'technicalDetails', next).catch((err) =>
+        console.warn('[store] setUserMeta(technicalDetails) failed', err),
+      );
+    }
+  };
+
+  const clearRecentQuestions = () => {
+    setRecentQuestions([]);
+    if (session?.uid) {
+      void setUserMeta(session.uid, 'recentQuestions', []).catch((err) =>
+        console.warn('[store] clear recentQuestions failed', err),
+      );
+    }
   };
 
   if (!ready) {
@@ -677,6 +749,9 @@ export default function App() {
   }
 
   const pendingCount = proposals.filter((p) => !p.decided).length;
+  const activeCaptures = captures.filter((capture) => capture.retentionState !== 'trashed');
+  const selected = activeCaptures.find((capture) => capture.id === selectedId) || null;
+  const inspected = activeCaptures.find((capture) => capture.id === inspectedId) || null;
   const askTagCounts = new Map<string, number>();
   captures
     .filter((capture) => capture.retentionState !== 'trashed')
@@ -686,10 +761,27 @@ export default function App() {
   const askTags = Array.from(askTagCounts, ([tag, count]) => ({ tag, count }));
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-bg md:max-w-7xl md:flex-row">
-      <SideNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-bg md:max-w-none md:flex-row">
+      <SideNav
+        active={tab}
+        onChange={handleTabChange}
+        language={language}
+        reviewCount={pendingCount}
+        memoriesCount={captures.filter((capture) => capture.retentionState !== 'trashed').length}
+        session={session}
+        onSignOut={handleSignOut}
+        onDeleteAccount={handleDeleteAccount}
+        technical={technicalDetails}
+        onToggleTechnical={toggleTechnical}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-      <header className="relative flex items-center justify-between px-5 pt-4 md:justify-end md:px-8">
+      <DesktopTopBar
+        language={language}
+        onLanguageChange={changeLanguage}
+        onSearch={handleTopSearch}
+        onQuickCapture={handleQuickCapture}
+      />
+      <header className="relative flex items-center justify-between px-5 pt-4 md:hidden">
         <div className="flex items-center gap-2 md:hidden">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-white">
             <Fingerprint size={18} />
@@ -705,74 +797,18 @@ export default function App() {
           >
             <Languages size={14} /> {language}
           </button>
-          <div ref={accountMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMenuOpen((open) => !open);
-                setDeleteAccountConfirm(false);
-              }}
-              aria-label={t(language, 'ariaAccountMenu')}
-              aria-expanded={accountMenuOpen}
-              className="inline-flex min-h-11 max-w-36 items-center gap-1.5 rounded-full border border-line2 bg-canvas px-3 py-1.5 text-[11px] font-bold text-ink2"
-            >
-              <User size={13} className="shrink-0" />
-              <span className="truncate">
-                {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid.slice(0, 8)}
-              </span>
-            </button>
-
-            {accountMenuOpen && (
-              <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-canvas p-3 shadow-xl">
-            <p className="truncate text-[11.5px] font-bold text-ink">
-              {session.mode === 'demo' ? t(language, 'demoBadge') : session.email || session.uid}
-            </p>
-            <p className="mt-0.5 truncate font-mono text-[11px] text-ink3">uid: {session.uid}</p>
-            <div className="mt-2.5 space-y-1.5 border-t border-line pt-2.5">
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-surface2 px-3 py-2 text-left text-[12px] font-semibold text-ink hover:bg-line/40"
-              >
-                <LogOut size={14} /> {t(language, 'signOut')}
-              </button>
-              {deleteAccountConfirm ? (
-                <div className="rounded-xl border border-danger/30 bg-danger-soft p-2">
-                  <p className="text-[11px] font-semibold text-danger">{t(language, 'deleteAccountConfirm')}</p>
-                  <div className="mt-2 flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setDeleteAccountConfirm(false)}
-                      className="min-h-11 flex-1 rounded-full border border-line bg-canvas py-1 text-[11px] font-bold text-ink2"
-                    >
-                      {t(language, 'cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAccount()}
-                      className="min-h-11 flex-1 rounded-full bg-danger py-1 text-[11px] font-bold text-white"
-                    >
-                      {t(language, 'deletePerm')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDeleteAccountConfirm(true)}
-                  className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-danger-soft/50 px-3 py-2 text-left text-[12px] font-semibold text-danger hover:bg-danger-soft"
-                >
-                  <Trash2 size={14} /> {t(language, 'deleteAccount')}
-                </button>
-              )}
-            </div>
-              </div>
-            )}
-          </div>
+          <AccountMenu
+            session={session}
+            language={language}
+            onSignOut={handleSignOut}
+            onDeleteAccount={handleDeleteAccount}
+            technical={technicalDetails}
+            onToggleTechnical={toggleTechnical}
+          />
         </div>
       </header>
 
-      <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5 md:px-8 lg:px-10">
+      <main className="flex-1 px-5 pb-6 pt-5 md:px-8 lg:px-10">
         {firebaseError && (
           <div
             role="alert"
@@ -800,7 +836,12 @@ export default function App() {
             captures={captures}
             language={language}
             onCapture={handleCapture}
-            onOpenDetail={setSelected}
+            onOpenDetail={openDetail}
+            onAskAbout={askAbout}
+            inspectedId={inspected?.id ?? null}
+            onInspect={setInspectedId}
+            previewEnabled={previewEnabled}
+            onTogglePreview={togglePreview}
             busy={busy}
             tagGroups={tagGroups}
             onAcceptTagGroup={handleAcceptTagGroup}
@@ -817,6 +858,10 @@ export default function App() {
             trashDays={settings.trashRetentionDays}
             activeTag={activeTag}
             onActiveTagChange={setActiveTag}
+            captureRequest={captureRequest}
+            displayName={session.mode === 'google' ? session.displayName || session.email?.split('@')[0] : null}
+            storageUsage={storageUsage}
+            technical={technicalDetails}
           />
         )}
         {tab === 'ask' && (
@@ -825,13 +870,17 @@ export default function App() {
             language={language}
             nanoStatus={nanoStatus}
             onAsk={handleAsk}
-            onOpenDetail={setSelected}
+            onOpenDetail={(capture) => openDetail(capture)}
             busy={busy}
-            demoMode={session.mode === 'demo'}
+            captures={captures}
             tags={askTags}
             activeTag={activeTag}
             onActiveTagChange={setActiveTag}
             onTagNavigate={handleTagNavigate}
+            onOpenInTimeline={openInTimeline}
+            recentQuestions={recentQuestions}
+            onClearRecent={clearRecentQuestions}
+            technical={technicalDetails}
             seedQuestion={askSeed}
             seedCaptureId={askCaptureId}
             onSeedConsumed={() => {
@@ -850,6 +899,7 @@ export default function App() {
               setTrashReturnTab('forget');
               setTab('trash');
             }}
+            onRestore={handleRestore}
             trashDays={settings.trashRetentionDays}
           />
         )}
@@ -863,9 +913,11 @@ export default function App() {
             onPermanentDelete={handlePermanentDelete}
           />
         )}
-        <div className="mt-6">
-          <Hud events={hudEvents} language={language} demoMode={!getServices().ai} />
-        </div>
+        {technicalDetails && (
+          <div className="mt-6">
+            <Hud events={hudEvents} language={language} demoMode={!getServices().ai} />
+          </div>
+        )}
       </main>
 
       <BottomNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
@@ -874,9 +926,13 @@ export default function App() {
       {selected && (
         <DetailSheet
           capture={selected}
+          order={detailOrder}
+          onNavigate={setSelectedId}
           language={language}
-          onClose={() => setSelected(null)}
+          onClose={() => setSelectedId(null)}
           onAskAbout={askAbout}
+          onToast={(message) => setToast({ message })}
+          technical={technicalDetails}
           onUpdateTags={handleUpdateTags}
           onManualTrash={handleManualTrash}
           trashDays={settings.trashRetentionDays}

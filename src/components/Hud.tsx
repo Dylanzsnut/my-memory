@@ -21,8 +21,24 @@ function SourceIcon({ source }: { source: InferenceSource }) {
   return <Cpu size={13} />;
 }
 
-export function SourceBadge({ source, language }: { source: InferenceSource; language: Language }) {
-  const label = source === 'IN_CLOUD' ? t(language, 'inCloud') : source === 'SIMULATED' ? t(language, 'simulated') : t(language, 'onDevice');
+export function SourceBadge({
+  source,
+  language,
+  plain = false,
+}: {
+  source: InferenceSource;
+  language: Language;
+  plain?: boolean;
+}) {
+  const label = plain
+    ? source === 'IN_CLOUD'
+      ? t(language, 'answeredWithCloud')
+      : t(language, 'answeredHere')
+    : source === 'IN_CLOUD'
+      ? t(language, 'inCloud')
+      : source === 'SIMULATED'
+        ? t(language, 'simulated')
+        : t(language, 'onDevice');
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${SOURCE_STYLE[source]}`}>
       <SourceIcon source={source} /> {label}

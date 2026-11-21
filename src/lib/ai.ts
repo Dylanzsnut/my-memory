@@ -254,7 +254,7 @@ export function hasSensitiveEntities(captures: CaptureRecord[]): boolean {
   return captures.some((c) => c.entities.some((e) => isSensitiveEntity(e, c)));
 }
 
-function redactSensitiveText(text: string): string {
+export function redactSensitiveText(text: string): string {
   return text.replace(SENSITIVE_INLINE_RE, '$1$2[REDACTED]');
 }
 

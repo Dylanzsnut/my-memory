@@ -1,7 +1,7 @@
 # My Memory — UI/UX & Interaction Design (As-Built)
 
-- Owner: Duy · Last verified: 2026-11-21 · Against HEAD: `fa38d56` plus the
-  uncommitted 2026-11-21 responsive-layout changes
+- Owner: Duy · Last verified: 2026-11-21 · Against HEAD: `757b795` plus the
+  uncommitted 2026-11-21 desktop-prototype implementation
 - Copy / i18n single source: `src/lib/i18n.ts`
 - Visual tokens: `docs/as-built/design-system.md`
 - Historical interaction spec: `docs/rfc/002-ux-interaction-loops.md`
@@ -11,10 +11,10 @@
 | ID | Name | Route / trigger | Target viewport | Input |
 |---|---|---|---|---|
 | UI-001 | Onboarding | first run | responsive: mobile first, centred card on desktop | touch |
-| UI-002 | Memories | tab `memories` | responsive: mobile < 768, two-column >= 1024 | file input, mic, textarea, filter chips, card menus |
-| UI-003 | Ask | tab `ask` | responsive: mobile first, centred reading column on desktop | text input, example chips, live tag chips, tag-scope control |
-| UI-004 | Forget | tab `forget` | responsive: mobile first, two-column proposals >= 1024 | touch decisions |
-| UI-005 | Memory detail sheet | tap a capture | bottom sheet < 768, right-side panel >= 768 | touch |
+| UI-002 | Memories | tab `memories` | mobile < 768; top bar + cards >= 768; inspector column >= 1280 | file input, mic, textarea, filter chips, card menus, inspector |
+| UI-003 | Ask | tab `ask` | centred reading column; proof panel >= 1280 | text input, example chips, live tag chips, tag-scope control, recent questions |
+| UI-004 | Forget | tab `forget` | two-column proposals >= 1024; rules rail >= 1280 | touch decisions, restore from rail |
+| UI-005 | Memory detail sheet | tap a capture | bottom sheet < 768, right drawer 768–1023, centred window >= 1024 | touch, arrow keys >= 1024 |
 | UI-006 | HUD | in every tab, collapsible | responsive, aligned with content width | read-only |
 | UI-007 | Toast | after trashing/restoring | fixed bottom (above safe area) | undo / dismiss |
 
@@ -29,6 +29,82 @@ evidence, proposal and trash cards use a two-column grid. Ask centres at
 `max-w-2xl` for comfortable reading. All motion honours
 `prefers-reduced-motion`, and custom animations are Tailwind utilities so
 responsive variants can override them.
+
+### Desktop workspace v2 — full width, no date dividers (2026-11-21)
+
+Following owner feedback that filters covered half the screen and date
+dividers made a long-term memory scroll forever:
+- The shell is full width (`md:max-w-none`); card grids use
+  `repeat(auto-fill, minmax(17.5rem, 1fr))`, so columns are added as the window
+  widens. Ask / Forget / Trash also drop their narrower caps.
+- **No day dividers anywhere.** The Memories default view is a flat, newest-first
+  grid loaded 60 at a time with "Show more". The date filter offers
+  Any time / This week / This month / This year / Older.
+- The compact sticky filter bar holds type, date, tag picker, Group-by-tag and
+  a suggestions / trash badge; an active-filter summary row appears when a
+  filter is on.
+- The landing view is **Overview**: a Recent row (~8) plus one tile per tag
+  (cover, count, last updated) and an Untagged tile. Clicking a tag opens a
+  collection grid.
+- Capture cards are Keep-style: image/illustration on top, title, two lines of
+  text, tags and date; actions appear on hover/focus and stay visible on touch.
+- The right-hand preview panel is now opt-in (off by default); clicking a card
+  opens the centred detail window instead. Pinning and a month jump menu are
+  out of scope.
+
+### Desktop workspace (2026-11-21, superseded in part by v2 above)
+
+The four prototypes in `docs/prototypes/` supply the visual direction: a sticky
+top bar with Ctrl/⌘+K search and quick capture, type and date filters above the
+timeline, day dividers, and a right-hand capture inspector at `xl`. Selecting a
+card at `xl` updates the inspector; below `xl` it opens UI-005. The inspector's
+"Expand space" action opens UI-005 as a centred window with previous/next over
+the same ordered list. The Ask tab gains a proof panel built from the top cited
+capture and a local, clearable recent-questions list. Forget gains a four-stat
+row, side-by-side comparison when a proposal has a related capture, a truthful
+rules rail, and restore shortcuts for recent trash items.
+
+### Preview, tag approval and Ask suggestions (2026-11-21)
+
+- The preview panel now falls back to the newest memory and works in Overview;
+  the two-column layout is applied only when the panel actually has a capture,
+  so there is no empty reserved column. The toggle is available at `xl` only.
+- Tag approval locks only real-looking secrets (keyword-adjacent values,
+  4–8 digit codes, letter+digit/symbol mixes). Category words such as `#wifi`,
+  `#password` and `#mat khau` are addable; `#songhong2024` and `#849201` stay
+  locked with a visible reason line. The answer check and cloud redaction are
+  unchanged and remain strict.
+- **Dated amendment (2026-11-21):** the earlier note that "example chips remain
+  in Ask" is superseded. Ask suggestions come from `suggestQuestions`, which
+  builds at most 5 deduped questions from the user's own captures (expiry,
+  amount, password note, voice and recent items, plus tag totals only when
+  online). Demo mode uses the same generator on its local sample data; no fixed
+  question text remains. An empty library shows a "save something first" hint.
+  The detail view and inspector use the same generator on a single capture.
+
+### Plain-language copy & technical-details toggle (2026-11-21)
+
+Following an owner report that the desktop UI read like a developer tool, all
+user-facing copy is plain language in EN/VI. The greeting uses a person's first
+name only for Google accounts (Demo mode has no name), and the big heading is
+"Your memories" rather than repeating the filter chip. Captures are introduced
+as "Saved photo" / "Saved voice" / "Saved note" rather than by an ID suffix.
+
+A local `technicalDetails` user meta setting, off by default, is toggled in the
+account menu. With it on: the telemetry HUD, match scores, response times,
+account uid, storage estimate, raw source labels ("On device" / "In cloud" /
+"Local lookup") and memory IDs appear. With it off, answers still state plainly
+whether they were answered on this device or with cloud help, and "Not found"
+stays explicit. The browser-wide storage figure is never shown as a memory
+count, since it covers all site storage.
+
+Prototype elements that are deliberately not implemented: GPS/camera EXIF
+fields, an Ask microphone, invented confidence or neural-index badges,
+encrypted-trash wording, bulk Empty Trash, invented structured fields,
+detection boxes, sharpness labels, Settings/Restore History/Session ID,
+sensitivity sliders, annotation/bookmark, invented card badges, the Archive
+breadcrumb, remote fonts and the Material Symbols icon font. Each would either
+invent data, add an unapproved feature, or break the offline/privacy rules.
 
 ## 2. Interaction state matrix
 

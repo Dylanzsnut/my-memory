@@ -1,0 +1,540 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,700;0,800;0,900;1,400&amp;family=Noto+Serif:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "on-primary": "#ffffff",
+          "tertiary-fixed-dim": "#f7bd48",
+          "on-error-container": "#93000a",
+          "secondary-container": "#9ef0d6",
+          "line": "#e2d7c3",
+          "on-tertiary": "#ffffff",
+          "on-error": "#ffffff",
+          "on-primary-container": "#fffbff",
+          "on-primary-fixed": "#390c00",
+          "gold-soft": "#fbf0cd",
+          "tertiary-container": "#986d00",
+          "primary-fixed-dim": "#ffb59c",
+          "on-tertiary-fixed-variant": "#5d4200",
+          "surface-variant": "#ece1d5",
+          "on-background": "#201b14",
+          "on-tertiary-container": "#fffbff",
+          "surface-container-high": "#f2e6da",
+          "surface-container-highest": "#ece1d5",
+          "bg-base": "#f6f1e7",
+          "on-surface-variant": "#594139",
+          "inverse-surface": "#352f28",
+          "surface-tint": "#aa3600",
+          "accent-deep": "#c74312",
+          "on-secondary": "#ffffff",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#fef2e6",
+          "accent-soft": "#fdeadd",
+          "surface-bright": "#fff8f3",
+          "primary-fixed": "#ffdbcf",
+          "on-surface": "#201b14",
+          "on-secondary-fixed-variant": "#005141",
+          "outline": "#8d7167",
+          "tertiary-fixed": "#ffdea6",
+          "secondary-fixed-dim": "#85d6be",
+          "inverse-on-surface": "#fbefe3",
+          "danger-soft": "#fbe7e2",
+          "ink-secondary": "#5c5344",
+          "outline-variant": "#e2bfb4",
+          "error-container": "#ffdad6",
+          "on-secondary-fixed": "#002019",
+          "background": "#fff8f3",
+          "on-tertiary-fixed": "#271900",
+          "error": "#ba1a1a",
+          "surface-dim": "#e3d8cc",
+          "primary": "#a63500",
+          "secondary": "#096b57",
+          "inverse-primary": "#ffb59c",
+          "primary-container": "#cd470b",
+          "surface-container": "#f8ece0",
+          "bg-subtle": "#efe6d6",
+          "ink-tertiary": "#8a7d68",
+          "danger": "#b3372a",
+          "secondary-fixed": "#a0f2d9",
+          "tertiary": "#785600",
+          "surface": "#fffdf8",
+          "on-primary-fixed-variant": "#822800",
+          "on-secondary-container": "#136f5b",
+          "surface-raised": "#fbf6ec",
+          "line-strong": "#cdbd9c",
+          "teal-soft": "#e0f0ea"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "1.25rem",
+          "space-xs": "0.5rem",
+          "gutter": "1rem",
+          "space-2xs": "0.25rem",
+          "space-xl": "2rem",
+          "space-2xl": "3rem",
+          "space-sm": "0.75rem",
+          "space-md": "1rem",
+          "space-lg": "1.5rem"
+        },
+        "fontFamily": {
+          "headline-lg": [
+            "Noto Serif"
+          ],
+          "label-sm": [
+            "Be Vietnam Pro"
+          ],
+          "headline-sm": [
+            "Be Vietnam Pro"
+          ],
+          "body-editorial": [
+            "Noto Serif"
+          ],
+          "body-md": [
+            "Be Vietnam Pro"
+          ],
+          "label-lg": [
+            "Be Vietnam Pro"
+          ],
+          "label-md": [
+            "Be Vietnam Pro"
+          ],
+          "body-lg": [
+            "Be Vietnam Pro"
+          ],
+          "headline-md": [
+            "Noto Serif"
+          ],
+          "title-md": [
+            "Be Vietnam Pro"
+          ],
+          "display": [
+            "Be Vietnam Pro"
+          ]
+        },
+        "fontSize": {
+          "headline-lg": [
+            "30px",
+            {
+              "lineHeight": "36px",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "label-sm": [
+            "10.5px",
+            {
+              "lineHeight": "14px",
+              "letterSpacing": "0.06em",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-sm": [
+            "18px",
+            {
+              "lineHeight": "24px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "800"
+            }
+          ],
+          "body-editorial": [
+            "16px",
+            {
+              "lineHeight": "26px",
+              "fontWeight": "400"
+            }
+          ],
+          "body-md": [
+            "13.5px",
+            {
+              "lineHeight": "21px",
+              "fontWeight": "400"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "18px",
+              "letterSpacing": "0.01em",
+              "fontWeight": "800"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "16px",
+              "letterSpacing": "0.04em",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "15px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-md": [
+            "22px",
+            {
+              "lineHeight": "28px",
+              "letterSpacing": "-0.015em",
+              "fontWeight": "700"
+            }
+          ],
+          "title-md": [
+            "16px",
+            {
+              "lineHeight": "22px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "display": [
+            "40px",
+            {
+              "lineHeight": "44px",
+              "letterSpacing": "-0.03em",
+              "fontWeight": "900"
+            }
+          ]
+        }
+      }
+    }
+  };</script></head><body class="bg-bg-base font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-raised z-50 flex flex-col justify-between p-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-space-lg"><div class="flex items-center gap-space-sm px-space-xs"><div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(60,40,10,0.18)]"><span class="material-symbols-outlined text-on-primary text-[20px]">auto_stories</span></div><div class="flex flex-col"><span class="font-headline-md text-headline-md text-on-surface tracking-tight leading-none">My Memory</span><span class="font-label-sm text-label-sm text-ink-tertiary uppercase tracking-widest mt-1">Archival Vault</span></div></div><nav class="flex flex-col gap-space-2xs" data-active-classes="bg-accent-soft text-accent-deep font-bold rounded-xl"><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="memories" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">history_edu</span><span class="font-title-md text-title-md">Memories</span></div><span class="px-2 py-0.5 rounded-full bg-surface-container text-ink-secondary font-label-sm text-label-sm">143</span></a><a aria-current="page" class="flex items-center justify-between px-space-md py-space-sm transition-all bg-accent-soft text-accent-deep font-bold rounded-xl" data-path="ask" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">forum</span><span class="font-title-md text-title-md">Ask</span></div></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="forget" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">cleaning_services</span><span class="font-title-md text-title-md">Forget</span></div><span class="px-2 py-0.5 rounded-full bg-danger-soft text-danger font-label-sm text-label-sm font-bold">2</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="settings-vault" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">shield_lock</span><span class="font-title-md text-title-md">Settings &amp; Vault</span></div></a></nav></div><div class="flex flex-col gap-space-md pt-space-md"><div class="bg-surface rounded-xl p-space-sm flex flex-col gap-space-2xs shadow-[0_2px_8px_rgba(60,40,10,0.04)]"><div class="flex items-center gap-space-xs"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider font-extrabold">100% Offline Ready</span></div><span class="font-body-md text-body-md text-ink-tertiary">142 MB of local storage</span></div><div class="flex items-center justify-between px-space-xs"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary font-title-md text-title-md">M</div><div class="flex flex-col"><span class="font-title-md text-title-md text-on-surface leading-tight">Maya</span><span class="font-label-sm text-label-sm text-ink-secondary">Personal Vault</span></div></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl z-40 px-space-lg flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-space-xs text-ink-secondary font-label-md text-label-md"><span class="hover:text-on-surface cursor-pointer">Archive</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-on-surface font-extrabold">Workspace</span></div><div class="flex items-center gap-space-md"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-ink-tertiary text-[18px]">search</span><input class="w-72 pl-9 pr-4 py-2 bg-surface-raised rounded-full font-body-md text-body-md text-on-surface placeholder:text-ink-tertiary focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" placeholder="Cmd+K to search memories..." type="text"></div><div class="flex items-center gap-space-xs"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-soft text-accent-deep hover:bg-accent-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">photo_camera</span><span>+ Snap Photo</span></button><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-soft text-secondary hover:bg-teal-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">mic</span><span>+ Voice Memo</span></button><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gold-soft text-tertiary hover:bg-gold-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">edit_note</span><span>+ Quick Note</span></button></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-16 w-full min-h-screen bg-bg-base px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="grid grid-cols-12 gap-space-lg items-start">
+<!-- LEFT PANE: Conversational Retrieval Workspace -->
+<section class="col-span-12 xl:col-span-7 flex flex-col gap-space-lg min-w-0">
+<!-- Primary Query Box -->
+<div class="relative bg-surface rounded-xl p-space-md shadow-[0_4px_20px_-4px_rgba(60,40,10,0.08)] flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-xs text-ink-tertiary font-label-sm text-label-sm uppercase tracking-wider">
+<span class="material-symbols-outlined text-[15px] text-primary">auto_awesome</span>
+<span>Archival Semantic Retrieval</span>
+</div>
+<div class="relative flex items-center bg-surface-raised rounded-full px-space-md py- space-sm shadow-inner group">
+<span class="material-symbols-outlined text-accent-deep text-[22px] mr-space-xs">search</span>
+<input aria-label="Ask your memory" class="w-full bg-transparent font-title-md text-title-md text-on-surface focus:outline-none placeholder:text-ink-tertiary selection:bg-accent-soft" type="text" value="When does mum's medicine expire?">
+<div class="flex items-center gap-space-2xs ml-space-xs">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-ink-secondary hover:bg-surface hover:text-on-surface transition-colors" title="Clear inquiry" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<button class="w-9 h-9 rounded-full bg-teal-soft text-secondary flex items-center justify-center hover:opacity-90 transition-transform active:scale-95" title="Voice Input" type="button">
+<span class="material-symbols-outlined text-[19px]">mic</span>
+</button>
+</div>
+</div>
+<!-- Privacy & Vault Status Indicator -->
+<div class="flex flex-wrap items-center justify-between gap-space-xs px-space-xs pt-space-2xs">
+<div class="flex items-center gap-space-xs">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">Found in 0.4s</span>
+<span class="text-ink-tertiary text-label-sm">·</span>
+<span class="font-label-sm text-label-sm text-ink-secondary">100% offline &amp; private</span>
+<span class="text-ink-tertiary text-label-sm">·</span>
+<span class="font-label-sm text-label-sm text-ink-secondary">On-device neural index</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary bg-surface-container px-2 py-0.5 rounded-full">Source: 1 Photo, 1 Audio</span>
+</div>
+</div>
+<!-- Synthesized Answer Card -->
+<article class="bg-surface rounded-xl p-space-lg shadow-[0_6px_24px_-6px_rgba(60,40,10,0.07)] flex flex-col gap-space-md relative overflow-hidden">
+<div class="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-accent-soft/30 blur-2xl pointer-events-none"></div>
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<div class="flex items-center gap-space-xs">
+<span class="px-2.5 py-1 rounded-full bg-teal-soft text-secondary font-label-sm text-label-sm uppercase tracking-wider font-extrabold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+              Verified from your photo
+            </span>
+<span class="px-2.5 py-1 rounded-full bg-accent-soft text-accent-deep font-label-sm text-label-sm font-bold">Exact photo match</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Indexed on 12 Nov 2024</span>
+</div>
+<div class="flex flex-col gap-space-2xs">
+<span class="font-label-sm text-label-sm text-ink-tertiary uppercase tracking-widest">Synthesized Result</span>
+<h2 class="font-headline-lg text-headline-lg text-primary leading-tight">
+            In March 2027.
+          </h2>
+</div>
+<p class="font-body-editorial text-body-editorial text-on-surface-variant leading-relaxed">
+          The blue carton for Mum’s daily prescription (<span class="font-bold text-on-surface">Cardioguard 20mg</span>) displays a stamped batch expiry of <mark class="bg-gold-soft text-tertiary px-1 py-0.5 rounded font-bold">03/2027</mark> on the side flap next to the serial barcode.
+        </p>
+<!-- Audio Accompaniment Widget -->
+<div class="bg-surface-raised rounded-xl p-space-sm flex flex-col gap-space-2xs">
+<div class="flex items-center justify-between text-ink-secondary">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[18px]">mic</span>
+<span class="font-title-md text-title-md text-on-surface">Voice Note Context</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">(0:14)</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary uppercase font-bold">Corroborated</span>
+</div>
+<div class="flex items-center gap-space-sm pt-space-2xs">
+<button aria-label="Play matching voice memo" class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-sm hover:opacity-95 active:scale-95 transition-all" id="audioToggleBtn" type="button">
+<span class="material-symbols-outlined text-[22px]" id="audioIcon">play_arrow</span>
+</button>
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<p class="font-body-md text-body-md text-ink-secondary truncate italic">
+                “Mum said the blue box expires in 2027, kept in the medicine drawer...”
+              </p>
+<!-- Ambient Waveform SVG -->
+<svg class="w-full h-5 text-secondary" fill="currentColor" viewBox="0 0 320 20">
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="0" y="7"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="6" y="5"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="12" y="3"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="18" y="6"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="24" y="2"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="30" y="4"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="36" y="8"></rect>
+<rect height="18" rx="1.5" width="3" x="42" y="1"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="48" y="3"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="54" y="6"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="60" y="2"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="66" y="5"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="72" y="7"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="78" y="4"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="84" y="2"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="90" y="6"></rect>
+<rect height="18" rx="1.5" width="3" x="96" y="1"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="102" y="5"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="108" y="7"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="114" y="3"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="120" y="5"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="126" y="8"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="132" y="2"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="138" y="4"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="144" y="7"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="150" y="3"></rect>
+<rect height="18" rx="1.5" width="3" x="156" y="1"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="162" y="6"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="168" y="2"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="174" y="5"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="180" y="8"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="186" y="4"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="192" y="2"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="198" y="6"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="204" y="7"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="210" y="3"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="216" y="5"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="222" y="8"></rect>
+<rect height="18" rx="1.5" width="3" x="228" y="1"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="234" y="4"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="240" y="6"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="246" y="2"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="252" y="5"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="258" y="7"></rect>
+<rect height="14" opacity="0.8" rx="1.5" width="3" x="264" y="3"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="270" y="6"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="276" y="8"></rect>
+<rect height="16" opacity="0.9" rx="1.5" width="3" x="282" y="2"></rect>
+<rect height="10" opacity="0.6" rx="1.5" width="3" x="288" y="5"></rect>
+<rect height="6" opacity="0.4" rx="1.5" width="3" x="294" y="7"></rect>
+<rect height="12" opacity="0.7" rx="1.5" width="3" x="300" y="4"></rect>
+<rect height="8" opacity="0.5" rx="1.5" width="3" x="306" y="6"></rect>
+<rect height="4" opacity="0.3" rx="1.5" width="3" x="312" y="8"></rect>
+</svg>
+</div>
+</div>
+</div>
+<!-- Follow-up Question Field -->
+<div class="pt-space-xs">
+<div class="relative flex items-center bg-surface-container rounded-full px-space-md py-2">
+<input class="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-ink-tertiary focus:outline-none" placeholder="Ask a follow-up question about this memory..." type="text">
+<button class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Contextual Next-Step Prompts -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-ink-tertiary uppercase tracking-wider px-space-xs">Related Memories to explore</span>
+<div class="flex flex-wrap gap-space-xs">
+<button class="px-space-md py-2 rounded-full bg-surface hover:bg-accent-soft hover:text-accent-deep text-on-surface font-label-md text-label-md transition-colors shadow-sm flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px] text-tertiary">storefront</span>
+            Where did I buy this medicine?
+          </button>
+<button class="px-space-md py-2 rounded-full bg-surface hover:bg-accent-soft hover:text-accent-deep text-on-surface font-label-md text-label-md transition-colors shadow-sm flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px] text-secondary">medication</span>
+            How many tablets per day?
+          </button>
+<button class="px-space-md py-2 rounded-full bg-surface hover:bg-accent-soft hover:text-accent-deep text-on-surface font-label-md text-label-md transition-colors shadow-sm flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">receipt_long</span>
+            Show receipt from 12 Nov
+          </button>
+</div>
+</div>
+<!-- Recent Inquiries Section -->
+<div class="bg-surface rounded-xl p-space-md shadow-[0_2px_12px_rgba(60,40,10,0.04)] flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-on-surface">Recent Archival Inquiries</span>
+<button class="font-label-sm text-label-sm text-ink-tertiary hover:text-primary uppercase tracking-wider" type="button">Clear Recent</button>
+</div>
+<div class="flex flex-col gap-space-2xs">
+<div class="flex items-center justify-between p-space-xs rounded-lg hover:bg-surface-raised transition-colors cursor-pointer group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-ink-secondary group-hover:bg-accent-soft group-hover:text-accent-deep transition-colors">
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">What was the Wi-Fi password in Hanoi?</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Answered from Journal Note · 3 days ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[18px] text-ink-tertiary group-hover:text-on-surface">arrow_forward</span>
+</div>
+<div class="flex items-center justify-between p-space-xs rounded-lg hover:bg-surface-raised transition-colors cursor-pointer group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-ink-secondary group-hover:bg-accent-soft group-hover:text-accent-deep transition-colors">
+<span class="material-symbols-outlined text-[16px]">book</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">Book recommendations from July</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Answered from 3 Book Photos · 1 week ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[18px] text-ink-tertiary group-hover:text-on-surface">arrow_forward</span>
+</div>
+<div class="flex items-center justify-between p-space-xs rounded-lg hover:bg-surface-raised transition-colors cursor-pointer group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-ink-secondary group-hover:bg-accent-soft group-hover:text-accent-deep transition-colors">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">Storage locker code at home</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Answered from Sticky Note Memo · 2 weeks ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[18px] text-ink-tertiary group-hover:text-on-surface">arrow_forward</span>
+</div>
+</div>
+</div>
+</section>
+<!-- RIGHT PANE: Visual Proof & Evidence Citation -->
+<aside class="col-span-12 xl:col-span-5 flex flex-col gap-space-md sticky top-20 min-w-0">
+<div class="bg-surface rounded-xl p-space-md shadow-[0_4px_24px_-4px_rgba(60,40,10,0.08)] flex flex-col gap-space-md">
+<!-- Header & Archival Citation Badge -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Visual Proof</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Primary ground-truth reference</span>
+</div>
+<span class="px-2 py-1 rounded bg-surface-raised text-ink-secondary font-label-sm text-label-sm font-bold tracking-wide">
+            #A-128
+          </span>
+</div>
+<!-- Archival Snapshot Photo Container -->
+<div class="relative rounded-xl overflow-hidden shadow-sm bg-surface-container-high group">
+<img class="w-full h-72 object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A warm top-down close-up photograph of a blue and white prescription medicine box for Cardioguard 20mg resting on a clean wooden pharmacy counter. Soft natural daylight illuminates the crisp printed cardboard, clearly showcasing the side flap stamped with black ink batch number and expiration date 03/2027. Warm archival aesthetic with gentle paper tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNac2mwUIv4OPOgjuKvZKxB_5X11uhvW0lEH48PzYyEBJqukLDGofhLQM6q-jtmCGsUhP3Q7ACXYzxDsoAmYZp9LdxQDgmBjQI25sV_UofmQYeLOT7uHAC5dc8-Q8jrIR_nxPtgsqHTt7uuizkDLnGydLq2FBCxT0lJKuyH9nPmwmi6y9oPoCvwvbi2qmWQ-fv1GbDs91NlHTXBQ2DRJbAy-itQFlsdz0b6thizIye">
+<!-- Bounding Box Annotation on Photo -->
+<div class="absolute right-8 top-16 w-32 h-14 rounded border-2 border-primary bg-primary/15 backdrop-blur-[2px] flex items-center justify-center shadow-lg pointer-events-none animate-pulse">
+<span class="bg-primary text-on-primary font-label-sm text-label-sm px-1.5 py-0.5 rounded shadow absolute -top-3 left-2 font-bold tracking-wider">
+              EXP 03/2027
+            </span>
+</div>
+<!-- Bottom Image Metadata Gradient Overlay -->
+<div class="absolute bottom-0 inset-x-0 p-space-sm bg-gradient-to-t from-inverse-surface/90 via-inverse-surface/50 to-transparent flex items-center justify-between text-on-primary">
+<div class="flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed-dim">location_on</span>
+<span class="font-label-sm text-label-sm font-medium tracking-tight">Main Street Pharmacy, Counter B</span>
+</div>
+<span class="font-label-sm text-label-sm opacity-80">12 Nov · 18:03</span>
+</div>
+</div>
+<!-- OCR Extracted Data Sheet -->
+<div class="bg-surface-raised rounded-xl p-space-sm flex flex-col gap-space-xs">
+<div class="flex items-center justify-between text-ink-secondary">
+<span class="font-label-sm text-label-sm uppercase tracking-wider font-extrabold flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-tertiary">document_scanner</span>
+              TEXT FROM PHOTO</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">Verified match</span>
+</div>
+<div class="bg-surface rounded-lg p-space-sm font-mono text-label-sm text-on-surface flex flex-col gap-1 leading-relaxed">
+<div class="flex justify-between items-center text-ink-secondary">
+<span>MEDICATION:</span>
+<span class="font-bold text-on-surface">CARDIOGUARD (Amlodipine Besylate)</span>
+</div>
+<div class="flex justify-between items-center text-ink-secondary">
+<span>DOSAGE:</span>
+<span class="font-bold text-on-surface">20 mg / Oral Tablet</span>
+</div>
+<div class="flex justify-between items-center bg-accent-soft px-1.5 py-0.5 rounded text-accent-deep">
+<span class="font-bold">EXPIRY DATE:</span>
+<span class="font-bold">03 / 2027 (STAMPED)</span>
+</div>
+<div class="flex justify-between items-center text-ink-secondary">
+<span>LOT / BATCH:</span>
+<span class="text-on-surface">#CG-99201-B</span>
+</div>
+<div class="flex justify-between items-center text-ink-secondary">
+<span>DISPENSED FOR:</span>
+<span class="text-on-surface">Elenor Vance (Mum)</span>
+</div>
+</div>
+</div>
+<!-- Geolocation Context Capsule -->
+<div class="flex items-center justify-between bg-surface-container rounded-xl p-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-accent-deep shadow-sm">
+<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface leading-tight">Pharmacy on Main St</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Photographed 12 Nov, 18:03</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-secondary bg-teal-soft px-2 py-0.5 rounded-full font-bold">Geo-Tagged</span>
+</div>
+<!-- Action Links -->
+<div class="grid grid-cols-2 gap-space-xs pt-space-2xs">
+<button class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-label-md font-bold transition-all active:scale-95" type="button">
+<span class="material-symbols-outlined text-[17px]">zoom_in</span>
+            View Original
+          </button>
+<button class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-bold transition-all shadow-sm active:scale-95" type="button">
+<span class="material-symbols-outlined text-[17px]">timeline</span>
+            Open in Timeline
+          </button>
+</div>
+</div>
+<!-- Archival Integrity Badge -->
+<div class="px-space-md py-space-xs flex items-center justify-center gap-space-xs text-ink-tertiary">
+<span class="material-symbols-outlined text-[16px] text-secondary">encrypted</span>
+<span class="font-label-sm text-label-sm">Stored privately on this device</span>
+</div>
+</aside>
+</div>
+</div>
+<script>
+  (function() {
+    const audioBtn = document.getElementById('audioToggleBtn');
+    const audioIcon = document.getElementById('audioIcon');
+    let isPlaying = false;
+
+    if (audioBtn && audioIcon) {
+      audioBtn.addEventListener('click', function() {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          audioIcon.textContent = 'pause';
+          audioBtn.classList.remove('bg-secondary');
+          audioBtn.classList.add('bg-primary');
+        } else {
+          audioIcon.textContent = 'play_arrow';
+          audioBtn.classList.remove('bg-primary');
+          audioBtn.classList.add('bg-secondary');
+        }
+      });
+    }
+  })();
+</script></main></div>
+
+</body></html>

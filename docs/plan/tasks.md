@@ -1004,3 +1004,218 @@ changes. Check each step at 375, 768 and 1280px where possible.
       Note (2026-11-21): Hosting release completed. Live URL
       <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
       `index-n6ebxOu-.js` / `index-Droalcas.css`, matching the local build.
+
+## Desktop screens from prototypes (2026-11-21)
+
+Scope: owner added five desktop prototypes in `docs/prototypes/` (four screens
+plus `warm_archival_modernism/DESIGN.md`). Implement the visual direction on
+top of the responsive shell, while keeping every product rule intact. The
+prototypes are historical design input; `docs/as-built/DESIGN.md` stays the
+as-built truth. Nothing here changes inference, Firestore writes, forgetting
+rules, protected captures or the privacy boundary.
+
+Decisions (defaults, recorded before coding):
+- Day dividers are added to the default timeline on all widths; Group by tag
+  stays unchanged.
+- Ask keeps the last 5 questions in local user meta, clearable and removed on
+  account deletion; never synced.
+- Keep and Move to trash stay equal weight.
+- Copy details is included, but uses redaction and never copies raw derived
+  text.
+- D9/D10 use the corrected split plan: fix page scrolling first, share capture
+  subviews, move selection state to App, split the DetailSheet frame from its
+  content, and use readable layout constants.
+
+Elements deliberately left out (they would break rules or invent data): GPS /
+camera EXIF fields, the Ask mic button, invented confidence / neural-index /
+verified-ground-truth badges, encrypted-trash copy, bulk Empty Trash, invented
+fields (dosage, storage location, restock), detection bounding boxes, photo
+sharpness labels, Settings & Vault / Restore History / Session ID / sensitivity
+sliders / annotation / bookmark, invented card badges, the Archive breadcrumb,
+remote fonts and the Material Symbols icon font.
+
+- [x] D0 Record this plan (this section).
+- [x] P0 Fix page scrolling: remove `overflow-y-auto` from `<main>` in App so
+      sticky side menu, top bar and inspector work.
+- [x] D1 `storage.ts`: `formatBytes` and `useStorageEstimate` (real browser
+      estimate only, `null` when unsupported), with unit tests.
+- [x] D2 Extract `AccountMenu.tsx` from App (`pill` and `card` variants), no
+      behaviour change.
+- [x] D3 SideNav footer: brand subtitle, capture count, offline/storage card
+      and card-style account menu.
+- [x] D4 `DesktopTopBar.tsx`: search (Ctrl/⌘K), Photo/Voice/Note quick capture
+      and language toggle; wire to App and Memories.
+- [x] D5 Memories greeting card + type filter chips with counts.
+- [x] D6 Day divider groups in the default timeline (`groupByDay`), with tests.
+- [x] D7 Desktop capture card redesign using responsive classes only.
+- [x] D8 `useMediaQuery` hook (false when no `window`).
+- [x] D9a Shared capture pieces: `CaptureMedia`, `CaptureFacts`, `CaptureAskBox`
+      and `captureView.ts` (audio hook, suggestions, copy-text builder);
+      DetailSheet uses them with no visual change on mobile.
+- [x] D9b App owns `selectedId`, `inspectedId` and `detailOrder`; captures are
+      looked up by ID every render and stale `setSelected` patches removed.
+- [x] D9c Memories layout: one main column plus `xl` inspector column, card
+      click updates inspector at >=1280px and opens detail below that.
+- [x] D9d `CaptureInspector.tsx`: right-hand panel built from shared pieces,
+      rendered only when wide and a capture exists; sticky at `xl:top-20`.
+- [x] D10a DetailSheet frame/content split: per-capture state moves into a
+      keyed inner component so navigation resets it without disturbing focus
+      trap or scroll lock.
+- [x] D10b Readable layout constants for bottom sheet / right drawer / centred
+      window; body grid and `object-contain` media at `lg`.
+- [x] D10c Previous/next from the caller's order, arrow keys with input/media
+      guards, polite live announcement and focus on the title.
+- [x] D10d Footer action row; Copy details uses redacted `buildCopyText`.
+- [x] D11 Ask desktop layout: search card, metadata, larger answer, follow-up
+      input and `AnswerProof` panel at `xl`.
+- [x] D12 Recent questions in local user meta with Clear; removed on account
+      deletion.
+- [x] D13 Forget desktop layout: stats row, side-by-side related capture when
+      available, truthful rules panel and recent trash with restore.
+- [x] D14 Verify (typecheck/lint/test/build), manual viewport notes, update
+      DESIGN/VERIFICATION, mark tasks done, commit and deploy Hosting.
+
+      Note (2026-11-21): typecheck, lint, 29/29 tests and production build pass
+      (`index-CLKLGVuF.js` / `index-BAuJwPr4.css`). No browser is available, so
+      the 375/768/1024/1280/1440px visual, keyboard and focus pass remains
+      UNVERIFIED in `docs/as-built/VERIFICATION.md`. Follow-up: D14's commit
+      and Hosting deploy are tracked in the next section.
+
+## Deploy: desktop workspace (2026-11-21)
+
+- [x] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-21): Hosting release completed. Live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-CLKLGVuF.js` / `index-BAuJwPr4.css`, matching the local build.
+
+## Plain-language UI pass (2026-11-21)
+
+Scope: owner report that the new desktop UI reads like a developer tool. Two
+parts of the greeting are also wrong: demo mode is greeted as a person called
+"Demo", and "Storage state · 21 MB" implies it counts only memories when the
+browser figure covers all site storage. Product rules stay intact: answer
+provenance is still shown and comes from the real source, and "Not found"
+remains explicit.
+
+- [x] L1 Fix greeting: use a person's first name only for Google accounts;
+      demo mode shows no name. Retitle "All memories" heading to "Your memories"
+      so it no longer repeats the filter chip.
+- [x] L2 Remove the storage figure from the Memories greeting card and the
+      SideNav footer. Keep it available only under the technical-details toggle.
+- [x] L3 Plain-language EN/VI copy for every technical surface: side-menu
+      subtitle, "On-device archive" pill, source badges, memory numbers,
+      inspector labels, Ask analysis/match/latency, "Extracted & verified
+      knowledge", detected-entity hint, Forget stats, and general chrome.
+- [x] L4 Add a local `technicalDetails` user meta setting, off by default,
+      toggled from the account menu (pill and card variants). Developer and
+      judge information — telemetry HUD, match scores, latency, uid, storage
+      estimate, raw source labels — is shown only when enabled.
+- [x] L5 Keep provenance honest with the setting off: answers still state
+      plainly whether they were made on this device or with cloud help.
+- [x] L6 Verify typecheck, lint, tests and build; update DESIGN/VERIFICATION;
+      commit and deploy Hosting.
+
+      Note (2026-11-21): typecheck, lint, 29/29 tests and production build pass
+      (`index-DkR5vxUx.js`). No browser here, so the visual check of the toggle
+      across 375–1440px remains UNVERIFIED. Commit/deploy tracked below.
+
+## Deploy: plain-language UI (2026-11-21)
+
+- [x] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-21): Hosting release completed. Live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-DkR5vxUx.js` / `index-BAuJwPr4.css`, matching the local build.
+
+## Desktop workspace v2 — full-width Keep-style (2026-11-21)
+
+Scope: owner reports that the filter chrome covers half the screen and that
+date dividers make a long-term memory scroll forever. Combined decisions:
+100% width (no `max-w-7xl`); Keep-style auto-fill card grid; compact one-row
+filter bar; no day dividers anywhere; flat newest-first grid loaded in pages;
+Overview landing view with Recent + tag collections + Untagged; preview panel
+is opt-in and off by default; pinning and month jump are out of scope. Phones
+stay usable but get the same compact bar. No data, privacy or inference changes.
+
+- [x] V1 Full-width shell: remove `md:max-w-7xl` from App and the narrower
+      `max-w-*` caps on Ask/Forget/Trash/HUD; full-width top bar with centred
+      search.
+- [x] V2 Remove day dividers: delete `groupByDay` and its helper/tests, render
+      one flat newest-first grid; replace date chips with
+      Any time / This week / This month / This year / Older.
+- [x] V3 Page the flat grid (~60 at a time) with "Show more" and scroll
+      detection; reset paging when filters change.
+- [x] V4 Keep-style card: photo on top, title, two lines, tags, date; actions on
+      hover/focus, always visible on touch; 280–320px columns via
+      `grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr))`.
+- [x] V5 Compact filter bar: one sticky row with type, date, tag picker,
+      Group-by-tag and a suggestions/trash badge; active-filter summary row.
+- [x] V6 Overview landing view: Recent (~8), tag collection tiles with cover
+      and count, Untagged tile → tag review; collection view reuses the tag
+      filter so Ask scope matches.
+- [x] V7 Preview panel opt-in toggle in account menu (local, off by default);
+      clicking a card opens the centred window unless the toggle is on.
+- [x] V8 Verify typecheck/lint/tests/build; update DESIGN/VERIFICATION; commit
+      and deploy Hosting.
+
+      Note (2026-11-21): typecheck, lint, 29/29 tests and production build pass
+      (`index-CO5284dX.js` / `index-D0qfjCke.css`). No browser available, so the
+      visual check across widths remains UNVERIFIED. Commit/deploy in next section.
+
+## Deploy: desktop workspace v2 (2026-11-21)
+
+- [x] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-21): Hosting release completed. Live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-AXSNpObp.js` / `index-CpSAX-r8.css`, matching the local build.
+
+## Preview panel, tag-lock and Ask suggestions (2026-11-21)
+
+Scope: owner reports (a) the preview toggle does nothing in Overview and
+leaves an empty column; (b) tag-approval chips lock `#cafe`/`#password`/
+`#mat khau` in a password note; (c) Ask's example questions are 100% hardcoded
+and even demo mode should derive questions from local data. Dated decision:
+supersedes the earlier "Ask example chips stay unchanged" note — examples are
+now generated from local captures. Demo uses the same generator; no fixed
+questions remain anywhere.
+
+- [x] B1 Preview panel: use Recent + all memories in Overview (not the empty
+      grid list), default to newest, apply the two-column layout only when a
+      capture is actually shown, and show the toggle only at >=1280px. Add
+      `pickInspected(list, id)` helper + test.
+- [x] B2 Tag approval: narrow secret detection so only real-looking secrets
+      lock (keyword-adjacent value, 4–8 digit code, letter+digit/symbol mix);
+      `#cafe`, `#wifi`, `#password`, `#mat khau` become addable;
+      `#songhong2024`/`#849201` stay locked. Answer check and cloud redaction
+      stay unchanged. Add tests.
+- [x] B3 Visible lock reason line under the entity chips (EN/VI), not just a
+      hover tooltip.
+- [x] S1 `src/lib/askSuggestions.ts`: `suggestQuestions(captures, language)`
+      from real capture fields (expiry, amount, password note, voice, recent,
+      tag totals), secret filter, only-answerable check via local search,
+      max 5, deduped, stable.
+- [x] S2 Tests: empty library → no suggestions; expiry question; secrets never
+      in question text; every question matches a memory; tag-total needs
+      online; demo seeds produce relevant questions; VI templates; no fixed
+      examples left.
+- [x] S3 `Ask.tsx`: remove `CHIPS` and `demoMode` chip path; use generated
+      questions; "Save something first" empty state with Photo/Voice/Note.
+- [x] S4 `captureView.ts` `askSuggestions` and detail/inspector cards use the
+      same generator on a single capture (expiry only when present).
+- [x] S5 Verify typecheck/lint/tests/build, update DESIGN/VERIFICATION, commit
+      and deploy Hosting.
+
+      Note (2026-11-21): typecheck, lint, 33/33 tests across 10 suites and
+      production build pass (`index-AXSNpObp.js`). No browser available, so the
+      visual check of the panel/questions remains UNVERIFIED. Commit/deploy
+      recorded below.
+
+## Deploy: preview/tag-lock/Ask suggestions (2026-11-21)
+
+- [ ] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.

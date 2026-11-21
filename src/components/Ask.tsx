@@ -6,6 +6,9 @@ import { t } from '../lib/i18n';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { SourceBadge } from './Hud';
 import TagFilterBar from './TagFilterBar';
+import AnswerProof from './AnswerProof';
+import { sourceCountLabel } from '../lib/captureView';
+import { suggestQuestions } from '../lib/askSuggestions';
 import type { TagOption } from '../lib/tagOptions';
 
 interface Props {
@@ -14,34 +17,34 @@ interface Props {
   onAsk: (question: string, captureId?: string, tag?: string | null) => Promise<AnswerResult>;
   onOpenDetail: (capture: CaptureRecord) => void;
   busy?: boolean;
-  demoMode?: boolean;
   tags?: TagOption[];
   activeTag?: string | null;
   onActiveTagChange?: (tag: string | null) => void;
   onTagNavigate?: (tag: string) => void;
+  onOpenInTimeline?: (captureId: string) => void;
+  recentQuestions?: string[];
+  onClearRecent?: () => void;
+  technical?: boolean;
+  captures?: CaptureRecord[];
   seedQuestion?: string;
   seedCaptureId?: string;
   onSeedConsumed?: () => void;
 }
-
-const CHIPS: { en: string; vi: string }[] = [
-  { en: "When does mum's medicine expire?", vi: 'Hộp thuốc của mẹ hạn dùng khi nào?' },
-  { en: 'lunch receipt', vi: 'hóa đơn bữa trưa' },
-  { en: 'wifi password', vi: 'mật khẩu wifi' },
-  { en: 'license plate', vi: 'biển số xe' },
-  { en: 'total my lunch spending', vi: 'tổng chi phí ăn trưa' },
-];
 
 export default function Ask({
   language,
   nanoStatus,
   onAsk,
   onOpenDetail,
-  demoMode = false,
   tags = [],
   activeTag = null,
   onActiveTagChange,
   onTagNavigate,
+  onOpenInTimeline,
+  recentQuestions = [],
+  onClearRecent,
+  technical = false,
+  captures = [],
   seedQuestion,
   seedCaptureId,
   onSeedConsumed,
@@ -55,7 +58,7 @@ export default function Ask({
   const [hasAsked, setHasAsked] = useState(false);
   const requestSeq = useRef(0);
   const answerRef = useRef<HTMLElement>(null);
-  const showExamples = demoMode || tags.length === 0;
+  const suggestions = suggestQuestions(captures, language, online);
 
   useEffect(() => {
     if (seedQuestion) {
@@ -92,10 +95,14 @@ export default function Ask({
     }
   };
 
+  const typeLabel = (type: CaptureRecord['type']) =>
+    t(language, type === 'photo' ? 'photo' : type === 'voice' ? 'voice' : 'noteType');
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-none flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start xl:gap-8">
+      <div className="flex min-w-0 flex-col gap-5">
       <div>
-        <h1 className="font-serif text-[26px] font-bold tracking-tight">{t(language, 'ask')}</h1>
+        <h1 className="font-serif text-[26px] font-bold tracking-tight md:text-[30px]">{t(language, 'ask')}</h1>
         <p className="mt-1 text-[12px] text-ink2">{t(language, 'askSubtitle')}</p>
       </div>
 
@@ -124,24 +131,26 @@ export default function Ask({
         </button>
       </form>
 
-      {!hasAsked && showExamples && (
-        <div className="flex flex-wrap gap-2">
-          {CHIPS.map((chip) => {
-            const label = language === 'vi' ? chip.vi : chip.en;
-            return (
+      {!hasAsked && suggestions.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink3">
+            {language === 'vi' ? 'Hỏi từ ký ức của bạn' : 'From your memories'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((suggestion) => (
               <button
-                key={chip.en}
+                key={suggestion.question}
                 type="button"
                 onClick={() => {
-                  setQuery(label);
-                  submit(label);
+                  setQuery(suggestion.question);
+                  submit(suggestion.question, suggestion.captureId);
                 }}
                 className="min-h-11 rounded-full border border-line2 bg-canvas px-3.5 py-2 text-[11.5px] font-semibold text-ink2 transition-colors hover:border-accent hover:text-accent"
               >
-                {label}
+                {suggestion.question}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
 
@@ -229,7 +238,7 @@ export default function Ask({
                 {answer.notFound ? t(language, 'notFound') : t(language, 'verified')}
               </span>
             </div>
-            <SourceBadge source={answer.inferenceSource} language={language} />
+            <SourceBadge source={answer.inferenceSource} language={language} plain={!technical} />
           </div>
           <div className="space-y-3 p-4">
             {asked && (
@@ -243,7 +252,9 @@ export default function Ask({
                 <span>{t(language, 'cloudFallbackNotice')}</span>
               </div>
             )}
-            <p className="font-serif text-[19px] font-bold leading-snug">{answer.text}</p>
+            <p className={`font-serif text-[19px] font-bold leading-snug md:text-[28px] ${answer.notFound ? 'text-gold' : 'md:text-accent'}`}>
+              {answer.text}
+            </p>
             {answer.notFound && (
               <div className="flex items-start gap-2 rounded-xl border border-line bg-surface2 px-3 py-2.5">
                 <Sparkles size={15} className="mt-0.5 shrink-0 text-accent" />
@@ -302,10 +313,12 @@ export default function Ask({
 
             <div className="flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink3">
               <span>
-                {answer.latencyMs} ms ·{' '}
-                {!answer.notFound && answer.intent === 'long'
-                  ? t(language, 'crossCaptureSynthesis')
-                  : t(language, 'localLookup')}
+                {technical && `${answer.latencyMs} ms · `}
+                {answer.sources.length > 0
+                  ? technical
+                    ? sourceCountLabel(language, answer.sources, typeLabel)
+                    : t(language, 'fromDevices', { n: answer.sources.length })
+                  : t(language, 'fromDevice')}
               </span>
             </div>
           </div>
@@ -313,8 +326,52 @@ export default function Ask({
       ) : (
         <div className="rounded-2xl border border-dashed border-line2 bg-canvas/50 px-5 py-10 text-center">
           <Sparkles size={26} className="mx-auto text-line2" />
-          <p className="mt-3 text-[13px] text-ink2">{t(language, 'askEmptyHint')}</p>
+          <p className="mt-3 text-[13px] text-ink2">
+            {captures.length === 0 ? t(language, 'askSaveFirst') : t(language, 'askEmptyHint')}
+          </p>
         </div>
+      )}
+
+      {!answer && !pending && recentQuestions.length > 0 && (
+        <div className="hidden rounded-2xl border border-line bg-canvas p-4 shadow-sm md:block">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[13px] font-bold">{t(language, 'recentQuestions')}</h2>
+            {onClearRecent && (
+              <button
+                type="button"
+                onClick={onClearRecent}
+                className="min-h-11 rounded-full px-3 text-[11px] font-bold text-ink3 hover:text-accent"
+              >
+                {t(language, 'clearRecent')}
+              </button>
+            )}
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {recentQuestions.map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => {
+                  setQuery(question);
+                  submit(question);
+                }}
+                className="flex min-h-11 w-full items-center justify-between rounded-xl border border-line bg-surface2 px-3 py-2 text-left text-[12px] font-semibold text-ink2 hover:border-accent"
+              >
+                {question} <ArrowUpRight size={14} className="shrink-0 text-accent" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      </div>
+      {answer && !answer.notFound && onOpenInTimeline && (
+        <AnswerProof
+          answer={answer}
+          language={language}
+          onOpenDetail={onOpenDetail}
+          onOpenInTimeline={onOpenInTimeline}
+          technical={technical}
+        />
       )}
     </div>
   );

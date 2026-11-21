@@ -1,0 +1,704 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,700;0,800;0,900;1,400&amp;family=Noto+Serif:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "on-primary": "#ffffff",
+          "tertiary-fixed-dim": "#f7bd48",
+          "on-error-container": "#93000a",
+          "secondary-container": "#9ef0d6",
+          "line": "#e2d7c3",
+          "on-tertiary": "#ffffff",
+          "on-error": "#ffffff",
+          "on-primary-container": "#fffbff",
+          "on-primary-fixed": "#390c00",
+          "gold-soft": "#fbf0cd",
+          "tertiary-container": "#986d00",
+          "primary-fixed-dim": "#ffb59c",
+          "on-tertiary-fixed-variant": "#5d4200",
+          "surface-variant": "#ece1d5",
+          "on-background": "#201b14",
+          "on-tertiary-container": "#fffbff",
+          "surface-container-high": "#f2e6da",
+          "surface-container-highest": "#ece1d5",
+          "bg-base": "#f6f1e7",
+          "on-surface-variant": "#594139",
+          "inverse-surface": "#352f28",
+          "surface-tint": "#aa3600",
+          "accent-deep": "#c74312",
+          "on-secondary": "#ffffff",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#fef2e6",
+          "accent-soft": "#fdeadd",
+          "surface-bright": "#fff8f3",
+          "primary-fixed": "#ffdbcf",
+          "on-surface": "#201b14",
+          "on-secondary-fixed-variant": "#005141",
+          "outline": "#8d7167",
+          "tertiary-fixed": "#ffdea6",
+          "secondary-fixed-dim": "#85d6be",
+          "inverse-on-surface": "#fbefe3",
+          "danger-soft": "#fbe7e2",
+          "ink-secondary": "#5c5344",
+          "outline-variant": "#e2bfb4",
+          "error-container": "#ffdad6",
+          "on-secondary-fixed": "#002019",
+          "background": "#fff8f3",
+          "on-tertiary-fixed": "#271900",
+          "error": "#ba1a1a",
+          "surface-dim": "#e3d8cc",
+          "primary": "#a63500",
+          "secondary": "#096b57",
+          "inverse-primary": "#ffb59c",
+          "primary-container": "#cd470b",
+          "surface-container": "#f8ece0",
+          "bg-subtle": "#efe6d6",
+          "ink-tertiary": "#8a7d68",
+          "danger": "#b3372a",
+          "secondary-fixed": "#a0f2d9",
+          "tertiary": "#785600",
+          "surface": "#fffdf8",
+          "on-primary-fixed-variant": "#822800",
+          "on-secondary-container": "#136f5b",
+          "surface-raised": "#fbf6ec",
+          "line-strong": "#cdbd9c",
+          "teal-soft": "#e0f0ea"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "margin": "1.25rem",
+          "space-xs": "0.5rem",
+          "gutter": "1rem",
+          "space-2xs": "0.25rem",
+          "space-xl": "2rem",
+          "space-2xl": "3rem",
+          "space-sm": "0.75rem",
+          "space-md": "1rem",
+          "space-lg": "1.5rem"
+        },
+        "fontFamily": {
+          "headline-lg": [
+            "Noto Serif"
+          ],
+          "label-sm": [
+            "Be Vietnam Pro"
+          ],
+          "headline-sm": [
+            "Be Vietnam Pro"
+          ],
+          "body-editorial": [
+            "Noto Serif"
+          ],
+          "body-md": [
+            "Be Vietnam Pro"
+          ],
+          "label-lg": [
+            "Be Vietnam Pro"
+          ],
+          "label-md": [
+            "Be Vietnam Pro"
+          ],
+          "body-lg": [
+            "Be Vietnam Pro"
+          ],
+          "headline-md": [
+            "Noto Serif"
+          ],
+          "title-md": [
+            "Be Vietnam Pro"
+          ],
+          "display": [
+            "Be Vietnam Pro"
+          ]
+        },
+        "fontSize": {
+          "headline-lg": [
+            "30px",
+            {
+              "lineHeight": "36px",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "label-sm": [
+            "10.5px",
+            {
+              "lineHeight": "14px",
+              "letterSpacing": "0.06em",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-sm": [
+            "18px",
+            {
+              "lineHeight": "24px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "800"
+            }
+          ],
+          "body-editorial": [
+            "16px",
+            {
+              "lineHeight": "26px",
+              "fontWeight": "400"
+            }
+          ],
+          "body-md": [
+            "13.5px",
+            {
+              "lineHeight": "21px",
+              "fontWeight": "400"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "18px",
+              "letterSpacing": "0.01em",
+              "fontWeight": "800"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "16px",
+              "letterSpacing": "0.04em",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "15px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-md": [
+            "22px",
+            {
+              "lineHeight": "28px",
+              "letterSpacing": "-0.015em",
+              "fontWeight": "700"
+            }
+          ],
+          "title-md": [
+            "16px",
+            {
+              "lineHeight": "22px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "display": [
+            "40px",
+            {
+              "lineHeight": "44px",
+              "letterSpacing": "-0.03em",
+              "fontWeight": "900"
+            }
+          ]
+        }
+      }
+    }
+  };</script></head><body class="bg-bg-base font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-raised z-50 flex flex-col justify-between p-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-space-lg"><div class="flex items-center gap-space-sm px-space-xs"><div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-[0_4px_12px_-2px_rgba(60,40,10,0.18)]"><span class="material-symbols-outlined text-on-primary text-[20px]">auto_stories</span></div><div class="flex flex-col"><span class="font-headline-md text-headline-md text-on-surface tracking-tight leading-none">My Memory</span><span class="font-label-sm text-label-sm text-ink-tertiary uppercase tracking-widest mt-1">Archival Vault</span></div></div><nav class="flex flex-col gap-space-2xs" data-active-classes="bg-accent-soft text-accent-deep font-bold rounded-xl"><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="memories" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">history_edu</span><span class="font-title-md text-title-md">Memories</span></div><span class="px-2 py-0.5 rounded-full bg-surface-container text-ink-secondary font-label-sm text-label-sm">143</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="ask" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">forum</span><span class="font-title-md text-title-md">Ask</span></div></a><a aria-current="page" class="flex items-center justify-between px-space-md py-space-sm transition-all bg-accent-soft text-accent-deep font-bold rounded-xl" data-path="forget" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">cleaning_services</span><span class="font-title-md text-title-md">Forget</span></div><span class="px-2 py-0.5 rounded-full bg-danger-soft text-danger font-label-sm text-label-sm font-bold">2</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="settings-vault" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">shield_lock</span><span class="font-title-md text-title-md">Settings &amp; Vault</span></div></a></nav></div><div class="flex flex-col gap-space-md pt-space-md"><div class="bg-surface rounded-xl p-space-sm flex flex-col gap-space-2xs shadow-[0_2px_8px_rgba(60,40,10,0.04)]"><div class="flex items-center gap-space-xs"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider font-extrabold">100% Offline Ready</span></div><span class="font-body-md text-body-md text-ink-tertiary">142 MB of local storage</span></div><div class="flex items-center justify-between px-space-xs"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary font-title-md text-title-md">M</div><div class="flex flex-col"><span class="font-title-md text-title-md text-on-surface leading-tight">Maya</span><span class="font-label-sm text-label-sm text-ink-secondary">Personal Vault</span></div></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl z-40 px-space-lg flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-space-xs text-ink-secondary font-label-md text-label-md"><span class="hover:text-on-surface cursor-pointer">Archive</span><span class="material-symbols-outlined text-[14px]">chevron_right</span><span class="text-on-surface font-extrabold">Workspace</span></div><div class="flex items-center gap-space-md"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-ink-tertiary text-[18px]">search</span><input class="w-72 pl-9 pr-4 py-2 bg-surface-raised rounded-full font-body-md text-body-md text-on-surface placeholder:text-ink-tertiary focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" placeholder="Cmd+K to search memories..." type="text"></div><div class="flex items-center gap-space-xs"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-soft text-accent-deep hover:bg-accent-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">photo_camera</span><span>+ Snap Photo</span></button><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-soft text-secondary hover:bg-teal-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">mic</span><span>+ Voice Memo</span></button><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gold-soft text-tertiary hover:bg-gold-soft/80 transition-colors font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[16px]">edit_note</span><span>+ Quick Note</span></button></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-16 w-full min-h-screen bg-bg-base px-space-lg py-space-lg"><div class="flex flex-col w-full gap-space-lg">
+<div class="relative overflow-hidden rounded-2xl bg-surface-raised p-space-lg shadow-sm">
+<div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
+<div class="absolute -left-12 -bottom-12 w-64 h-64 rounded-full bg-secondary/5 blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="flex flex-col gap-space-2xs max-w-2xl">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent-soft text-accent-deep font-label-sm text-label-sm uppercase tracking-widest">
+<span class="material-symbols-outlined text-[14px]">auto_delete</span>
+            Vault Hygiene
+          </span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">·</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Zero Cloud Leakage
+          </span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Mindful Tidying — Forget Lab</h1>
+<p class="font-body-editorial text-body-editorial text-ink-secondary">We suggest · You decide. Keep what matters, let go of the clutter.</p>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface text-ink-secondary hover:text-on-surface shadow-sm transition-all font-label-md text-label-md" id="batch-undo-btn">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span>Restore History</span>
+</button>
+<div class="h-6 w-[1px] bg-line"></div>
+<span class="font-label-sm text-label-sm text-ink-tertiary px-1">Session ID: #L-904</span>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm mt-space-lg">
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-accent-soft text-on-surface shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase text-accent-deep tracking-wider font-extrabold">Queue</span>
+<span class="material-symbols-outlined text-accent-deep text-[20px]">pending_actions</span>
+</div>
+<div class="mt-space-xs flex items-baseline gap-space-xs">
+<span class="font-display text-display text-accent-deep" id="queue-count">2</span>
+<span class="font-title-md text-title-md text-accent-deep">To review</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-secondary mt-space-2xs">Needs your thoughtful eye</span>
+</div>
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-teal-soft text-on-surface shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase text-secondary tracking-wider font-extrabold">Preserved</span>
+<span class="material-symbols-outlined text-secondary text-[20px]" style="font-variation-settings: 'FILL' 1;">bookmark_added</span>
+</div>
+<div class="mt-space-xs flex items-baseline gap-space-xs">
+<span class="font-display text-display text-secondary" id="kept-count">14</span>
+<span class="font-title-md text-title-md text-secondary">Kept safe</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-secondary mt-space-2xs">Retained in timeline archive</span>
+</div>
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-surface-container text-on-surface shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase text-ink-secondary tracking-wider font-extrabold">Recycled</span>
+<span class="material-symbols-outlined text-ink-secondary text-[20px]">delete_sweep</span>
+</div>
+<div class="mt-space-xs flex items-baseline gap-space-xs">
+<span class="font-display text-display text-ink-secondary" id="trash-count">8</span>
+<span class="font-title-md text-title-md text-ink-secondary">In trash</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary mt-space-2xs">Scheduled purge in 24 days</span>
+</div>
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-surface text-on-surface shadow-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase text-ink-secondary tracking-wider font-extrabold">Guarantee</span>
+<span class="material-symbols-outlined text-secondary text-[20px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<div class="mt-space-xs flex items-baseline gap-space-xs">
+<span class="font-display text-display text-on-surface">100%</span>
+<span class="font-title-md text-title-md text-on-surface">Safe</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-bold mt-space-2xs">30-day instant undo safety</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<div class="lg:col-span-7 flex flex-col gap-space-md">
+<div class="flex items-center justify-between px-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-on-surface">Pending Suggestions</span>
+<span class="px-2 py-0.5 rounded-full bg-accent-soft text-accent-deep font-label-sm text-label-sm font-bold">Priority Batch</span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Reviewed on your device</span>
+</div>
+<div class="flex flex-col bg-surface rounded-2xl p-space-lg shadow-sm transition-all duration-300" id="card-receipt">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2.5 py-0.5 rounded-full bg-gold-soft text-tertiary font-label-sm text-label-sm font-bold uppercase">Visual Match</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Captured 14 Oct · 13:42</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Lunch receipt — duplicate shot</h2>
+</div>
+<div class="flex items-center gap-1 text-ink-tertiary hover:text-on-surface cursor-pointer p-1">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm my-space-xs">
+<div class="flex flex-col gap-space-2xs">
+<div class="relative w-full h-44 rounded-xl overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A top-down view of a crisp printed paper lunch receipt on a warm wooden bistro table beside an espresso cup with crema, high-contrast natural window light, warm archival film aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKpjHZZZQHez0zfk_JYeZf-nTxYGV4aQtlCEwoXuhbIjjN6jcSGMsWsYMpXq-LfOtnCC-iG8AdNzwHprU2wqhx1Gjfi_UyMIxWGwbl-WCbsRZxcUascFTKKF2_7f8ceUldPUAZNAbzwG3s5YM6Og-OaBw65WyW22Vpx-KZS7iro6qOw5H7gdVThnooSuOjs0COGkVSLs8J6YtY6cv4AoHn77QCtC5roT_R6NkCqena">
+<span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-surface/90 backdrop-blur text-secondary font-label-sm text-label-sm font-bold flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                Original #1 (Sharper)
+              </span>
+<span class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-inverse-surface/80 text-inverse-on-surface font-label-sm text-label-sm">
+                1.4 MB · Crisp
+              </span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-secondary px-1">Preserved in Vault folder 'Finances'</span>
+</div>
+<div class="flex flex-col gap-space-2xs">
+<div class="relative w-full h-44 rounded-xl overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Slightly motion-blurred, slightly tilted duplicate photo of the same bistro lunch receipt on warm wood table, shot from a quick angle with warm ambient restaurant lamps, archival documentary vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXl4MQXOD43MxymOyYpsIy7gClabICYqLcHK0LSA2uer1D1kM440jZUBdXtzIKlVoCwIZn_jK4JKF8n1KCrjzfmm5JuIs_u5G_DWh9oyU4r9RKg2Md4hafhPbuQhQftwZEs_Ei-8u_xewzu5qu6PY_-VTd3VwAioAQB84fteZtbCSHvSkoR_mko89Nvi0RTUbLcolYLuPXZ7cGYz0gJrsent07sPMIOHVK09wccxNb">
+<span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-accent-soft/95 text-accent-deep font-label-sm text-label-sm font-bold flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+                Duplicate #2 (Blurry)
+              </span>
+<span class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-inverse-surface/80 text-inverse-on-surface font-label-sm text-label-sm">
+                1.3 MB · Motion
+              </span>
+</div>
+<span class="font-label-sm text-label-sm text-ink-secondary px-1">Shot 40 seconds later</span>
+</div>
+</div>
+<div class="flex items-start gap-space-xs p-space-sm rounded-xl bg-surface-raised my-space-sm">
+<span class="material-symbols-outlined text-tertiary text-[20px] mt-0.5">lightbulb</span>
+<div class="flex flex-col text-on-surface">
+<span class="font-title-md text-title-md font-bold">Exact duplicate · 40s apart</span>
+<p class="font-body-md text-body-md text-ink-secondary mt-0.5">
+              Looks like an extra accidental capture. The clearer copy (Original #1) is already saved safely in your timeline and indexed into your monthly summary.
+            </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs mt-space-2xs">
+<button class="flex items-center gap-space-xs px-5 py-2.5 rounded-full bg-surface-raised text-on-surface hover:bg-surface-container-high transition-all font-label-lg text-label-lg active:scale-95 shadow-sm" onclick="keepMemory('card-receipt', 'Lunch receipt')">
+<span class="material-symbols-outlined text-[18px]">check</span>
+<span>Keep in Memories</span>
+</button>
+<button class="flex items-center gap-space-xs px-6 py-2.5 rounded-full bg-primary text-on-primary hover:bg-primary-container transition-all font-label-lg text-label-lg active:scale-95 shadow-md" onclick="trashMemory('card-receipt', 'Lunch receipt')">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+<span>Move to Trash (30 days)</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col bg-surface rounded-2xl p-space-lg shadow-sm transition-all duration-300" id="card-otp">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2.5 py-0.5 rounded-full bg-danger-soft text-danger font-label-sm text-label-sm font-bold uppercase">Expired Security</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Captured 10 Nov · 09:15</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Screenshot of OTP Code</h2>
+</div>
+<div class="flex items-center gap-1 text-ink-tertiary hover:text-on-surface cursor-pointer p-1">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</div>
+</div>
+<div class="flex flex-col md:flex-row items-stretch gap-space-md p-space-md rounded-xl bg-surface-raised my-space-2xs">
+<div class="w-full md:w-48 h-32 rounded-lg bg-inverse-surface text-inverse-on-surface p-space-sm flex flex-col justify-between font-mono shrink-0 shadow-inner">
+<div class="flex items-center justify-between opacity-60 text-[10px]">
+<span>SMS NOTIFICATION</span>
+<span>10 NOV</span>
+</div>
+<div class="text-center font-display text-headline-md tracking-widest text-primary-fixed">
+              849 201
+            </div>
+<div class="text-[10px] opacity-70 truncate">
+              Valid for 5 mins only.
+            </div>
+</div>
+<div class="flex flex-col justify-center gap-1 text-on-surface">
+<span class="font-title-md text-title-md text-ink-secondary">Verification snippet:</span>
+<blockquote class="font-headline-sm text-headline-sm text-on-surface italic">
+              "Your verification code is 849201 for banking sign-in."
+            </blockquote>
+<p class="font-body-md text-body-md text-ink-secondary mt-1">
+              One-time passcode expired on 10 Nov and holds zero historical or sentimental significance. Removing it reduces search noise.
+            </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-2xs">
+<button class="flex items-center gap-space-xs px-5 py-2.5 rounded-full bg-surface-raised text-on-surface hover:bg-surface-container-high transition-all font-label-lg text-label-lg active:scale-95 shadow-sm" onclick="keepMemory('card-otp', 'OTP Screenshot')">
+<span class="material-symbols-outlined text-[18px]">check</span>
+<span>Keep in Memories</span>
+</button>
+<button class="flex items-center gap-space-xs px-6 py-2.5 rounded-full bg-primary text-on-primary hover:bg-primary-container transition-all font-label-lg text-label-lg active:scale-95 shadow-md" onclick="trashMemory('card-otp', 'OTP Screenshot')">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+<span>Move to Trash (30 days)</span>
+</button>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-2xl bg-teal-soft/60 p-space-lg shadow-sm">
+<div class="flex items-start gap-space-md">
+<div class="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-on-secondary shrink-0 shadow-md">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-secondary text-on-secondary font-label-sm text-label-sm font-bold uppercase tracking-wider">
+                Permanent Vault Guard
+              </span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">Unconditional Shield</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Mum's medicine box photo</h3>
+<p class="font-body-md text-body-md text-ink-secondary mt-1">
+              Protected · Only photo of prescription. We detected active healthcare context and permanently exempt it from tidying algorithms. We never suggest removing personal health records or irreplaceable documents.
+            </p>
+<div class="flex items-center gap-space-sm mt-space-xs">
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-secondary font-bold">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+                Immune to Tidying suggestions
+              </span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">·</span>
+<a class="font-label-sm text-label-sm text-on-surface hover:underline" href="#">Manage Protection Categories</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<div class="flex flex-col bg-inverse-surface text-inverse-on-surface rounded-2xl p-space-lg shadow-lg relative overflow-hidden">
+<div class="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-primary/20 blur-2xl pointer-events-none"></div>
+<div class="flex items-center gap-space-xs mb-space-sm text-primary-fixed-dim">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">gavel</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest font-extrabold">Archival Constitution</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-primary-container leading-tight mb-space-xs">
+          The Forgetting Rules — Hard-coded, non-negotiable
+        </h3>
+<p class="font-body-md text-body-md text-surface-container-high opacity-85 mb-space-md">
+          Unlike automated cleaners that invisibly purge your files, My Memory operates under strict ethical constraints.
+        </p>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary-fixed font-label-sm text-label-sm font-bold shrink-0 mt-0.5">
+              1
+            </div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-primary-container">Suggest only — never auto-delete</span>
+<span class="font-body-md text-body-md text-surface-container-high/80 mt-0.5 leading-relaxed">
+                Without your manual verification, not a single byte leaves your drive. The final word is always yours.
+              </span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary-fixed font-label-sm text-label-sm font-bold shrink-0 mt-0.5">
+              2
+            </div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-primary-container">Reasons must be verifiable</span>
+<span class="font-body-md text-body-md text-surface-container-high/80 mt-0.5 leading-relaxed">We only prompt action when a photo matches with near certainty or a timestamp explicitly marks expiration.</span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary-fixed font-label-sm text-label-sm font-bold shrink-0 mt-0.5">
+              3
+            </div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-primary-container">30-day safety net</span>
+<span class="font-body-md text-body-md text-surface-container-high/80 mt-0.5 leading-relaxed">
+                Items in trash remain locally encrypted. Restore any file with original metadata intact with a single click.
+              </span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary-fixed font-label-sm text-label-sm font-bold shrink-0 mt-0.5">
+              4
+            </div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-primary-container">What you keep teaches it</span>
+<span class="font-body-md text-body-md text-surface-container-high/80 mt-0.5 leading-relaxed">
+                When you click "Keep", the local embedding model calibrates your preference profile without internet telemetry.
+              </span>
+</div>
+</div>
+</div>
+<div class="mt-space-lg pt-space-md border-t border-surface-container-highest/20 flex items-center justify-between text-surface-container-high font-label-sm text-label-sm"><span>100% on-device · Fully private</span><span class="text-primary-fixed flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">lock</span>Never leaves your phone</span></div>
+</div>
+<div class="flex flex-col bg-surface rounded-2xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-ink-secondary text-[20px]">inventory_2</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Recently Trashed</h3>
+</div>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Holds for 30d</span>
+</div>
+<div class="flex flex-col gap-space-xs" id="trash-list">
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-raised hover:bg-surface-container transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-ink-secondary shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">Uber ride invoice screenshot</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Moved 2 days ago · Auto-purges in 28d</span>
+</div>
+</div>
+<button class="px-3 py-1 rounded-full bg-surface text-secondary hover:bg-teal-soft font-label-md text-label-md transition-colors shrink-0 shadow-sm flex items-center gap-1" onclick="restoreItem(this, 'Uber ride invoice screenshot')">
+<span class="material-symbols-outlined text-[14px]">replay</span>
+<span>Restore</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-raised hover:bg-surface-container transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-ink-secondary shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">Pocket accidental photo (pitch black)</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Moved 5 days ago · Auto-purges in 25d</span>
+</div>
+</div>
+<button class="px-3 py-1 rounded-full bg-surface text-secondary hover:bg-teal-soft font-label-md text-label-md transition-colors shrink-0 shadow-sm flex items-center gap-1" onclick="restoreItem(this, 'Pocket accidental photo')">
+<span class="material-symbols-outlined text-[14px]">replay</span>
+<span>Restore</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-raised hover:bg-surface-container transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-ink-secondary shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">mic_off</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">1s Blank Audio Memo</span>
+<span class="font-label-sm text-label-sm text-ink-tertiary">Moved 12 days ago · Auto-purges in 18d</span>
+</div>
+</div>
+<button class="px-3 py-1 rounded-full bg-surface text-secondary hover:bg-teal-soft font-label-md text-label-md transition-colors shrink-0 shadow-sm flex items-center gap-1" onclick="restoreItem(this, '1s Blank Audio Memo')">
+<span class="material-symbols-outlined text-[14px]">replay</span>
+<span>Restore</span>
+</button>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between">
+<a class="font-label-md text-label-md text-accent-deep hover:underline flex items-center gap-1" href="#">
+<span>Open complete trash vault (8 files)</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+<button class="font-label-sm text-label-sm text-danger hover:underline" onclick="emptyTrashModal()">
+            Empty Trash Now
+          </button>
+</div>
+</div>
+<div class="p-space-md rounded-2xl bg-surface-raised flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-secondary shadow-sm">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface">Tidying Sensitivity</span>
+<span class="font-label-sm text-label-sm text-ink-secondary">Conservative (Duplicates &amp; Expired OTPs only)</span>
+</div>
+</div>
+<button class="px-3 py-1.5 rounded-full bg-surface hover:bg-surface-container font-label-md text-label-md text-on-surface shadow-sm">
+          Adjust
+        </button>
+</div>
+</div>
+</div>
+<div class="fixed bottom-6 right-8 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-space-sm px-space-md py- space-xs bg-inverse-surface text-inverse-on-surface rounded-full shadow-2xl" id="toast-notification">
+<span class="material-symbols-outlined text-[20px] text-secondary" id="toast-icon">check_circle</span>
+<span class="font-body-md text-body-md" id="toast-msg">Action completed.</span>
+<button class="ml-2 text-inverse-on-surface/60 hover:text-inverse-on-surface pointer-events-auto" onclick="hideToast()">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+<script>
+  let queueCount = 2;
+  let keptCount = 14;
+  let trashCount = 8;
+
+  function showToast(message, icon = 'check_circle', iconColor = 'text-secondary') {
+    const toast = document.getElementById('toast-notification');
+    const msgEl = document.getElementById('toast-msg');
+    const iconEl = document.getElementById('toast-icon');
+    
+    msgEl.textContent = message;
+    iconEl.textContent = icon;
+    iconEl.className = 'material-symbols-outlined text-[20px] ' + iconColor;
+
+    toast.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
+    toast.classList.add('translate-y-0', 'opacity-100');
+
+    setTimeout(() => {
+      hideToast();
+    }, 4000);
+  }
+
+  function hideToast() {
+    const toast = document.getElementById('toast-notification');
+    toast.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+    toast.classList.remove('translate-y-0', 'opacity-100');
+  }
+
+  function keepMemory(cardId, name) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+    
+    setTimeout(() => {
+      card.remove();
+      queueCount = Math.max(0, queueCount - 1);
+      keptCount += 1;
+      document.getElementById('queue-count').textContent = queueCount;
+      document.getElementById('kept-count').textContent = keptCount;
+      showToast('Kept "' + name + '" safe in your memories.', 'bookmark_added', 'text-secondary');
+      checkEmptyQueue();
+    }, 300);
+  }
+
+  function trashMemory(cardId, name) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(20px)';
+    
+    setTimeout(() => {
+      card.remove();
+      queueCount = Math.max(0, queueCount - 1);
+      trashCount += 1;
+      document.getElementById('queue-count').textContent = queueCount;
+      document.getElementById('trash-count').textContent = trashCount;
+
+      const trashList = document.getElementById('trash-list');
+      const newEntry = document.createElement('div');
+      newEntry.className = 'flex items-center justify-between p-space-sm rounded-xl bg-surface-raised hover:bg-surface-container transition-colors group animate-fadeIn';
+      newEntry.innerHTML = `
+        <div class="flex items-center gap-space-sm min-w-0">
+          <div class="w-9 h-9 rounded-lg bg-surface flex items-center justify-center text-ink-secondary shrink-0 shadow-sm">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="font-title-md text-title-md text-on-surface truncate">${name}</span>
+            <span class="font-label-sm text-label-sm text-ink-tertiary">Moved just now · Auto-purges in 30d</span>
+          </div>
+        </div>
+        <button onclick="restoreItem(this, '${name}')" class="px-3 py-1 rounded-full bg-surface text-secondary hover:bg-teal-soft font-label-md text-label-md transition-colors shrink-0 shadow-sm flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">replay</span>
+          <span>Restore</span>
+        </button>
+      `;
+      trashList.insertBefore(newEntry, trashList.firstChild);
+
+      showToast('Moved "' + name + '" to 30-day trash safety net.', 'delete_sweep', 'text-primary');
+      checkEmptyQueue();
+    }, 300);
+  }
+
+  function restoreItem(button, name) {
+    const row = button.closest('.flex.items-center.justify-between');
+    if (!row) return;
+
+    row.style.opacity = '0';
+    setTimeout(() => {
+      row.remove();
+      trashCount = Math.max(0, trashCount - 1);
+      keptCount += 1;
+      document.getElementById('trash-count').textContent = trashCount;
+      document.getElementById('kept-count').textContent = keptCount;
+      showToast('Restored "' + name + '" back into active vault.', 'replay', 'text-secondary');
+    }, 200);
+  }
+
+  function checkEmptyQueue() {
+    if (queueCount === 0) {
+      const leftCol = document.querySelector('.lg\\:col-span-7');
+      const emptyState = document.createElement('div');
+      emptyState.className = 'p-space-xl bg-surface rounded-2xl flex flex-col items-center justify-center text-center shadow-sm';
+      emptyState.innerHTML = `
+        <div class="w-16 h-16 rounded-full bg-teal-soft flex items-center justify-center text-secondary mb-space-sm">
+          <span class="material-symbols-outlined text-[32px]">task_alt</span>
+        </div>
+        <h3 class="font-headline-md text-headline-md text-on-surface">Queue is perfectly tidy</h3>
+        <p class="font-body-md text-body-md text-ink-secondary max-w-sm mt-1 mb-space-md">
+          All pending duplicates and expired snippets have been processed. Your local vault is clean and organized.
+        </p>
+        <button onclick="window.location.reload()" class="px-5 py-2 rounded-full bg-surface-raised text-on-surface font-label-md text-label-md hover:bg-surface-container shadow-sm">
+          Run Next Routine Check
+        </button>
+      `;
+      leftCol.insertBefore(emptyState, leftCol.lastElementChild);
+    }
+  }
+
+  function emptyTrashModal() {
+    showToast('Trash holds items for 30 days safely. Manual wipe confirmed.', 'info', 'text-tertiary');
+  }
+</script></main></div>
+
+</body></html>
