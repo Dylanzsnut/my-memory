@@ -37,7 +37,7 @@ export default function Hud({ events, language, demoMode }: Props) {
   const simulatedCalls = events.filter((e) => e.source === 'SIMULATED').length;
 
   return (
-    <div className="rounded-2xl border border-line bg-canvas p-3 shadow-sm">
+    <div className="mx-auto w-full max-w-4xl rounded-2xl border border-line bg-canvas p-3 shadow-sm">
       <button
         type="button"
         onClick={() => setOpen(!open)}

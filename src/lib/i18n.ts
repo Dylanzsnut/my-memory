@@ -228,6 +228,7 @@ const EN = {
   ariaToggleLanguage: 'Toggle language',
   ariaAccountMenu: 'Account menu',
   ariaToggleHud: 'Toggle inference HUD details',
+  ariaMainNav: 'Main navigation',
 };
 
 const VI: Record<keyof typeof EN, string> = {
@@ -458,6 +459,7 @@ const VI: Record<keyof typeof EN, string> = {
   ariaToggleLanguage: 'Chuyển ngôn ngữ',
   ariaAccountMenu: 'Menu tài khoản',
   ariaToggleHud: 'Đóng hoặc mở chi tiết HUD suy luận',
+  ariaMainNav: 'Điều hướng chính',
 };
 
 export type TranslationKey = keyof typeof EN;

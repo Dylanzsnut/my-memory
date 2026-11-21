@@ -20,7 +20,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
   const [protectedOpen, setProtectedOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-accent">
           <Sparkles size={13} /> {language === 'vi' ? 'Dọn dẹp chánh niệm' : 'Mindful tidying'}
@@ -60,6 +60,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
           </div>
         )}
 
+        <div className="grid gap-3 lg:grid-cols-2">
         {pending.map((proposal, index) => {
           const capture = captures.find((c) => c.id === proposal.captureId);
           const reasonKey =
@@ -84,7 +85,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
                 </span>
               </div>
               {capture?.originalRef && capture.type === 'photo' && (
-                <img src={capture.originalRef} alt="" className="mt-3 h-24 w-full rounded-xl border border-line object-cover" />
+                <img src={capture.originalRef} alt="" loading="lazy" decoding="async" className="mt-3 h-24 w-full rounded-xl border border-line object-cover" />
               )}
               <div className="mt-3 flex items-start gap-2 rounded-xl bg-surface2 p-2.5">
                 <Sparkles size={15} className="mt-0.5 shrink-0 text-accent" />
@@ -109,6 +110,7 @@ export default function Forget({ proposals, captures, language, onDecide, onOpen
             </div>
           );
         })}
+        </div>
       </section>
 
       {protectedCaptures.length > 0 && (

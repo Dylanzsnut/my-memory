@@ -30,7 +30,7 @@ export default function Trash({
   const trashed = captures.filter((c) => c.retentionState === 'trashed');
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -58,7 +58,7 @@ export default function Trash({
           {t(language, 'trashEmpty')}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           {trashed.map((capture) => {
             const left = daysRemaining(capture, trashDays);
             const isConfirming = confirmingId === capture.id;
@@ -66,7 +66,7 @@ export default function Trash({
               <div key={capture.id} className="rounded-2xl border border-line bg-canvas p-3.5 shadow-sm">
                 <div className="flex items-start gap-3">
                   {capture.originalRef && capture.type === 'photo' ? (
-                    <img src={capture.originalRef} alt="" className="h-14 w-14 shrink-0 rounded-xl border border-line object-cover" />
+                    <img src={capture.originalRef} alt="" loading="lazy" decoding="async" className="h-14 w-14 shrink-0 rounded-xl border border-line object-cover" />
                   ) : (
                     <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-surface2 text-ink2">
                       {capture.type === 'voice' ? <Mic size={20} /> : capture.type === 'note' ? <NotepadText size={20} /> : <Image size={20} />}

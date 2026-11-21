@@ -1,7 +1,7 @@
 # My Memory — UI/UX & Interaction Design (As-Built)
 
-- Owner: Duy · Last verified: 2026-11-20 · Against HEAD: `d7aa8d2` plus the
-  uncommitted 2026-11-20 UI/UX review changes
+- Owner: Duy · Last verified: 2026-11-21 · Against HEAD: `fa38d56` plus the
+  uncommitted 2026-11-21 responsive-layout changes
 - Copy / i18n single source: `src/lib/i18n.ts`
 - Visual tokens: `docs/as-built/design-system.md`
 - Historical interaction spec: `docs/rfc/002-ux-interaction-loops.md`
@@ -10,13 +10,25 @@
 
 | ID | Name | Route / trigger | Target viewport | Input |
 |---|---|---|---|---|
-| UI-001 | Onboarding | first run | mobile PWA, max-w-lg | touch |
-| UI-002 | Memories | tab `memories` | mobile PWA | file input, mic, textarea, group chips, group edit controls |
-| UI-003 | Ask | tab `ask` | mobile PWA | text input, example chips, live tag chips, tag-scope control |
-| UI-004 | Forget | tab `forget` | mobile PWA | touch decisions |
-| UI-005 | Memory detail sheet | tap a capture | overlay sheet | touch |
-| UI-006 | HUD | in every tab, collapsible | mobile PWA | read-only |
-| UI-007 | Toast | after trashing/restoring | fixed bottom | undo / dismiss |
+| UI-001 | Onboarding | first run | responsive: mobile first, centred card on desktop | touch |
+| UI-002 | Memories | tab `memories` | responsive: mobile < 768, two-column >= 1024 | file input, mic, textarea, filter chips, card menus |
+| UI-003 | Ask | tab `ask` | responsive: mobile first, centred reading column on desktop | text input, example chips, live tag chips, tag-scope control |
+| UI-004 | Forget | tab `forget` | responsive: mobile first, two-column proposals >= 1024 | touch decisions |
+| UI-005 | Memory detail sheet | tap a capture | bottom sheet < 768, right-side panel >= 768 | touch |
+| UI-006 | HUD | in every tab, collapsible | responsive, aligned with content width | read-only |
+| UI-007 | Toast | after trashing/restoring | fixed bottom (above safe area) | undo / dismiss |
+
+### Responsive layout (2026-11-21)
+
+Below 768px the layout is unchanged: bottom tabs, one column, bottom sheet and
+toast above the safe-area inset. From `md` a sticky left side menu (`SideNav`)
+replaces the bottom tabs, the container widens to `max-w-7xl`, and the detail
+sheet becomes a full-height right panel with a slide-in animation. From `lg`
+Memories uses a sticky control column plus a scrollable capture list; capture,
+evidence, proposal and trash cards use a two-column grid. Ask centres at
+`max-w-2xl` for comfortable reading. All motion honours
+`prefers-reduced-motion`, and custom animations are Tailwind utilities so
+responsive variants can override them.
 
 ## 2. Interaction state matrix
 

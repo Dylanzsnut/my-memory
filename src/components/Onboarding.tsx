@@ -60,7 +60,7 @@ export default function Onboarding({ language, nanoStatus, onLanguageChange, onC
   };
 
   return (
-    <div className="no-scrollbar mx-auto flex min-h-screen max-w-lg flex-col overflow-y-auto bg-bg px-5 pb-8 pt-5">
+    <div className="no-scrollbar mx-auto flex min-h-dvh max-w-lg flex-col overflow-y-auto bg-bg px-5 pb-8 pt-5">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-white">

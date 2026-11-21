@@ -1,6 +1,6 @@
 # Verification
 
-- Owner: Duy · Last verified: 2026-11-20
+- Owner: Duy · Last verified: 2026-11-21
 - Check commands: `npm run typecheck`, `npm run lint`, `npm test` (`26` tests across `8` suites in `tests/core.test.ts`), `npm run build`
 - Live device / Console caveats: Automated unit and corpus tests verify local search, fail-closed claim verification, offline synthesis refusal, sensitive-entity detection, F1/F2/F4 forgetting + trash purge, auto-tagging, JPEG EXIF parsing, and editable embedding groups (reconcile/split/rename/move/remove). Physical Chrome 139+ Nano 4 hardware behavior, mobile gallery import, and Firebase Console configuration remain manual external checks.
 
@@ -16,6 +16,7 @@
 | REQ-007 | CMP-002, CMP-006 | FLOW-001, FLOW-002 | UI-006 | UNVERIFIED on live hardware — Nano 4 extraction/answer and App Check token exchange require Chrome 139+ with flags and provisioned Firebase Console project. |
 | UI/UX review (2026-11-20) | CMP-001…007 | UI-002…007 | all screens | Verified (unit/build): 17 findings fixed; 2 new calendar-date-filter tests pass, typecheck/lint clean, production build succeeds. Contrast calculated and touch targets applied in code, but no automated axe or screen-reader run — see Process risks. |
 | Entity approval & tag filters (2026-11-20) | CMP-001, CMP-004 | ENT-001 | UI-002, UI-003, UI-005 | Verified (unit): `prepareEntityTag` (add/tagged/sensitive/unusable) and `sortTagOptions` (count, tie-break, pinned selection) pass in `tests/core.test.ts`; UI compiles and builds. Manual device pass for wrapped/expanded tag chips and 375px layout still pending. |
+| Responsive web layout (2026-11-21) | CMP-001…007 | UI-001…007 | all screens | Verified (build/static): typecheck, lint, tests and production build pass; generated CSS contains the `md:` drawer utility and safe-area rules. UNVERIFIED visually: no browser was available for the 375/768/1024/1280px pass, so no horizontal-scroll, focus-order or no-overlap claim is made. |
 
 ## Input coverage
 

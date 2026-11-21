@@ -49,6 +49,7 @@ import { t } from './lib/i18n';
 import Onboarding from './components/Onboarding';
 import SignInGate from './components/SignInGate';
 import BottomNav from './components/BottomNav';
+import SideNav from './components/SideNav';
 import Memories from './components/Memories';
 import Ask from './components/Ask';
 import Forget from './components/Forget';
@@ -656,7 +657,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="grid min-h-screen place-items-center bg-bg">
+      <div className="grid min-h-dvh place-items-center bg-bg">
         <div className="flex flex-col items-center gap-3 text-ink2">
           <Fingerprint size={34} className="text-accent" />
           <span className="text-[13px] font-semibold">{t(language, 'appName')}</span>
@@ -685,9 +686,11 @@ export default function App() {
   const askTags = Array.from(askTagCounts, ([tag, count]) => ({ tag, count }));
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-bg">
-      <header className="relative flex items-center justify-between px-5 pt-4">
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-bg md:max-w-7xl md:flex-row">
+      <SideNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
+      <div className="flex min-w-0 flex-1 flex-col">
+      <header className="relative flex items-center justify-between px-5 pt-4 md:justify-end md:px-8">
+        <div className="flex items-center gap-2 md:hidden">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-white">
             <Fingerprint size={18} />
           </span>
@@ -769,7 +772,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5">
+      <main className="no-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5 md:px-8 lg:px-10">
         {firebaseError && (
           <div
             role="alert"
@@ -866,6 +869,7 @@ export default function App() {
       </main>
 
       <BottomNav active={tab} onChange={handleTabChange} language={language} reviewCount={pendingCount} />
+      </div>
 
       {selected && (
         <DetailSheet

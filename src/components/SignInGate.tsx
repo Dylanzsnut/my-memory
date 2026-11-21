@@ -61,7 +61,8 @@ export default function SignInGate({ language, onLanguageChange, onAuthenticated
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-between bg-bg px-5 pb-8 pt-6">
+    <div className="md:grid md:min-h-dvh md:place-items-center">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-between bg-bg px-5 pb-8 pt-6 md:my-8 md:min-h-0 md:rounded-3xl md:border md:border-line md:bg-canvas md:px-8 md:py-8 md:shadow-sm">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-white">
@@ -132,6 +133,7 @@ export default function SignInGate({ language, onLanguageChange, onAuthenticated
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-ink3">
         <Lock size={12} /> {t(language, 'privacyFooter')}
       </p>
+    </div>
     </div>
   );
 }

@@ -106,18 +106,18 @@ export default function DetailSheet({
   }, [capture.audioBlob, capture.originalRef, capture.type]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50 md:items-stretch md:justify-end" onClick={onClose}>
       <div
         ref={sheetRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={t(language, 'detail')}
-        className="animate-sheet flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-canvas shadow-2xl outline-none"
+        className="animate-sheet flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-canvas shadow-2xl outline-none md:animate-drawer md:h-dvh md:max-h-none md:max-w-md md:rounded-none md:rounded-l-3xl md:border-y-0 md:border-r-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-line bg-canvas/95 px-4 py-3">
-          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line2" />
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line2 md:hidden" />
           <div className="flex items-center justify-between gap-2">
             <button type="button" onClick={onClose} aria-label={t(language, 'dismiss')} className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-surface2 px-3.5 py-1.5 text-[12px] font-semibold">
               <ArrowLeft size={15} /> {t(language, 'back')}

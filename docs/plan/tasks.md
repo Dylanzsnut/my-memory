@@ -966,3 +966,41 @@ and never sent to Firestore.
       staged diff). Hosting release completed; live URL
       <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
       `index-gOcGdHMj.js` / `index-BUHdG5US.css`, matching the local build.
+
+## Responsive web layout (2026-11-21)
+
+Scope: the app is a 512px phone column at every width. Target: unchanged layout
+below 768px; left side menu from `md`, wider content; two-column Memories from
+`lg`; right-side detail panel from `md`. Tailwind breakpoints only, no new
+dependencies, no JS screen-size detection. No data, inference or privacy code
+changes. Check each step at 375, 768 and 1280px where possible.
+
+- [x] R1 dvh units + safe-area insets
+- [x] R2 animations as Tailwind utilities, drawer animation, reduced-motion, focus-visible
+- [x] R3 export NAV_ITEMS; hide BottomNav at md
+- [x] R4 SideNav component (+ ariaMainNav i18n, aria-current)
+- [x] R5 App shell: side menu at md, wider container
+- [x] R6 Toast md:bottom-6
+- [x] R7 DetailSheet right panel at md
+- [x] R8 Memories two-column layout at lg
+- [x] R9 Memories card grid, hover, break-words, "All memories" title fix, lazy images
+- [x] R10 Ask reading width + evidence grid
+- [x] R11 Forget/Trash width + grid
+- [x] R12 SignInGate card + HUD width on desktop
+- [x] R13 Verify at 375/768/1024/1280, update DESIGN/VERIFICATION, mark done
+
+      Note (2026-11-21): typecheck, lint, 26/26 tests and production build pass
+      (`index-n6ebxOu-.js` / `index-Droalcas.css`). Generated CSS contains the
+      `md:animate-drawer` rule and safe-area insets. No browser is installed in
+      this environment, so the 375/768/1024/1280px visual pass, focus order and
+      horizontal-scroll check remain UNVERIFIED; this is recorded in
+      `docs/as-built/VERIFICATION.md`.
+
+## Deploy: responsive web layout (2026-11-21)
+
+- [x] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-21): Hosting release completed. Live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-n6ebxOu-.js` / `index-Droalcas.css`, matching the local build.

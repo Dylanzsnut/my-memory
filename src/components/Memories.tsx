@@ -301,7 +301,7 @@ export default function Memories({
   }
 
   const renderCaptureCard = (capture: CaptureRecord) => (
-    <div key={capture.id} className="relative w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2">
+    <div key={capture.id} className="relative w-full rounded-2xl border border-line bg-canvas p-3.5 text-left shadow-sm transition-all hover:border-line2 hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${TYPE_STYLE[capture.type]}`}>
@@ -345,14 +345,14 @@ export default function Memories({
       </div>
       <button type="button" onClick={() => onOpenDetail(capture)} className="mt-2.5 flex w-full items-start gap-3 text-left">
         {capture.originalRef && capture.type === 'photo' ? (
-          <img src={capture.originalRef} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" />
+          <img src={capture.originalRef} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" />
         ) : (
           <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-xl ${TYPE_STYLE[capture.type]}`}>
             {capture.type === 'voice' ? <Mic size={24} /> : capture.type === 'note' ? <NotepadText size={24} /> : <Image size={24} />}
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-[13.5px] font-bold leading-snug">{capture.summary}</p>
+          <p className="line-clamp-2 break-words text-[13.5px] font-bold leading-snug">{capture.summary}</p>
           {capture.derivedText && (
             <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink2">{capture.derivedText}</p>
           )}
@@ -386,12 +386,15 @@ export default function Memories({
           {badge || `${items.length} ${t(language, 'groupEntries')}`}
         </span>
       </div>
-      {items.map(renderCaptureCard)}
+      <div className="grid gap-2.5 xl:grid-cols-2">
+        {items.map(renderCaptureCard)}
+      </div>
     </section>
   );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <aside className="flex flex-col gap-5 lg:sticky lg:top-4">
       <div>
         <p className="text-[12px] font-semibold text-ink3">{greeting(language)}</p>
         <h1 className="font-serif text-[26px] font-bold leading-tight tracking-tight">
@@ -606,6 +609,9 @@ export default function Memories({
         </div>
       )}
 
+      </aside>
+
+      <div className="flex min-w-0 flex-col gap-5">
       {visibleCaptures.length === 0 && (
         <div className="rounded-2xl border border-dashed border-line2 bg-canvas/60 px-5 py-8 text-center">
           <p className="font-serif text-[17px] font-bold">{t(language, 'emptyMemoryTitle')}</p>
@@ -640,11 +646,12 @@ export default function Memories({
 
       {groupByTag
         ? tagSections.map(({ tag, items }) => renderSection(tag === UNTAGGED ? t(language, 'untagged') : `#${tag}`, items))
-        : renderSection(t(language, 'allTags'), dateFiltered)}
+        : renderSection(t(language, 'allMemories'), dateFiltered)}
+      </div>
 
       {suggestionsOpen && tagGroups.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4" onClick={() => setSuggestionsOpen(false)}>
-          <div ref={suggestionsRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t(language, 'groupsTitle')} className="animate-sheet flex max-h-[82vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl outline-none sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+          <div ref={suggestionsRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t(language, 'groupsTitle')} className="animate-sheet flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-canvas p-4 shadow-xl outline-none sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2">
               <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
                 <Sparkles size={14} className="text-accent" /> {t(language, 'groupsTitle')}
@@ -701,7 +708,7 @@ export default function Memories({
                               className="accent-teal"
                             />
                             {member.originalRef && member.type === 'photo' ? (
-                              <img src={member.originalRef} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+                              <img src={member.originalRef} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded object-cover" />
                             ) : null}
                             <span className="min-w-0 flex-1 truncate font-medium text-ink">{member.summary}</span>
                           </label>

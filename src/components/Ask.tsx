@@ -93,7 +93,7 @@ export default function Ask({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div>
         <h1 className="font-serif text-[26px] font-bold tracking-tight">{t(language, 'ask')}</h1>
         <p className="mt-1 text-[12px] text-ink2">{t(language, 'askSubtitle')}</p>
@@ -251,6 +251,7 @@ export default function Ask({
               </div>
             )}
 
+            <div className="grid gap-2.5 lg:grid-cols-2">
             {answer.sources.map((capture) => {
               const match = capture.sourceMatch?.score;
               return (
@@ -264,7 +265,7 @@ export default function Ask({
                     className="flex w-full items-center gap-3 text-left"
                   >
                     {capture.originalRef && capture.type === 'photo' ? (
-                      <img src={capture.originalRef} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                      <img src={capture.originalRef} alt="" loading="lazy" decoding="async" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
                     ) : (
                       <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-teal-soft text-teal">
                         <BookOpen size={22} />
@@ -297,6 +298,7 @@ export default function Ask({
                 </div>
               );
             })}
+            </div>
 
             <div className="flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink3">
               <span>

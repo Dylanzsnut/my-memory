@@ -9,7 +9,7 @@ interface Props {
   reviewCount: number;
 }
 
-const items: { id: Tab; icon: typeof BookOpen; key: 'memories' | 'ask' | 'forget' }[] = [
+export const NAV_ITEMS: { id: Tab; icon: typeof BookOpen; key: 'memories' | 'ask' | 'forget' }[] = [
   { id: 'memories', icon: BookOpen, key: 'memories' },
   { id: 'ask', icon: MessageCircle, key: 'ask' },
   { id: 'forget', icon: Sparkles, key: 'forget' },
@@ -17,15 +17,16 @@ const items: { id: Tab; icon: typeof BookOpen; key: 'memories' | 'ask' | 'forget
 
 export default function BottomNav({ active, onChange, language, reviewCount }: Props) {
   return (
-    <nav className="sticky bottom-0 z-30 border-t border-line bg-canvas/95 backdrop-blur-xl">
+    <nav className="sticky bottom-0 z-30 border-t border-line bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
       <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-4">
-        {items.map(({ id, icon: Icon, key }) => {
+        {NAV_ITEMS.map(({ id, icon: Icon, key }) => {
           const isActive = active === id || (id === 'forget' && active === 'trash');
           return (
             <button
               key={id}
               type="button"
               onClick={() => onChange(id)}
+              aria-current={isActive ? 'page' : undefined}
               className={`relative flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 py-1 ${
                 isActive ? 'text-accent' : 'text-ink2 hover:text-ink'
               }`}
