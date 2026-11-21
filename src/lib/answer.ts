@@ -3,6 +3,7 @@ import { answerQuestion, citeSummary, hasSensitiveEntities } from './ai';
 import { contentWords, normalize, rawWords, tokenize } from './embeddings';
 import { t } from './i18n';
 import { isLongSynthesisQuestion, searchCaptures } from './search';
+import { captureExpiry } from './expiry';
 
 export function extractNumberTokens(text: string): string[] {
   const matches = text.match(/\d+(?:[.,/:-]\d+)*/g) || [];
@@ -50,7 +51,7 @@ export function verifyClaim(sentence: string, capture: CaptureRecord): boolean {
   const sourceText = [
     capture.summary,
     capture.entities.join(' '),
-    capture.expiryDate || '',
+    captureExpiry(capture) || '',
     capture.derivedText || '',
     ...(capture.tags || []),
   ].join(' ');

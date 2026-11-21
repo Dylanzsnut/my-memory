@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { isFirebaseConfigured, settings } from './lib/config';
 import { useStorageEstimate } from './lib/storage';
+import { validExpiry } from './lib/expiry';
 import {
   initFirebase,
   getServices,
@@ -196,6 +197,16 @@ export default function App() {
 
     const syncUid = activeSession.mode === 'google' ? uid : undefined;
     const { active: activeCaptures, purged } = purgeExpiredTrash(loadedCaptures);
+    // One-time data repair: invalid expiry values (e.g. the text "null") must
+    // never be treated as a real date. Correct only this derived field.
+    const repairedCaptures = await Promise.all(
+      activeCaptures.map(async (capture) => {
+        if (capture.expiryDate === null || validExpiry(capture.expiryDate)) return capture;
+        const fixed: CaptureRecord = { ...capture, expiryDate: null };
+        await saveCapture(fixed).catch((err) => console.warn('[store] expiry repair failed', err));
+        return fixed;
+      }),
+    );
     let currentProposals = loadedProposals;
     if (purged.length) {
       const purgedIds = new Set(purged.map((c) => c.id));
@@ -209,7 +220,7 @@ export default function App() {
     }
 
     const migratedCaptures = await Promise.all(
-      activeCaptures.map(async (c) => {
+      repairedCaptures.map(async (c) => {
         if (c.embedding.length === EMBEDDING_DIM) return c;
         const next = { ...c, embedding: await embed(rebuildSearchText(c) || c.summary || 'capture') };
         await saveCapture(next).catch((err) => console.warn('[store] re-embed migration failed', err));
@@ -373,7 +384,7 @@ export default function App() {
         capturedAt: request.capturedAt || new Date().toISOString(),
         summary: resolvedSummary,
         entities: resolvedEntities,
-        expiryDate: extraction?.expiryDate || null,
+        expiryDate: validExpiry(extraction?.expiryDate),
         language,
         inferenceSource: result.source,
         retentionState: protectedReason ? 'protected' : 'active',

@@ -1,5 +1,6 @@
 import type { CaptureRecord, Decision, ForgetProposal } from '../types';
 import { cosine } from './embeddings';
+import { captureExpiry } from './expiry';
 
 function expiryPassed(expiryDate: string): boolean {
   const match = expiryDate.trim().match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
@@ -61,12 +62,13 @@ export function scanForProposals(
     }
 
     // F2 — Expired: only a capture's own stated expiryDate counts.
-    if (capture.expiryDate && expiryPassed(capture.expiryDate)) {
+    const expiry = captureExpiry(capture);
+    if (expiry && expiryPassed(expiry)) {
       proposals.push({
         id: `prop_${capture.id}_exp`,
         captureId: capture.id,
         reason: 'expired',
-        evidence: `Its own expiry date (${capture.expiryDate}) has passed. The content is no longer usable.`,
+        evidence: `Its own expiry date (${expiry}) has passed. The content is no longer usable.`,
         createdAt: now,
       });
     }

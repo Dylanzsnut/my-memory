@@ -51,6 +51,12 @@ Firestore field allowlist in `syncCaptureMetadata`: `id`, `type`, `capturedAt`,
 `retentionState`. No `originalRef`, `audioBlob`, `derivedText`, `embedding`,
 `sourceMatch`, `protectedReason`, `tags`, `suggestedTags`, timestamps of purge, or demo records.
 
+`expiryDate` is a derived field and is stored only as a validated `YYYY-MM` or
+`YYYY-MM-DD` value, never the literal text `"null"` / `"undefined"` or junk.
+On app open, legacy invalid values are reset to empty in IndexedDB (a one-time
+repair of this derived field only; originals are never modified). Firestore
+sync writes the validated value or empty.
+
 ## 3. Query-to-index matrix
 
 | Index | Store | Definition | Serves | Cost |

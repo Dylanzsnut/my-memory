@@ -19,6 +19,7 @@ import { normalize } from '../lib/embeddings';
 import { t } from '../lib/i18n';
 import { prepareEntityTag, type EntityTagProposal } from '../lib/tags';
 import { buildCopyText, askSuggestions } from '../lib/captureView';
+import { captureExpiry } from '../lib/expiry';
 import { navTarget } from '../lib/dateFilter';
 import { useDialog } from '../lib/useDialog';
 import { SourceBadge } from './Hud';
@@ -194,9 +195,9 @@ function DetailContent({
               )}
             </div>
           )}
-          {capture.expiryDate && (
+          {captureExpiry(capture) && (
             <p className="mt-3 text-[11px] font-bold text-gold">
-              {language === 'vi' ? 'Hạn dùng' : 'Expiry'}: {capture.expiryDate}
+              {language === 'vi' ? 'Hạn dùng' : 'Expiry'}: {captureExpiry(capture)}
             </p>
           )}
         </div>

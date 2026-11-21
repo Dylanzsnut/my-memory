@@ -20,6 +20,7 @@ import { formatBytes } from '../src/lib/storage';
 import { tagCollections, recentCaptures, pickInspected } from '../src/lib/collections';
 import { buildCopyText, askSuggestions } from '../src/lib/captureView';
 import { suggestQuestions } from '../src/lib/askSuggestions';
+import { validExpiry, captureExpiry, formatExpiry } from '../src/lib/expiry';
 import { settings } from '../src/lib/config';
 
 async function makeCapture(
@@ -188,6 +189,23 @@ describe('answer assembly, corpus QA, and fail-closed verifier', () => {
     assert.equal(verifyClaim('Home Wi-Fi password is fake9999 [cap_wifi].', wifi), false);
     assert.equal(verifyClaim('Home Wi-Fi password is songhong2024 [cap_wifi].', wifi), true);
     assert.equal(verifyClaim('Drink water every morning [cap_med].', med), false);
+  });
+
+  it('never treats "null" or invalid expiry text as evidence', async () => {
+    const bad = await makeCapture({ id: 'bad', type: 'note', summary: 'Meeting notes', expiryDate: 'null' as unknown as string });
+    assert.equal(validExpiry('null'), null);
+    assert.equal(validExpiry(''), null);
+    assert.equal(validExpiry('2027-13'), null);
+    assert.equal(validExpiry('2027-03'), '2027-03');
+    assert.equal(formatExpiry('2027-03', 'en'), 'in March 2027 (03/2027)');
+    assert.equal(formatExpiry('2025-11-10', 'en'), 'on 10 November 2025 (10/11/2025)');
+    assert.equal(formatExpiry('null', 'en'), '');
+    assert.equal(captureExpiry(bad), null);
+    assert.equal(verifyClaim('In null. [bad]', bad), false);
+    assert.equal(verifyClaim('In March 2027. [bad]', bad), false);
+    const answer = await buildAnswer('When does this expire?', [bad], 0);
+    assert.equal(answer.notFound, true);
+    assert.doesNotMatch(answer.text, /null/i);
   });
 
   it('refuses long synthesis offline instead of returning a stitched SIMULATED list', async () => {

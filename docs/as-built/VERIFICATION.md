@@ -21,6 +21,7 @@
 | Plain-language UI (2026-11-21) | CMP-001…007 | UI-001…007 | all screens | Verified (code/build): all technical labels moved behind the `technicalDetails` setting (off by default); provenance and Not-found stay explicit; demo greeting no longer uses "Demo" as a name. Typecheck/lint/29 tests/build pass. UNVERIFIED visually: no browser run for the toggle across 375–1440px. |
 | Desktop workspace v2 (2026-11-21) | CMP-001…007 | UI-002…007 | desktop | Verified (unit/build): new date ranges, pagination and tag collections pass in `tests/core.test.ts`; typecheck/lint/build pass. UNVERIFIED visually: no browser for the full-width grid, Overview, compact filter bar or paging interaction. |
 | Preview/tag-lock/Ask suggestions (2026-11-21) | CMP-001…007 | UI-002, UI-003, UI-005 | desktop + mobile | Verified (unit/build): `pickInspected`, narrow tag-secret detection and `suggestQuestions` (empty library, expiry, secrets excluded, online tag totals, VI, no fixed phrases) pass — 33/33 tests; answer check and cloud redaction unchanged. UNVERIFIED visually: no browser for the panel in Overview or the suggestion chips. |
+| Expiry correctness (2026-11-21) | CMP-003 | ENT-001 | UI-003, UI-005 | Verified (unit): `validExpiry`/`captureExpiry` reject "null"/invalid dates; `verifyClaim` rejects "In null"; expiry question with no valid date returns Not found; valid dates answer with a numeric form that verifies. 34/34 tests pass. Storage repair of legacy `"null"` values runs on app open (code-verified, not device-verified). |
 
 ## Input coverage
 

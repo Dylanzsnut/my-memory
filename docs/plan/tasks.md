@@ -1174,6 +1174,43 @@ stay usable but get the same compact bar. No data, privacy or inference changes.
       <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
       `index-AXSNpObp.js` / `index-CpSAX-r8.css`, matching the local build.
 
+## Expiry date correctness (2026-11-21)
+
+Scope: owner report "When does meeting held expire? → In null." Root cause: a
+stored `expiryDate` of the text `"null"` passed through save, suggestion,
+answer formatting and `verifyClaim`, which used it as evidence and labelled the
+fabricated answer Verified. Fix keeps fail-closed verification: invalid expiry
+never counts as proof.
+
+- [x] E1 Shared `validExpiry` / `captureExpiry` helper in `src/lib/expiry.ts`;
+      used in suggestions, simulated answer, verifyClaim evidence, detail
+      view, inspector, copy text, F2 proposals, model context and Firestore
+      metadata.
+- [x] E2 Clean expiry at save time in App; one-time repair on app open resets
+      stored `"null"` / `"undefined"` / unreadable expiry to empty.
+- [x] E3 verifyClaim ignores null/undefined placeholders; expiry question with
+      no valid date returns Not found.
+- [x] E4 Meaningful date phrasing (readable UI form plus numeric form for the
+      verifier), subject from summary start; expiry suggestion only for a
+      valid date.
+- [x] E5 Tests for invalid values, no suggestion/detail line, Not-found answer,
+      verifier rejection and acceptance, and the storage repair.
+- [x] E6 Verify typecheck/lint/tests/build; update VERIFICATION.md + DATA.md;
+      commit and deploy Hosting.
+
+      Note (2026-11-21): typecheck, lint, 34/34 tests and production build pass
+      (`index-OeKMBcP3.js`). The verifier rejects "In null" and the answer uses
+      a numeric date form (e.g. "In 08/2027") so claims still verify.
+
+## Deploy: expiry correctness (2026-11-21)
+
+- [x] Deploy the current `dist/` build to Firebase Hosting for
+      `my-memory-hybrid-2026` and verify the live URL serves the new assets.
+
+      Note (2026-11-21): Hosting release completed. Live URL
+      <https://my-memory-hybrid-2026.web.app> returned HTTP 200 and serves
+      `index-OeKMBcP3.js` / `index-CpSAX-r8.css`, matching the local build.
+
 ## Preview panel, tag-lock and Ask suggestions (2026-11-21)
 
 Scope: owner reports (a) the preview toggle does nothing in Overview and

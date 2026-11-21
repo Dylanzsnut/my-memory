@@ -1,6 +1,7 @@
 import { ShieldCheck } from 'lucide-react';
 import type { CaptureRecord, Language } from '../../types';
 import { t } from '../../lib/i18n';
+import { captureExpiry } from '../../lib/expiry';
 
 interface Props {
   capture: CaptureRecord;
@@ -38,9 +39,9 @@ export default function CaptureFacts({ capture, language }: Props) {
           </div>
         </div>
       )}
-      {capture.expiryDate && (
+      {captureExpiry(capture) && (
         <p className="mt-3 text-[11px] font-bold text-gold">
-          {language === 'vi' ? 'Hạn dùng' : 'Expiry'}: {capture.expiryDate}
+          {language === 'vi' ? 'Hạn dùng' : 'Expiry'}: {captureExpiry(capture)}
         </p>
       )}
       {capture.protectedReason && (

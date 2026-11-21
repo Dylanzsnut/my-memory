@@ -21,6 +21,7 @@ import {
 } from 'firebase/remote-config';
 import type { AI } from 'firebase/ai';
 import type { AuthSession, CaptureRecord } from '../types';
+import { captureExpiry } from './expiry';
 import {
   enableFirestoreSync,
   firebaseConfig,
@@ -199,7 +200,7 @@ export async function syncCaptureMetadata(captures: CaptureRecord[], uid?: strin
         capturedAt: capture.capturedAt,
         summary: capture.summary,
         entities: capture.entities,
-        expiryDate: capture.expiryDate,
+        expiryDate: captureExpiry(capture),
         language: capture.language,
         inferenceSource: capture.inferenceSource,
         retentionState: capture.retentionState,

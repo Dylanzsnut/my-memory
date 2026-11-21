@@ -1,6 +1,7 @@
 import type { CaptureRecord, Language } from '../types';
 import { contentWords } from './embeddings';
 import { isTagSecret } from './tags';
+import { captureExpiry } from './expiry';
 
 /** Questions generated from the local library — no model call, no network. */
 export interface Suggestion {
@@ -21,9 +22,12 @@ function topicWords(capture: CaptureRecord): string[] {
 }
 
 function shortTitle(capture: CaptureRecord, language: Language): string {
+  // Prefer the start of the user's own summary so the question stays meaningful.
+  const lead = capture.summary.trim().split(/[.!?]/)[0].trim().split(/\s+/).slice(0, 4).join(' ');
+  if (lead) return lead.slice(0, 40);
   const words = topicWords(capture);
   if (words.length) return words.slice(0, 2).join(' ');
-  return capture.summary.trim().split(/[.!?]/)[0].slice(0, 32) || (language === 'vi' ? 'ký ức này' : 'this memory');
+  return language === 'vi' ? 'ký ức này' : 'this memory';
 }
 
 /** Build at most 5 relevant, answerable questions from the given captures. */
@@ -47,7 +51,7 @@ export function suggestQuestions(
     candidates.push({ question, captureId });
   };
 
-  const expiry = sorted.find((capture) => capture.expiryDate);
+  const expiry = sorted.find((capture) => Boolean(captureExpiry(capture)));
   if (expiry) {
     add(
       language === 'vi'

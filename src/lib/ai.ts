@@ -9,6 +9,7 @@ import type {
 import { getServices } from './firebase';
 import { FALLBACK_CLOUD_MODEL, settings, ON_DEVICE_PROMPT_INSTRUCTIONS } from './config';
 import { normalize } from './embeddings';
+import { captureExpiry, expiryNumeric } from './expiry';
 
 let aiSdkPromise: Promise<typeof import('firebase/ai')> | null = null;
 let cachedExtractionJsonSchema: object | null = null;
@@ -271,7 +272,7 @@ function contextFrom(
       );
       // User tags are only ever shown to the on-device model; they never go to the cloud.
       const tagLine = includeTags && c.tags?.length ? `\n  tags: ${c.tags.join(', ')}` : '';
-      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}${tagLine}\n  expiryDate: ${c.expiryDate ?? 'null'}`;
+      return `- [${c.id}] ${c.type} ${c.capturedAt}\n  summary: ${summary}\n  entities: ${entities.join(', ')}${tagLine}\n  expiryDate: ${captureExpiry(c) ?? 'none'}`;
     })
     .join('\n');
 }
@@ -297,19 +298,12 @@ function simulatedAnswer(question: string, captures: CaptureRecord[], intent: 's
   const q = normalize(question);
   const top = captures[0];
   if (/expir|han dung|het han/i.test(q)) {
-    const withExpiry = captures.find((c) => Boolean(c.expiryDate)) ?? top;
-    if (withExpiry.expiryDate) {
-      const parts = withExpiry.expiryDate.split('-');
-      const expiryLabel =
-        parts.length >= 3
-          ? `${parts[2]}/${parts[1]}/${parts[0]}`
-          : parts.length === 2
-            ? `${parts[1]}/${parts[0]}`
-            : withExpiry.expiryDate;
-      const prefix = parts.length >= 3 ? `On ${expiryLabel}` : `In ${expiryLabel}`;
-      const detail = withExpiry.entities.includes('medicine') ? ' — from the medicine box photographed earlier' : '';
-      return `${prefix} [${withExpiry.id}]${detail}.`;
+    const withExpiry = captures.find((c) => Boolean(captureExpiry(c)));
+    if (withExpiry) {
+      const numeric = expiryNumeric(captureExpiry(withExpiry));
+      return `In ${numeric} [${withExpiry.id}].`;
     }
+    return 'NOT_FOUND';
   }
   if (/\bplate|bien so/.test(q)) {
     const plate = top.entities.find((e) => /\d{2}[A-Z]-?\d+\.\d+/i.test(e));

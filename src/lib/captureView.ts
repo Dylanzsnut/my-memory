@@ -3,6 +3,7 @@ import type { CaptureRecord, Language } from '../types';
 import { isSensitiveEntity } from './ai';
 import { redactSensitiveText } from './ai';
 import { suggestQuestions } from './askSuggestions';
+import { captureExpiry } from './expiry';
 import { t } from './i18n';
 
 /** Audio object URL for a voice capture, revoked on change/unmount. */
@@ -42,7 +43,7 @@ export function buildCopyText(capture: CaptureRecord): string {
   const safeEntities = capture.entities.filter((entity) => !isSensitiveEntity(entity, capture));
   const lines = [
     redactSensitiveText(capture.summary),
-    capture.expiryDate ? `Expiry: ${capture.expiryDate}` : '',
+    captureExpiry(capture) ? `Expiry: ${captureExpiry(capture)}` : '',
     ...safeEntities.map((entity) => redactSensitiveText(entity)),
   ];
   return lines.filter(Boolean).join('\n');
